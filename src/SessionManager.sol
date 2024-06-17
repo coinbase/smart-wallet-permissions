@@ -14,7 +14,7 @@ import {SignatureChecker} from "./utils/SignatureChecker.sol";
 ///      Account implementations MUST validate scopes within their execution flow outside of validateUserOp.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-abstract contract SessionManager {
+contract SessionManager {
     /// @notice A time-bound provision of scoped account control to another signer.
     struct Session {
         address account;
@@ -62,8 +62,10 @@ abstract contract SessionManager {
 
     /// @notice Validates a session via EIP-1271.
     ///
-    /// @dev assumes called by CoinbaseSmartWallet where this contract is an owner.
-    /// @dev `view` mutability removed, breaking EIP-1271 standard, to support state writes in scopeVerifiers for accumulating spend
+    /// @dev Assumes called by CoinbaseSmartWallet where this contract is an owner.
+    ///      Removed `view` mutability intentionally to support storing session spending.
+    ///      This is important to discuss, but I believe we can get away with removing view for onchain validation,
+    ///      but offchain validation will be semi-broken but also semi-usable via simulations.
     ///
     /// @param hash Arbitrary data to sign over.
     /// @param authData Combination of an approved Session and a signature from the session's signer for `hash`.

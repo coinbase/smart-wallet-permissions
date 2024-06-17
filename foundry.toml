@@ -3,4 +3,10 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
-# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+[profile.deploy]
+optimizer = true
+optimizer_runs = 999999
+
+[fmt]
+sort_imports = true
+wrap_comments = true

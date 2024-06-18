@@ -12,17 +12,20 @@ import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 contract UserOperationUtils {
 
     /// @notice UserOperation does not match provided hash.
-    error InvalidUserOperation();
+    error InvalidUserOperationHash();
 
-    /// @notice UserOperation does not match provided hash.
-    error InvalidCallData();
+    /// @notice UserOperation sender does not match account.
+    error InvalidUserOperationSender();
 
-    /// @notice Function selector for userOp callData not supported
-    error UnsupportedFunctionSelector();
+    /// @notice Function selector not allowed.
+    error SelectorNotAllowed();
+
+    /// @notice UserOperation callData is invalid.
+    error InvalidUserOperationCallData();
     
     /// @notice split encoded function call into selector and arguments
     function _splitCallData(bytes memory callData) internal pure returns (bytes4 selector, bytes memory args) {
-        if (callData.length <= 4) revert InvalidCallData();
+        if (callData.length <= 4) revert InvalidUserOperationCallData();
         bytes memory trimmed = new bytes(callData.length - 4);
         for (uint i = 4; i < callData.length; i++) {
             trimmed[i - 4] = callData[i];

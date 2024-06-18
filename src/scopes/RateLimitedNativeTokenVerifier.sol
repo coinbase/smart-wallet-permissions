@@ -46,7 +46,7 @@ contract RateLimitedNativeTokenVerifier  is IScopeVerifier, UserOperationUtils {
         (UserOperation memory userOp) = abi.decode(dynamicData, (UserOperation));
 
         // check userOp matches hash
-        if (_hashUserOperation(userOp) != hash) revert InvalidUserOperation();
+        if (_hashUserOperation(userOp) != hash) revert InvalidUserOperationHash();
         // parse scopeData parameters
         (uint256 spendRateValue, uint256 spendRatePeriod, bool allowlist, FunctionCall[] memory functions) = abi.decode(scopeData, (uint256, uint256, bool, FunctionCall[]));
         // verify function allowlist/blocklist and calculate native token spend in this userOp
@@ -81,7 +81,7 @@ contract RateLimitedNativeTokenVerifier  is IScopeVerifier, UserOperationUtils {
     function _verifyCalls(bytes memory callData, bool allowlist, FunctionCall[] memory functions) internal pure returns (uint256 attemptSpend) {
         // check function is executeCalls (0x34fcd5be)
         (bytes4 selector, bytes memory args) = _splitCallData(callData);
-        if (selector != 0x34fcd5be) revert UnsupportedFunctionSelector();
+        if (selector != 0x34fcd5be) revert SelectorNotAllowed();
 
         (Call[] memory calls) = abi.decode(args, (Call[]));
         // for each call, accumulate attempted spend and check function allowlist/blocklist conditions

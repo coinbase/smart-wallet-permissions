@@ -4,12 +4,12 @@ pragma solidity 0.8.23;
 import {IScopeVerifier} from "./IScopeVerifier.sol";
 import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
 
-/// @title RecoverySignerVerifier
+/// @title CoinbaseWalletRecoveryVerifier
 ///
-/// @notice Trust a third-party to recover signers in the event of loss of primary keys used to control an account.
+/// @notice Trust a third-party to recover signers in the event of loss of primary keys used to control a Coinbase Smart Wallet.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract RecoverySignerVerifier is IScopeVerifier, UserOperationUtils {
+contract CoinbaseWalletRecoveryVerifier is IScopeVerifier, UserOperationUtils {
     function verifyScope(address account, bytes32 hash, bytes32 /*sessionId*/, bytes calldata /*scopeData*/, bytes calldata dynamicData) external pure {
         UserOperation memory userOp = abi.decode(dynamicData, (UserOperation));
 

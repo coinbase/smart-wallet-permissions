@@ -5,7 +5,7 @@ import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 
 import {IScopeVerifier} from "./IScopeVerifier.sol";
 
-/// @title OffchainAssetationVerifier
+/// @title OffchainAttestationVerifier
 ///
 /// @notice Trust a third-party to verify conditions offchain and sign attestations.
 ///

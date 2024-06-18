@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
 
 import {IScopeVerifier} from "./IScopeVerifier.sol";
+import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
 
 /// @title RateLimitedNativeTokenVerifier
 ///
@@ -11,7 +11,7 @@ import {IScopeVerifier} from "./IScopeVerifier.sol";
 ///      Supports allowlisting and blocklisting function calls.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract RateLimitedNativeTokenVerifier  is IScopeVerifier {
+contract RateLimitedNativeTokenVerifier  is IScopeVerifier, UserOperationUtils {
 
     /// @notice Represents a call to make from the account.
     struct Call {
@@ -32,17 +32,8 @@ contract RateLimitedNativeTokenVerifier  is IScopeVerifier {
         uint216 value; // TODO: reconsider premature packing, but realistically this is still big enough...
     }
 
-    /// @notice UserOperation does not match provided hash.
-    error InvalidUserOperation();
-
-    /// @notice Function selector for userOp callData not supported
-    error UnsupportedFunctionSelector();
-
     /// @notice Total value sent in userOp exceeds session's spending limit
     error SpendingLimitExceeded();
-    
-    /// @notice UserOperation does not match provided hash.
-    error InvalidCallData();
 
     /// @notice UserOperation does not match allowed function selectors.
     error InvalidFunctionCall();
@@ -115,37 +106,5 @@ contract RateLimitedNativeTokenVerifier  is IScopeVerifier {
             }
         }
         return attemptSpend;
-    }
-
-    /// @notice split encoded function call into selector and arguments
-    function _splitCallData(bytes memory callData) internal pure returns (bytes4 selector, bytes memory args) {
-        if (callData.length <= 4) revert InvalidCallData();
-        bytes memory trimmed = new bytes(callData.length - 4);
-        for (uint i = 4; i < callData.length; i++) {
-            trimmed[i - 4] = callData[i];
-        }
-        return (bytes4(callData), trimmed);
-    }
-
-    /// @dev TODO: couldn't get UserOperationLib to work with UserOperation memory type and needed a quick fix for build errors, we should find something less brute-forcey
-    function _hashUserOperation(UserOperation memory userOp) internal pure returns (bytes32) {
-        address sender = userOp.sender;
-        uint256 nonce = userOp.nonce;
-        bytes32 hashInitCode = keccak256(userOp.initCode);
-        bytes32 hashCallData = keccak256(userOp.callData);
-        uint256 callGasLimit = userOp.callGasLimit;
-        uint256 verificationGasLimit = userOp.verificationGasLimit;
-        uint256 preVerificationGas = userOp.preVerificationGas;
-        uint256 maxFeePerGas = userOp.maxFeePerGas;
-        uint256 maxPriorityFeePerGas = userOp.maxPriorityFeePerGas;
-        bytes32 hashPaymasterAndData = keccak256(userOp.paymasterAndData);
-
-        return keccak256(abi.encode(
-            sender, nonce,
-            hashInitCode, hashCallData,
-            callGasLimit, verificationGasLimit, preVerificationGas,
-            maxFeePerGas, maxPriorityFeePerGas,
-            hashPaymasterAndData
-        ));
     }
 }

@@ -36,6 +36,9 @@ contract RateLimitedNativeTokenModule  is IPermissionModule, UserOperationUtils 
 
     /// @notice UserOperation does not match allowed function selectors.
     error InvalidFunctionCall();
+    
+    /// @notice Spend in user operation not registered at end of execution.
+    error MissingRegisterSpend();
 
     /// @notice recent spends of native asset per account per session, used to enforce rate limiting.
     mapping(address account => mapping(bytes32 sessionId => Spend[])) internal _recentSpends;
@@ -49,9 +52,17 @@ contract RateLimitedNativeTokenModule  is IPermissionModule, UserOperationUtils 
         // parse permissionData parameters
         (uint256 spendRateValue, uint256 spendRatePeriod, bool allowlist, FunctionCall[] memory functions) = abi.decode(permissionData, (uint256, uint256, bool, FunctionCall[]));
         // verify function allowlist/blocklist and calculate native token spend in this userOp
-        uint256 attemptSpend = _verifyCalls(userOp.callData, allowlist, functions);
-        // verify spend limit and save new spend if valid
+        uint256 attemptSpend = _verifyCalls(sessionId, userOp.callData, allowlist, functions);
+        // verify spend limit
         _verifySpendLimit(account, sessionId, attemptSpend, spendRateValue, spendRatePeriod);
+    }
+
+    /// @notice Register a spend of native token for a given session.
+    ///
+    /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS risk.
+    ///      If this is not acceptable, we could create a check that relies on an 'activeSession' per user in TSTORE potentially.
+    function registerSpend(bytes32 sessionId, uint256 value) external {
+        _recentSpends[msg.sender][sessionId].push(Spend(uint40(block.timestamp), uint216(value)));
 
     }
 
@@ -70,13 +81,10 @@ contract RateLimitedNativeTokenModule  is IPermissionModule, UserOperationUtils 
         }
         // check attemptSpend will not push currentPeriodSpend above spendRateValue
         if (attemptSpend + currentPeriodSpend > spendRateValue) revert SpendingLimitExceeded();
-
-        /// @dev TODO: change approach to expose an `endOp` function that sets the spend used in the op.
-        // recentSpends.push(Spend(uint40(block.timestamp), uint216(attemptSpend)));
     }
 
     /// @notice verify function allowlist/blocklist and calculate native token spend in this userOp
-    function _verifyCalls(bytes memory callData, bool allowlist, FunctionCall[] memory functions) internal pure returns (uint256 attemptSpend) {
+    function _verifyCalls(bytes32 sessionId, bytes memory callData, bool allowlist, FunctionCall[] memory functions) internal pure returns (uint256 attemptSpend) {
         // check function is executeCalls (0x34fcd5be)
         (bytes4 selector, bytes memory args) = _splitCallData(callData);
         if (selector != 0x34fcd5be) revert SelectorNotAllowed();
@@ -101,6 +109,13 @@ contract RateLimitedNativeTokenModule  is IPermissionModule, UserOperationUtils 
                 } else {
                     revert InvalidFunctionCall();
                 }
+            }
+        }
+        if (attemptSpend > 0) {
+            Call memory lastCall = calls[calls.length - 1];
+            registerSpendData = abi.encodeWithSelector(registerSpend.selector, sessionId, attemptSpend);
+            if (lastCall.target != address(this) || lastCall.data != registerSpendData) {
+                revert MissingRegisterSpend();
             }
         }
         return attemptSpend;

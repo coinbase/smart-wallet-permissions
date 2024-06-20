@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-
 import {IPermissionModule} from "./IPermissionModule.sol";
 import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
 
-/// @title RateLimitedNativeTokenVerifier
+/// @title RateLimitedNativeTokenModule
 ///
 /// @dev Supports setting spend limits on a rolling basis, e.g. 1 ETH per week.
 ///      Supports allowlisting and blocklisting function calls.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract RateLimitedNativeTokenVerifier  is IPermissionModule, UserOperationUtils {
+contract RateLimitedNativeTokenModule  is IPermissionModule, UserOperationUtils {
 
     /// @notice Represents a call to make from the account.
     struct Call {

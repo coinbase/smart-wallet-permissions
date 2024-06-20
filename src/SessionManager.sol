@@ -3,7 +3,7 @@ pragma solidity 0.8.23;
 
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 
-import {IPermissionModule} from "./scopes/IPermissionModule.sol";
+import {IPermissionModule} from "./modules/IPermissionModule.sol";
 import {SignatureChecker} from "./utils/SignatureChecker.sol";
 
 /// @title SessionManager

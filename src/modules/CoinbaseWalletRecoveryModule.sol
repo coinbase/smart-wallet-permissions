@@ -4,12 +4,12 @@ pragma solidity 0.8.23;
 import {IPermissionModule} from "./IPermissionModule.sol";
 import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
 
-/// @title CoinbaseWalletRecoveryVerifier
+/// @title CoinbaseWalletRecoveryModule
 ///
 /// @notice Trust a third-party to recover signers in the event of loss of primary keys used to control a Coinbase Smart Wallet.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract CoinbaseWalletRecoveryVerifier is IPermissionModule, UserOperationUtils {
+contract CoinbaseWalletRecoveryModule is IPermissionModule, UserOperationUtils {
     function validatePermissions(address account, bytes32 hash, bytes32 /*sessionId*/, bytes calldata /*permissionData*/, bytes calldata requestData) external pure {
         UserOperation memory userOp = abi.decode(requestData, (UserOperation));
 

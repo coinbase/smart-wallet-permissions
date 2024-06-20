@@ -24,7 +24,7 @@ contract SessionManager is IERC1271 {
         bytes permissionData;
         uint40 expiresAt;
         // TODO: consider EIP-712 format instead
-        uint256 chainId; // (to discuss) 0 could represent chain-agnostic i.e. this session applies on any network
+        uint256 chainId; // prevent replay on other chains
         address verifyingContract; // prevent replay on other potential SessionManager implementations
     }
 
@@ -69,22 +69,12 @@ contract SessionManager is IERC1271 {
     function isValidSignature(bytes32 hash, bytes calldata authData) external view returns (bytes4 result) {
         // assume session, signature, attestation encoded together
         (Session memory session, bytes memory signature, bytes memory requestData) = abi.decode(authData, (Session, bytes, bytes));
-
-        // validate core session parameters and signature
-        _validateSession(session, hash, signature);
-        // validate permission-specific logic
-        IPermissionModule(session.permissionModule).validatePermissions(msg.sender, hash, keccak256(abi.encode(session)), session.permissionData, requestData);
-
-        return EIP1271_MAGIC_VALUE;
-    }
-
-    function _validateSession(Session memory session, bytes32 hash, bytes memory signature) internal view {
         bytes32 sessionId = keccak256(abi.encode(session));
 
         // check sender is session account
         if (msg.sender != session.account) revert InvalidSessionAccount();
         // check chainId is agnostic or this chain
-        if (session.chainId != 0 && session.chainId != block.chainid) revert InvalidSessionChain();
+        if (session.chainId != block.chainid) revert InvalidSessionChain();
         // check verifyingContract is SessionManager
         if (session.verifyingContract != address(this)) revert InvalidSessionVerifyingContract();
         // check session not expired
@@ -95,6 +85,10 @@ contract SessionManager is IERC1271 {
         if (EIP1271_MAGIC_VALUE != IERC1271(session.account).isValidSignature(sessionId, session.approval)) revert InvalidSessionApproval();
         // check session signer's signature on hash
         if (!SignatureChecker.isValidSignatureNow(hash, signature, session.signer)) revert InvalidSignature();
+        // validate permission-specific logic
+        IPermissionModule(session.permissionModule).validatePermissions(msg.sender, hash, keccak256(abi.encode(session)), session.permissionData, requestData);
+
+        return EIP1271_MAGIC_VALUE;
     }
 
     /// @notice Revoke a session to prematurely expire it.

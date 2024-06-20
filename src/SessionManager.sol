@@ -3,7 +3,7 @@ pragma solidity 0.8.23;
 
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 
-import {IScopeVerifier} from "./scopes/IScopeVerifier.sol";
+import {IPermissionModule} from "./scopes/IPermissionModule.sol";
 import {SignatureChecker} from "./utils/SignatureChecker.sol";
 
 /// @title SessionManager
@@ -14,14 +14,14 @@ import {SignatureChecker} from "./utils/SignatureChecker.sol";
 ///      Account implementations MUST validate scopes within their execution flow outside of validateUserOp.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract SessionManager {
+contract SessionManager is IERC1271 {
     /// @notice A time-bound provision of scoped account control to another signer.
     struct Session {
         address account;
         bytes approval;
         bytes signer;
-        address scopeVerifier;
-        bytes scopeData;
+        address permissionModule;
+        bytes permissionData;
         uint40 expiresAt;
         // TODO: consider EIP-712 format instead
         uint256 chainId; // (to discuss) 0 could represent chain-agnostic i.e. this session applies on any network
@@ -63,25 +63,22 @@ contract SessionManager {
     /// @notice Validates a session via EIP-1271.
     ///
     /// @dev Assumes called by CoinbaseSmartWallet where this contract is an owner.
-    ///      Removed `view` mutability intentionally to support storing session spending.
-    ///      This is important to discuss, but I believe we can get away with removing view for onchain validation,
-    ///      but offchain validation will be semi-broken but also semi-usable via simulations.
     ///
     /// @param hash Arbitrary data to sign over.
     /// @param authData Combination of an approved Session and a signature from the session's signer for `hash`.
-    function isValidSignature(bytes32 hash, bytes calldata authData) external returns (bytes4 result) {
+    function isValidSignature(bytes32 hash, bytes calldata authData) external view returns (bytes4 result) {
         // assume session, signature, attestation encoded together
-        (Session memory session, bytes memory signature, bytes memory scopeArgs) = abi.decode(authData, (Session, bytes, bytes));
+        (Session memory session, bytes memory signature, bytes memory requestData) = abi.decode(authData, (Session, bytes, bytes));
 
-        // validate core session logic
-        _validateSessionSignature(session, hash, signature);
-        // validate scope-specific logic
-        IScopeVerifier(session.scopeVerifier).verifyScope(msg.sender, hash, keccak256(abi.encode(session)), session.scopeData, scopeArgs);
+        // validate core session parameters and signature
+        _validateSession(session, hash, signature);
+        // validate permission-specific logic
+        IPermissionModule(session.permissionModule).validatePermissions(msg.sender, hash, keccak256(abi.encode(session)), session.permissionData, requestData);
 
         return EIP1271_MAGIC_VALUE;
     }
 
-    function _validateSessionSignature(Session memory session, bytes32 hash, bytes memory signature) internal view {
+    function _validateSession(Session memory session, bytes32 hash, bytes memory signature) internal view {
         bytes32 sessionId = keccak256(abi.encode(session));
 
         // check sender is session account

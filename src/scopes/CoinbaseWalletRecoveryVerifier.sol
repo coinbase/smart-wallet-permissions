@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import {IScopeVerifier} from "./IScopeVerifier.sol";
+import {IPermissionModule} from "./IPermissionModule.sol";
 import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
 
 /// @title CoinbaseWalletRecoveryVerifier
@@ -9,9 +9,9 @@ import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol
 /// @notice Trust a third-party to recover signers in the event of loss of primary keys used to control a Coinbase Smart Wallet.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract CoinbaseWalletRecoveryVerifier is IScopeVerifier, UserOperationUtils {
-    function verifyScope(address account, bytes32 hash, bytes32 /*sessionId*/, bytes calldata /*scopeData*/, bytes calldata dynamicData) external pure {
-        UserOperation memory userOp = abi.decode(dynamicData, (UserOperation));
+contract CoinbaseWalletRecoveryVerifier is IPermissionModule, UserOperationUtils {
+    function validatePermissions(address account, bytes32 hash, bytes32 /*sessionId*/, bytes calldata /*permissionData*/, bytes calldata requestData) external pure {
+        UserOperation memory userOp = abi.decode(requestData, (UserOperation));
 
         // check userOp matches hash
         if (_hashUserOperation(userOp) != hash) revert InvalidUserOperationHash();

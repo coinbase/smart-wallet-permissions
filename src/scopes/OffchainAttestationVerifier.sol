@@ -3,7 +3,7 @@ pragma solidity 0.8.23;
 
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 
-import {IScopeVerifier} from "./IScopeVerifier.sol";
+import {IPermissionModule} from "./IPermissionModule.sol";
 
 /// @title OffchainAttestationVerifier
 ///
@@ -12,10 +12,10 @@ import {IScopeVerifier} from "./IScopeVerifier.sol";
 /// @dev Most flexible verification logic.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract OffchainAttestationVerifier is IScopeVerifier {
-    function verifyScope(address /*account*/, bytes32 hash, bytes32 /*sessionId*/, bytes calldata scopeData, bytes calldata dynamicData) external view {
-        bytes memory attestation = abi.decode(dynamicData, (bytes));
-        address attestor = abi.decode(scopeData, (address));
+contract OffchainAttestationValidator is IPermissionModule {
+    function validatePermissions(address /*account*/, bytes32 hash, bytes32 /*sessionId*/, bytes calldata permissionData, bytes calldata requestData) external view {
+        bytes memory attestation = abi.decode(requestData, (bytes));
+        address attestor = abi.decode(permissionData, (address));
 
         // check attestation
         SignatureCheckerLib.isValidSignatureNow(attestor, hash, attestation);

@@ -1,66 +1,25 @@
-## Foundry
+# Smart Wallet Periphery
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A set of contracts on the periphery to extend the utility of Smart Wallets.
 
-Foundry consists of:
+The first flagship feature are Session Keys, but this repository will continue to grow with other use cases.
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Session Keys
 
-## Documentation
+Currently, all signature and transaction requests on Smart Wallet need to go through a new pop-up window on "keys.coinbase.com" to be signed by a user’s passkey. We have received feedback from developers and users that this process can feel slow, frictionful, and disjoint from the app experience (especially on mobile, which represents 65% of smart wallet users). 
 
-https://book.getfoundry.sh/
+"Session keys" are a method for granting ephemeral permissions to additional Ethereum addresses and passkeys that enable apps to prompt signatures without going through our pop-up window. By doing so, they can create signature-less experiences and run background processes after getting user approval.
 
-## Usage
+### Use Cases
+- Sign and transact completely in-app
+    - Mint NFTs with a passkey biometric scan
+    - Take in-game actions with invisible background signing
+- Sign and transact in the background while user is off-app
+    - Set limit orders to buy/sell assets that get executed as soon as conditions trigger
+    - Sign up for a subscription that transfers assets on a set schedule
 
-### Build
-
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+### Goals
+- Enable apps to easily request scoped permissions from smart wallet users
+- Enable apps to easily submit transactions using these permissions
+- Provide built-in protections for users’ assets and security-related state 
+- Enable all existing smart wallet users to use this functionality without an upgrade to the core `CoinbaseSmartWallet` implementation

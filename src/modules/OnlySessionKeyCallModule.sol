@@ -11,7 +11,7 @@ import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol
 /// @notice Only allow session keys to call a specific function selector on external contracts.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract OnlySessionKeyCallModule is IPermissionModule {
+contract OnlySessionKeyCallModule is IPermissionModule, UserOperationUtils {
     function validatePermissions(address account, bytes32 hash, bytes32 /*sessionId*/, bytes calldata /*permissionData*/, bytes calldata requestData) external pure {
         UserOperation memory userOp = abi.decode(requestData, (UserOperation));
 

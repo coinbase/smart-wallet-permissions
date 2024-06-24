@@ -84,7 +84,7 @@ contract RateLimitedNativeTokenModule  is IPermissionModule, UserOperationUtils 
     }
 
     /// @notice verify function allowlist/blocklist and calculate native token spend in this userOp
-    function _verifyCalls(bytes32 sessionId, bytes memory callData, bool allowlist, FunctionCall[] memory functions) internal pure returns (uint256 attemptSpend) {
+    function _verifyCalls(bytes32 sessionId, bytes memory callData, bool allowlist, FunctionCall[] memory functions) internal view returns (uint256 attemptSpend) {
         // check function is executeCalls (0x34fcd5be)
         (bytes4 selector, bytes memory args) = _splitCallData(callData);
         if (selector != 0x34fcd5be) revert SelectorNotAllowed();
@@ -113,8 +113,8 @@ contract RateLimitedNativeTokenModule  is IPermissionModule, UserOperationUtils 
         }
         if (attemptSpend > 0) {
             Call memory lastCall = calls[calls.length - 1];
-            registerSpendData = abi.encodeWithSelector(registerSpend.selector, sessionId, attemptSpend);
-            if (lastCall.target != address(this) || lastCall.data != registerSpendData) {
+            bytes memory registerSpendData = abi.encodeWithSelector(RateLimitedNativeTokenModule.registerSpend.selector, sessionId, attemptSpend);
+            if (lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(registerSpendData)) {
                 revert MissingRegisterSpend();
             }
         }

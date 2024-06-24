@@ -2,7 +2,7 @@
 
 A set of contracts on the periphery to extend the utility of Smart Wallets.
 
-The first flagship feature are Session Keys, but this repository will continue to grow with other use cases.
+Session Keys are the first flagship feature, but this repository will continue to grow with other use cases over time.
 
 ## Session Keys
 

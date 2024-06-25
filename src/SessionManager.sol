@@ -3,8 +3,9 @@ pragma solidity 0.8.23;
 
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 
-import {IPermissionModule} from "./modules/IPermissionModule.sol";
+import {IPermissionContract} from "./permissions/IPermissionContract.sol";
 import {SignatureChecker} from "./utils/SignatureChecker.sol";
+import {UserOperationUtils} from "./utils/UserOperationUtils.sol";
 
 /// @title SessionManager
 ///
@@ -14,13 +15,13 @@ import {SignatureChecker} from "./utils/SignatureChecker.sol";
 ///      Account implementations MUST validate scopes within their execution flow outside of validateUserOp.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract SessionManager is IERC1271 {
+contract SessionManager is IERC1271, UserOperationUtils {
     /// @notice A time-bound provision of scoped account control to another signer.
     struct Session {
         address account;
         bytes approval;
         bytes signer;
-        address permissionModule;
+        address permissionContract;
         bytes permissionData;
         uint40 expiresAt;
         // TODO: consider EIP-712 format instead
@@ -52,11 +53,11 @@ contract SessionManager is IERC1271 {
     /// @notice Session was revoked prematurely by account.
     ///
     /// @param account The smart contract account the session controlled.
-    /// @param sessionId The unique hash representing the session.
-    event SessionRevoked(address indexed account, bytes32 indexed sessionId);
+    /// @param sessionHash The unique hash representing the session.
+    event SessionRevoked(address indexed account, bytes32 indexed sessionHash);
     
-    /// @dev keying storage by account enables us to pass 4337 storage access limitations
-    mapping(address account => mapping(bytes32 sessionId => bool revoked)) internal _revokedSessions;
+    /// @dev keying storage by account in deepest mapping enables us to pass 4337 storage access limitations
+    mapping(bytes32 sessionHash => mapping(address account => bool revoked)) internal _revokedSessions;
 
     bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
 
@@ -69,24 +70,23 @@ contract SessionManager is IERC1271 {
     function isValidSignature(bytes32 hash, bytes calldata authData) external view returns (bytes4 result) {
         // assume session, signature, attestation encoded together
         (Session memory session, bytes memory signature, bytes memory requestData) = abi.decode(authData, (Session, bytes, bytes));
-        bytes32 sessionId = keccak256(abi.encode(session));
+        bytes32 sessionHash = keccak256(abi.encode(session));
 
-        // check sender is session account
-        if (msg.sender != session.account) revert InvalidSessionAccount();
         // check chainId is agnostic or this chain
         if (session.chainId != block.chainid) revert InvalidSessionChain();
         // check verifyingContract is SessionManager
         if (session.verifyingContract != address(this)) revert InvalidSessionVerifyingContract();
         // check session not expired
+        /// @dev accessing block.timestamp will cause 4337 error, need to get override consent from bundlers, long term need to move this logic inside of account
         if (session.expiresAt < block.timestamp) revert ExpiredSession();
         // check session not revoked
-        if (_revokedSessions[session.account][sessionId]) revert RevokedSession();
+        if (_revokedSessions[sessionHash][session.account]) revert RevokedSession();
         // check session account approval
-        if (EIP1271_MAGIC_VALUE != IERC1271(session.account).isValidSignature(sessionId, session.approval)) revert InvalidSessionApproval();
+        if (EIP1271_MAGIC_VALUE != IERC1271(session.account).isValidSignature(sessionHash, session.approval)) revert InvalidSessionApproval();
         // check session signer's signature on hash
         if (!SignatureChecker.isValidSignatureNow(hash, signature, session.signer)) revert InvalidSignature();
         // validate permission-specific logic
-        IPermissionModule(session.permissionModule).validatePermissions(msg.sender, hash, keccak256(abi.encode(session)), session.permissionData, requestData);
+        IPermissionContract(session.permissionContract).validatePermissions(hash, sessionHash, session.permissionData, requestData);
 
         return EIP1271_MAGIC_VALUE;
     }
@@ -97,13 +97,13 @@ contract SessionManager is IERC1271 {
     ///
     /// @param session The session to revoke
     function revokeSession(Session calldata session) external {
-        bytes32 sessionId = keccak256(abi.encode(session));
-        if (_revokedSessions[msg.sender][sessionId]) {
+        bytes32 sessionHash = keccak256(abi.encode(session));
+        if (_revokedSessions[sessionHash][msg.sender]) {
             revert RevokedSession();
         }
-        _revokedSessions[msg.sender][sessionId] = true;
+        _revokedSessions[sessionHash][msg.sender] = true;
 
-        emit SessionRevoked(msg.sender, sessionId);
+        emit SessionRevoked(msg.sender, sessionHash);
     }
 
     // TODO: add an `invokeSession` function to enable re-enabling revoked sessions?

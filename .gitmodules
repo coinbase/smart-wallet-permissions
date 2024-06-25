@@ -17,3 +17,6 @@
 [submodule "lib/smart-wallet"]
 	path = lib/smart-wallet
 	url = https://github.com/coinbase/smart-wallet
+[submodule "lib/ether-email-auth"]
+	path = lib/ether-email-auth
+	url = https://github.com/zkemail/ether-email-auth

@@ -5,7 +5,7 @@ import {
   encodeAbiParameters,
   keccak256,
   numberToBytes,
-  parseAbiParameters,
+  parseAbiParameter,
   toHex,
 } from "viem";
 
@@ -24,15 +24,15 @@ export type Session = {
   verifyingContract: Address;
 };
 
-export const sessionStruct = parseAbiParameters([
+export const sessionStruct = parseAbiParameter([
   "Session session",
   "struct Session { address account; bytes approval; bytes signer; address permissionContract; bytes permissionData; uint40 expiresAt; uint256 chainId; address verifyingContract; }",
-])[0];
+]);
 
-export const sessionStructApprovalStripped = parseAbiParameters([
+export const sessionStructApprovalStripped = parseAbiParameter([
   "Session session",
   "struct Session { address account; bytes signer; address permissionContract; bytes permissionData; uint40 expiresAt; uint256 chainId; address verifyingContract; }",
-])[0];
+]);
 
 export const SessionManager = "0xF3B1EDD3e9c0c2512040deA41916aecAb9518a37";
 export const SessionCallPermission =
@@ -97,10 +97,10 @@ export function encodePermissionsContext(session: Session): Hex {
  */
 
 // note this is for v0.6, our current Entrypoint version for CoinbaseSmartWallet
-export const userOperationStruct = parseAbiParameters([
+export const userOperationStruct = parseAbiParameter([
   "UserOperation userOperation",
   "struct UserOperation { address sender; uint256 nonce; bytes initCode; bytes callData; uint256 callGasLimit; uint256 verificationGasLimit; uint256 preVerificationGas; uint256 maxFeePerGas; uint256 maxPriorityFeePerGas; bytes paymasterAndData; bytes signature; }",
-])[0];
+]);
 
 // types forked from permissionless to save dependency
 type EntryPointVersion = "v0.6" | "v0.7";
@@ -191,10 +191,10 @@ export function updateUserOpSignature({
  *  shared, internal utils
  */
 
-const signatureWrapperStruct = parseAbiParameters([
+const signatureWrapperStruct = parseAbiParameter([
   "SignatureWrapper signatureWrapper",
   "struct SignatureWrapper { uint256 ownerIndex; bytes signatureData; }",
-])[0];
+]);
 
 // wraps a signature with an ownerIndex for verification within CoinbaseSmartWallet
 function wrapSignature({

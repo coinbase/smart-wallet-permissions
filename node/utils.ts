@@ -13,7 +13,7 @@ import {
  *  wallet_grantPermission utils
  */
 
-type Session = {
+export type Session = {
   account: Address;
   approval: Hex;
   signer: Hex;
@@ -24,18 +24,19 @@ type Session = {
   verifyingContract: Address;
 };
 
-const sessionStruct = parseAbiParameters([
+export const sessionStruct = parseAbiParameters([
   "Session session",
   "struct Session { address account; bytes approval; bytes signer; address permissionContract; bytes permissionData; uint40 expiresAt; uint256 chainId; address verifyingContract; }",
 ])[0];
 
-const sessionStructApprovalStripped = parseAbiParameters([
+export const sessionStructApprovalStripped = parseAbiParameters([
   "Session session",
   "struct Session { address account; bytes signer; address permissionContract; bytes permissionData; uint40 expiresAt; uint256 chainId; address verifyingContract; }",
 ])[0];
 
-const SessionManager = "0xF3B1EDD3e9c0c2512040deA41916aecAb9518a37";
-const SessionCallPermission = "0xfef00dbf81c25b5892ba303da275ec82cc39dddd";
+export const SessionManager = "0xF3B1EDD3e9c0c2512040deA41916aecAb9518a37";
+export const SessionCallPermission =
+  "0xfef00dbf81c25b5892ba303da275ec82cc39dddd";
 
 // create a session object with defaulted parameters for validating with the SessionCallPermission validation contract
 export function createSessionCallPermissionSession({
@@ -96,7 +97,7 @@ export function encodePermissionsContext(session: Session): Hex {
  */
 
 // note this is for v0.6, our current Entrypoint version for CoinbaseSmartWallet
-const userOperationStruct = parseAbiParameters([
+export const userOperationStruct = parseAbiParameters([
   "UserOperation userOperation",
   "struct UserOperation { address sender; uint256 nonce; bytes initCode; bytes callData; uint256 callGasLimit; uint256 verificationGasLimit; uint256 preVerificationGas; uint256 maxFeePerGas; uint256 maxPriorityFeePerGas; bytes paymasterAndData; bytes signature; }",
 ])[0];
@@ -147,7 +148,7 @@ type UserOperation<entryPointVersion extends EntryPointVersion> =
 // abi-decodes `permissionsContext` to recover a session, use when parsing `capabilities.permissions.context` from 5792 wallet_sendCalls
 export function decodePermissionsContext(permissionsContext: Hex): Session {
   const [session] = decodeAbiParameters([sessionStruct], permissionsContext);
-  return session as Session;
+  return session;
 }
 
 // returns a new UserOperation with the signature properly formatted for use with the SessionManager

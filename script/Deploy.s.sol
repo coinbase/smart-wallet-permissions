@@ -7,6 +7,7 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {SessionManager} from "../src/SessionManager.sol";
 import {SessionCallPermission} from "../src/permissions/SessionCallPermission.sol";
 
+// forge script script/Deploy.s.sol:Deploy --sender $SENDER --keystore $KS --password $PW --rpc-url $BASE_SEPOLIA_RPC --verify --verifier-url $SEPOLIA_BASESCAN_API --etherscan-api-key $BASESCAN_API_KEY --broadcast -vvvv
 contract Deploy is Script {
     function run() public {
         vm.startBroadcast();

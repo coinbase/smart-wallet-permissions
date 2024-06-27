@@ -13,7 +13,8 @@ interface IPermissionContract {
     /// @param requestData, dynamic data about the request to prove validation.
     ///
     /// @dev Reverts if validation does not pass; worth considering returning a magic-value.
-    function validatePermissions(
+    function validatePermission(
+        address account,
         bytes32 hash,
         bytes32 sessionHash, 
         bytes calldata permissionData, 

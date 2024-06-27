@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import {IPermissionContract} from "./IPermissionContract.sol";
-import {PackedUserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
+import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
 import {ISessionCall} from "../utils/ISessionCall.sol";
 import {NativeTokenLimitPolicy} from "../policies/NativeTokenLimitPolicy.sol";
 
@@ -16,9 +16,12 @@ contract SessionCallPermission is IPermissionContract, UserOperationUtils, Nativ
     /// @notice Only allow SessionCalls that do not exceed approved native token spend
     ///
     /// @dev Offchain userOp construction must add a call to registerSpend at the end of the calls array
-    function validatePermissions(bytes32 hash, bytes32 sessionHash, bytes calldata permissionData, bytes calldata requestData) external view returns (uint256 validationData) {
-        (PackedUserOperation memory userOp) = abi.decode(requestData, (PackedUserOperation));
+    function validatePermission(address account, bytes32 hash, bytes32 sessionHash, bytes calldata permissionData, bytes calldata requestData) external view returns (uint256 validationData) {
+        (UserOperation memory userOp) = abi.decode(requestData, (UserOperation));
+        // check userOperation matches hash
         _validateUserOperationHash(hash, userOp);
+        // check userOperation sender matches account;
+        _validateUserOperationSender(account, userOp.sender);
         // check userOp.callData is `executeCalls` (0x34fcd5be)
         (bytes4 selector, bytes memory args) = _splitCallData(userOp.callData);
         if (selector != 0x34fcd5be) revert SelectorNotAllowed();
@@ -34,7 +37,8 @@ contract SessionCallPermission is IPermissionContract, UserOperationUtils, Nativ
             ) revert SelectorNotAllowed();
             // validate session call
             // TODO: think about how to combine validationData from multiple calls versus keeping last one
-            validationData = ISessionCall(calls[i].target).validateSessionCall(calls[i].data, permissionData);
+            // (bool isCallback, bytes memory callbackContext) = ISessionCall(calls[i].target).validateSessionCall(account, sessionHash, calls[i].data, permissionData);
+            // TODO: callbacks
         }
         if (attemptSpend > 0) {
             // attmpted spend cannot exceed approved spend

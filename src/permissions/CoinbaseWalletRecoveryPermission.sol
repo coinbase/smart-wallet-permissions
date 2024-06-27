@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import {IPermissionContract} from "./IPermissionContract.sol";
-import {PackedUserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
+import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
 
 /// @title CoinbaseWalletRecoveryPermission
 ///
@@ -10,9 +10,12 @@ import {PackedUserOperation, UserOperationUtils} from "../utils/UserOperationUti
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract CoinbaseWalletRecoveryPermission is IPermissionContract, UserOperationUtils {
-    function validatePermissions(bytes32 hash, bytes32 /*sessionHash*/, bytes calldata /*permissionData*/, bytes calldata requestData) external pure returns (uint256) {
-        (PackedUserOperation memory userOp) = abi.decode(requestData, (PackedUserOperation));
+    function validatePermission(address account, bytes32 hash, bytes32 /*sessionHash*/, bytes calldata /*permissionData*/, bytes calldata requestData) external pure returns (uint256) {
+        (UserOperation memory userOp) = abi.decode(requestData, (UserOperation));
+        // check userOperation matches hash
         _validateUserOperationHash(hash, userOp);
+        // check userOperation sender matches account;
+        _validateUserOperationSender(account, userOp.sender);
         // check userOp.callData is executeWithoutChainIdValidation (0x2c2abd1e)
         (bytes4 selector, bytes memory args) = _splitCallData(userOp.callData);
         if (selector != 0x2c2abd1e) revert SelectorNotAllowed();

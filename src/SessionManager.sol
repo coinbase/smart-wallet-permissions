@@ -70,7 +70,7 @@ contract SessionManager is IERC1271, UserOperationUtils {
     function isValidSignature(bytes32 hash, bytes calldata authData) external view returns (bytes4 result) {
         // assume session, signature, attestation encoded together
         (Session memory session, bytes memory signature, bytes memory requestData) = abi.decode(authData, (Session, bytes, bytes));
-        bytes32 sessionHash = keccak256(abi.encode(session));
+        bytes32 sessionHash = hashSession(session);
 
         // check chainId is agnostic or this chain
         if (session.chainId != block.chainid) revert InvalidSessionChain();
@@ -86,7 +86,7 @@ contract SessionManager is IERC1271, UserOperationUtils {
         // check session signer's signature on hash
         if (!SignatureChecker.isValidSignatureNow(hash, signature, session.signer)) revert InvalidSignature();
         // validate permission-specific logic
-        IPermissionContract(session.permissionContract).validatePermissions(hash, sessionHash, session.permissionData, requestData);
+        IPermissionContract(session.permissionContract).validatePermission(msg.sender, hash, sessionHash, session.permissionData, requestData);
 
         return EIP1271_MAGIC_VALUE;
     }
@@ -104,6 +104,19 @@ contract SessionManager is IERC1271, UserOperationUtils {
         _revokedSessions[sessionHash][msg.sender] = true;
 
         emit SessionRevoked(msg.sender, sessionHash);
+    }
+
+    function hashSession(Session memory session) public pure returns (bytes32) {
+        return keccak256(abi.encode(
+            session.account,
+            // session.approval removed
+            keccak256(session.signer),
+            session.permissionContract,
+            keccak256(session.permissionData),
+            session.expiresAt,
+            session.chainId,
+            session.verifyingContract
+        ));
     }
 
     // TODO: add an `invokeSession` function to enable re-enabling revoked sessions?

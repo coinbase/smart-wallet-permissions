@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import {IPermissionContract} from "./IPermissionContract.sol";
-import {PackedUserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
+import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
 import {NativeTokenLimitPolicy} from "../policies/NativeTokenLimitPolicy.sol";
 
 /// @title NativeTokenTransferPermission
@@ -16,9 +16,12 @@ contract NativeTokenTransferPermission  is IPermissionContract, NativeTokenLimit
     error CallDataNotAllowed();
 
     /// @notice verify that the userOp calls match allowlisted contracts+selectors
-    function validatePermissions(bytes32 hash, bytes32 sessionHash, bytes calldata permissionData, bytes calldata requestData) external view returns (uint256) {
-        (PackedUserOperation memory userOp) = abi.decode(requestData, (PackedUserOperation));
+    function validatePermission(address account, bytes32 hash, bytes32 sessionHash, bytes calldata permissionData, bytes calldata requestData) external view returns (uint256) {
+        (UserOperation memory userOp) = abi.decode(requestData, (UserOperation));
+        // check userOperation matches hash
         _validateUserOperationHash(hash, userOp);
+        // check userOperation sender matches account;
+        _validateUserOperationSender(account, userOp.sender);
         // check userOp.callData is `executeCalls` (0x34fcd5be)
         (bytes4 selector, bytes memory args) = _splitCallData(userOp.callData);
         if (selector != 0x34fcd5be) revert SelectorNotAllowed();

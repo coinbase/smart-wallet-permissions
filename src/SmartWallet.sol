@@ -74,7 +74,6 @@ contract SmartWallet is CoinbaseSmartWallet {
         if (!SignatureChecker.isValidSignatureNow(hash, signature, session.signer)) revert InvalidSignature();
     }
 
-    /// @dev mismatch of v0.6 UserOperation vs. v0.7 PackedUserOperation
     function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
         virtual
@@ -102,7 +101,7 @@ contract SmartWallet is CoinbaseSmartWallet {
             bytes32 sessionHash = keccak256(abi.encode(session));
             _validateSession(userOpHash, sessionHash, session, signature);
             // validate permission-specific logic, returns validationData for time expiry
-            return IPermissionContract(session.permissionContract).validatePermissions(userOpHash, sessionHash, session.permissionData, abi.encode(userOp));
+            return IPermissionContract(session.permissionContract).validatePermission(address(this), userOpHash, sessionHash, session.permissionData, abi.encode(userOp));
         }
 
         // Return 0 if the recovered address matches the owner.
@@ -123,7 +122,7 @@ contract SmartWallet is CoinbaseSmartWallet {
             bytes32 sessionHash = keccak256(abi.encode(session));
             _validateSession(hash, sessionHash, session, sessionSignature);
             // validate permission-specific logic, returns validationData for time expiry
-            uint256 validationData = IPermissionContract(session.permissionContract).validatePermissions(hash, sessionHash, session.permissionData, requestData);
+            uint256 validationData = IPermissionContract(session.permissionContract).validatePermission(address(this), hash, sessionHash, session.permissionData, requestData);
             if (validationData != 0) revert InvalidSessionPermission();
         }
 

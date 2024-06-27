@@ -29,9 +29,13 @@ export const sessionStruct = parseAbiParameter([
   "struct Session { address account; bytes approval; bytes signer; address permissionContract; bytes permissionData; uint40 expiresAt; uint256 chainId; address verifyingContract; }",
 ]);
 
-export const sessionStructApprovalStripped = parseAbiParameter([
+// Hashable version of Session struct.
+// 1. Removes `bytes approval`
+// 2. Pre-hashes `bytes signer` into `bytes32 signerHash`
+// 3. Pre-hashes `bytes permissionData` into `bytes32 permissionDataHash`
+export const sessionStructHashable = parseAbiParameter([
   "Session session",
-  "struct Session { address account; bytes signer; address permissionContract; bytes permissionData; uint40 expiresAt; uint256 chainId; address verifyingContract; }",
+  "struct Session { address account; bytes32 signerHash; address permissionContract; bytes32 permissionDataHash; uint40 expiresAt; uint256 chainId; address verifyingContract; }",
 ]);
 
 export const SessionManager = "0xF3B1EDD3e9c0c2512040deA41916aecAb9518a37";
@@ -66,8 +70,18 @@ export function createSessionCallPermissionSession({
 
 // returns a bytes32 to sign, encodes session struct with approval stripped (later populated by signing over this hash)
 export function hashSession(session: Session): Hex {
+  const { approval, signer, permissionData, ...sessionHashable } = session;
   return keccak256(
-    encodeAbiParameters([sessionStructApprovalStripped], [session as never])
+    encodeAbiParameters(
+      [sessionStructHashable],
+      [
+        {
+          ...sessionHashable,
+          signerHash: keccak256(session.signer),
+          permissionDataHash: keccak256(session.permissionData),
+        } as never,
+      ]
+    )
   );
 }
 

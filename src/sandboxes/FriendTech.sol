@@ -7,8 +7,15 @@ import {ISessionCall} from "../utils/ISessionCall.sol";
 import {UserOperationUtils} from "../utils/UserOperationUtils.sol";
 
 abstract contract FriendTechV1 {
-    function buyShares(uint256 id, uint256 value) public payable {}
-    function sellShares(uint256 id, uint256 value) public payable {}
+    event SharesBought(address account, uint256 id, uint256 value);
+    event SharesSold(address account, uint256 id, uint256 value);
+
+    function buyShares(uint256 id, uint256 value) public payable {
+        emit SharesBought(msg.sender, id, value);
+    }
+    function sellShares(uint256 id, uint256 value) public payable {
+        emit SharesSold(msg.sender, id, value);
+    }
 }
 
 contract FriendTechV2 is FriendTechV1, ISessionCall, UserOperationUtils {
@@ -29,12 +36,12 @@ contract FriendTechV2 is FriendTechV1, ISessionCall, UserOperationUtils {
         (bytes4 selector, bytes memory args) = _splitCallData(data);
         (SessionKeyPermissions memory permissions) = abi.decode(permissionData, (SessionKeyPermissions));
 
-        if (selector == 0x00000000) {
+        if (selector == 0xbeebc5da) {
             // selector is buyShares
             (, uint256 value) = abi.decode(args, (uint256, uint256));
             require(value + _sessionBuys[sessionHash][account] <= permissions.maxBuyAmount);
             return (true, abi.encode(true, value));
-        } else if (selector == 0x11111111) {
+        } else if (selector == 0x2279a970) {
             // selector is sellShares
             (, uint256 value) = abi.decode(args, (uint256, uint256));
             require(value + _sessionSells[sessionHash][account] <= permissions.maxSellAmount);

@@ -86,7 +86,8 @@ contract SessionManager is IERC1271, UserOperationUtils {
         // check session signer's signature on hash
         if (!SignatureChecker.isValidSignatureNow(hash, signature, session.signer)) revert InvalidSignature();
         // validate permission-specific logic
-        IPermissionContract(session.permissionContract).validatePermission(msg.sender, hash, sessionHash, session.permissionData, requestData);
+        address account = msg.sender; // assume that we have been called by the account as part of owner signature validation
+        IPermissionContract(session.permissionContract).validatePermission(account, hash, sessionHash, session.permissionData, requestData);
 
         return EIP1271_MAGIC_VALUE;
     }

@@ -32,13 +32,13 @@ contract SessionCallPermission is IPermissionContract, UserOperationUtils, Nativ
             // accumulate attemptedSpend
             attemptSpend += calls[i].value;
             // check external calls only `sessionCall`
-            if (bytes4(calls[i].data) != ISessionCall.sessionCall.selector || 
-                (i == calls.length - 1 && bytes4(calls[i].data) == NativeTokenLimitPolicy.registerSpend.selector)
+            bytes4 callSelector = bytes4(calls[i].data);
+            if (callSelector != ISessionCall.sessionCall.selector && 
+                (i == calls.length - 1 && callSelector == NativeTokenLimitPolicy.registerSpend.selector)
             ) revert SelectorNotAllowed();
             // validate session call
-            // TODO: think about how to combine validationData from multiple calls versus keeping last one
+            // TODO: validateSessionCall & sessionCallback
             // (bool isCallback, bytes memory callbackContext) = ISessionCall(calls[i].target).validateSessionCall(account, sessionHash, calls[i].data, permissionData);
-            // TODO: callbacks
         }
         if (attemptSpend > 0) {
             // attmpted spend cannot exceed approved spend

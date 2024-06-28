@@ -30,17 +30,18 @@ export const sessionStruct = parseAbiParameter([
 ]);
 
 // Hashable version of Session struct.
+// IMPORTANT: for some reason, must rename the struct to not clash with normal "Session". For some reason, it seems like viem caches the struct names in ABIs???
 // 1. Removes `bytes approval`
 // 2. Pre-hashes `bytes signer` into `bytes32 signerHash`
 // 3. Pre-hashes `bytes permissionData` into `bytes32 permissionDataHash`
 export const sessionStructHashable = parseAbiParameter([
-  "Session session",
-  "struct Session { address account; bytes32 signerHash; address permissionContract; bytes32 permissionDataHash; uint40 expiresAt; uint256 chainId; address verifyingContract; }",
+  "SessionHashable sessionHashable",
+  "struct SessionHashable { address account; bytes32 signerHash; address permissionContract; bytes32 permissionDataHash; uint40 expiresAt; uint256 chainId; address verifyingContract; }",
 ]);
 
-export const SessionManager = "0xF3B1EDD3e9c0c2512040deA41916aecAb9518a37";
+export const SessionManager = "0x5ef2B2260de6A48138d6fc185f1BdE440CA0C9A0";
 export const SessionCallPermission =
-  "0xfef00dbf81c25b5892ba303da275ec82cc39dddd";
+  "0xD28D11a3781Baf3A6867C266385619F2d6Cbba1E";
 
 // create a session object with defaulted parameters for validating with the SessionCallPermission validation contract
 export function createSessionCallPermissionSession({
@@ -88,16 +89,14 @@ export function hashSession(session: Session): Hex {
 // returns a new Session with the approval properly formatting the signature of another owner
 export function updateSessionWithApproval({
   session,
-  ownerIndex,
   signature,
 }: {
   session: Session;
-  ownerIndex: string; // index of the passkey owner signing session approval
   signature: Hex;
 }): Session {
   return {
     ...session,
-    approval: wrapSignature({ ownerIndex, signatureData: signature }),
+    approval: signature,
   };
 }
 
@@ -117,47 +116,19 @@ export const userOperationStruct = parseAbiParameter([
 ]);
 
 // types forked from permissionless to save dependency
-type EntryPointVersion = "v0.6" | "v0.7";
-type UserOperation<entryPointVersion extends EntryPointVersion> =
-  entryPointVersion extends "v0.6"
-    ? {
-        sender: Address;
-        nonce: bigint;
-        initCode: Hex;
-        callData: Hex;
-        callGasLimit: bigint;
-        verificationGasLimit: bigint;
-        preVerificationGas: bigint;
-        maxFeePerGas: bigint;
-        maxPriorityFeePerGas: bigint;
-        paymasterAndData: Hex;
-        signature: Hex;
-        factory?: never;
-        factoryData?: never;
-        paymaster?: never;
-        paymasterVerificationGasLimit?: never;
-        paymasterPostOpGasLimit?: never;
-        paymasterData?: never;
-      }
-    : {
-        sender: Address;
-        nonce: bigint;
-        factory?: Address;
-        factoryData?: Hex;
-        callData: Hex;
-        callGasLimit: bigint;
-        verificationGasLimit: bigint;
-        preVerificationGas: bigint;
-        maxFeePerGas: bigint;
-        maxPriorityFeePerGas: bigint;
-        paymaster?: Address;
-        paymasterVerificationGasLimit?: bigint;
-        paymasterPostOpGasLimit?: bigint;
-        paymasterData?: Hex;
-        signature: Hex;
-        initCode?: never;
-        paymasterAndData?: never;
-      };
+type UserOperation = {
+  sender: Address;
+  nonce: bigint;
+  initCode: Hex;
+  callData: Hex;
+  callGasLimit: bigint;
+  verificationGasLimit: bigint;
+  preVerificationGas: bigint;
+  maxFeePerGas: bigint;
+  maxPriorityFeePerGas: bigint;
+  paymasterAndData: Hex;
+  signature: Hex;
+};
 
 // abi-decodes `permissionsContext` to recover a session, use when parsing `capabilities.permissions.context` from 5792 wallet_sendCalls
 export function decodePermissionsContext(permissionsContext: Hex): Session {
@@ -172,11 +143,11 @@ export function updateUserOpSignature({
   session,
   sessionKeySignature,
 }: {
-  userOp: UserOperation<"v0.6">;
+  userOp: UserOperation;
   sessionManagerOwnerIndex: string;
   session: Session;
   sessionKeySignature: Hex;
-}): UserOperation<"v0.6"> {
+}): UserOperation {
   if (session.permissionContract !== SessionCallPermission) {
     throw Error(
       "Only supporting permissionContract=SessionCallPermission for now"

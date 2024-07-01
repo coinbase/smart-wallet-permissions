@@ -16,17 +16,16 @@ import {UserOperationUtils} from "./utils/UserOperationUtils.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract SessionManager is IERC1271, UserOperationUtils {
-    /// @notice A time-bound provision of scoped account control to another signer.
+    /// @notice A time-bound permission over an account given to an external signer.
     struct Session {
         address account;
-        bytes approval;
-        bytes signer;
+        uint256 chainId;
+        bytes signer; // supports EOA, smart contracts, and passkeys
+        uint40 expiry;
         address permissionContract;
         bytes permissionData;
-        uint40 expiresAt;
-        // TODO: consider EIP-712 format instead
-        uint256 chainId; // prevent replay on other chains
-        address verifyingContract; // prevent replay on other potential SessionManager implementations
+        address verifyingContract; // replay protection, not needed if this logic brought inside the account
+        bytes approval; // signature from an account owner proving a session is valid
     }
 
     /// @notice Session account does not match currently authentication sender.
@@ -78,7 +77,7 @@ contract SessionManager is IERC1271, UserOperationUtils {
         if (session.verifyingContract != address(this)) revert InvalidSessionVerifyingContract();
         // check session not expired
         /// @dev accessing block.timestamp will cause 4337 error, need to get override consent from bundlers, long term need to move this logic inside of account
-        if (session.expiresAt < block.timestamp) revert ExpiredSession();
+        if (session.expiry < block.timestamp) revert ExpiredSession();
         // check session not revoked
         if (_revokedSessions[sessionHash][session.account]) revert RevokedSession();
         // check session account approval
@@ -110,15 +109,12 @@ contract SessionManager is IERC1271, UserOperationUtils {
     function hashSession(Session memory session) public pure returns (bytes32) {
         return keccak256(abi.encode(
             session.account,
-            // session.approval removed
+            session.chainId,
             keccak256(session.signer),
+            session.expiry,
             session.permissionContract,
             keccak256(session.permissionData),
-            session.expiresAt,
-            session.chainId,
             session.verifyingContract
         ));
     }
-
-    // TODO: add an `invokeSession` function to enable re-enabling revoked sessions?
 }

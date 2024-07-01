@@ -10,7 +10,7 @@ import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract CoinbaseWalletRecoveryPermission is IPermissionContract, UserOperationUtils {
-    function validatePermission(address account, bytes32 hash, bytes32 /*sessionHash*/, bytes calldata /*permissionData*/, bytes calldata requestData) external pure returns (uint256) {
+    function validatePermission(address account, bytes32 hash, bytes32 /*sessionHash*/, bytes calldata /*permissionData*/, bytes calldata requestData) external view returns (uint256) {
         (UserOperation memory userOp) = abi.decode(requestData, (UserOperation));
         // check userOperation matches hash
         _validateUserOperationHash(hash, userOp);

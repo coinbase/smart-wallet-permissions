@@ -32,6 +32,7 @@ library SignatureChecker {
     ///
     /// @dev temporarily made this a public function for easier testing
     function isValidSignatureNow(bytes32 hash, bytes memory signature, bytes memory signerBytes) public view returns (bool) {
+        // signer is an ethereum address (EOA or smart contract)
         if (signerBytes.length == 32) {
             if (uint256(bytes32(signerBytes)) > type(uint160).max) {
                 // technically should be impossible given signers can only be added with
@@ -47,6 +48,7 @@ library SignatureChecker {
             return SignatureCheckerLib.isValidSignatureNow(signer, hash, signature);
         }
 
+        // signer is a passkey
         if (signerBytes.length == 64) {
             (uint256 x, uint256 y) = abi.decode(signerBytes, (uint256, uint256));
 

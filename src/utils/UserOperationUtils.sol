@@ -4,12 +4,14 @@ pragma solidity 0.8.23;
 import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 
-/// @title UserOperation
+/// @title UserOperationUtils
 ///
-/// @notice Utilities for user operations
+/// @notice Utilities for user operations on Entrypoint V0.6
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract UserOperationUtils {
+
+    address constant ENTRYPOINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
     /// @notice Represents a call to make from the account.
     struct Call {
@@ -41,7 +43,7 @@ contract UserOperationUtils {
     }
 
     /// @dev TODO: couldn't get UserOperationLib to work with UserOperation memory type and needed a quick fix for build errors, we should find something less brute-forcey
-    function _hashUserOperation(UserOperation memory userOp) internal pure returns (bytes32) {
+    function _hashUserOperation(UserOperation memory userOp) internal view returns (bytes32) {
         address sender = userOp.sender;
         uint256 nonce = userOp.nonce;
         bytes32 hashInitCode = keccak256(userOp.initCode);
@@ -53,16 +55,18 @@ contract UserOperationUtils {
         uint256 maxPriorityFeePerGas = userOp.maxPriorityFeePerGas;
         bytes32 hashPaymasterAndData = keccak256(userOp.paymasterAndData);
 
-        return keccak256(abi.encode(
+        bytes32 innerHash = keccak256(abi.encode(
             sender, nonce,
             hashInitCode, hashCallData,
             callGasLimit, verificationGasLimit, preVerificationGas,
             maxFeePerGas, maxPriorityFeePerGas,
             hashPaymasterAndData
         ));
+
+        return keccak256(abi.encode(innerHash, ENTRYPOINT_V06, block.chainid));
     }
 
-    function _validateUserOperationHash(bytes32 hash, UserOperation memory userOp) internal pure {
+    function _validateUserOperationHash(bytes32 hash, UserOperation memory userOp) internal view {
         if (_hashUserOperation(userOp) != hash) revert InvalidUserOperationHash();
     }
     

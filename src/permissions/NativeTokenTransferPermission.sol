@@ -40,7 +40,7 @@ contract NativeTokenTransferPermission  is IPermissionContract, NativeTokenLimit
             _validateAttemptSpend(userOp.sender, sessionHash, attemptSpend, approvedSpend);
             // must call this contract with registerSpend(sessionHash, attemptSpend)
             Call memory lastCall = calls[calls.length - 1];
-            _validateRegisterSpendCall(sessionHash, attemptSpend, lastCall);
+            _validateAssertSpendCall(sessionHash, attemptSpend, lastCall);
         }
         // TODO: return real validationData
         return 0;

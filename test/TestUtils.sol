@@ -26,9 +26,9 @@ contract TestUtils {
         walletFactory = new CoinbaseSmartWalletFactory(implementation);
     }
 
-    function newSmartWallet() public returns (address account) {
+    function newSmartWallet() public returns (address) {
         bytes[] memory owners = new bytes[](1);
         owners[0] = abi.encode(address(0));
-        walletFactory.createAccount(owners, 0);
+        return address(walletFactory.createAccount(owners, 0));
     }
 }

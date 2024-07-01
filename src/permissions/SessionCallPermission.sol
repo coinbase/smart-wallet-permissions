@@ -22,7 +22,7 @@ contract SessionCallPermission is IPermissionContract, UserOperationUtils, Nativ
         _validateUserOperationHash(hash, userOp);
         // check userOperation sender matches account;
         _validateUserOperationSender(account, userOp.sender);
-        // check userOp.callData is `executeCalls` (0x34fcd5be)
+        // check userOp.callData is `executeBatch` (0x34fcd5be)
         (bytes4 selector, bytes memory args) = _splitCallData(userOp.callData);
         if (selector != 0x34fcd5be) revert SelectorNotAllowed();
         // for each call, accumulate attempted spend and check SessionCall function selector
@@ -31,11 +31,11 @@ contract SessionCallPermission is IPermissionContract, UserOperationUtils, Nativ
         for (uint256 i; i < calls.length; i++) {
             // accumulate attemptedSpend
             attemptSpend += calls[i].value;
-            // check external calls only `sessionCall`
+            // check external calls only `sessionCall` or `assertSpend` on last call
             bytes4 callSelector = bytes4(calls[i].data);
-            if (callSelector != ISessionCall.sessionCall.selector && 
-                (i == calls.length - 1 && callSelector == NativeTokenLimitPolicy.registerSpend.selector)
-            ) revert SelectorNotAllowed();
+            bool isSessionCall = callSelector == 0x7bc361a3; // `sessionCall`
+            bool isLastCallAndAttemptSpendAndAssertSpend = i == calls.length - 1 && attemptSpend > 0 && callSelector == 0xd74b930e; // `assertSpend`
+            if (!isSessionCall && !isLastCallAndAttemptSpendAndAssertSpend) revert SelectorNotAllowed();
             // validate session call
             // TODO: validateSessionCall & sessionCallback
             // (bool isCallback, bytes memory callbackContext) = ISessionCall(calls[i].target).validateSessionCall(account, sessionHash, calls[i].data, permissionData);
@@ -44,9 +44,9 @@ contract SessionCallPermission is IPermissionContract, UserOperationUtils, Nativ
             // attmpted spend cannot exceed approved spend
             (uint256 approvedSpend) = abi.decode(permissionData, (uint256));
             _validateAttemptSpend(userOp.sender, sessionHash, attemptSpend, approvedSpend);
-            // must call this contract with registerSpend(sessionHash, attemptSpend)
+            // must call this contract with assertSpend(assertBalance, sessionHash, attemptSpend)
             Call memory lastCall = calls[calls.length - 1];
-            _validateRegisterSpendCall(sessionHash, attemptSpend, lastCall);
+            _validateAssertSpendCall(sessionHash, attemptSpend, lastCall);
         }
         // TODO: return real validationData
         return 0;

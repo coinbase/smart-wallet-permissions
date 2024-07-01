@@ -7,18 +7,17 @@ import {CoinbaseSmartWallet, UserOperation, SignatureCheckerLib, WebAuthn} from 
 import {SignatureChecker} from "./utils/SignatureChecker.sol";
 import {IPermissionContract} from "./permissions/IPermissionContract.sol";
 
+/// @notice Experimental implementation of session management within CoinbaseSmartWallet.
 contract SmartWallet is CoinbaseSmartWallet {
     /// @notice A time-bound provision of scoped account control to another signer.
     struct Session {
         address account;
-        bytes approval;
-        bytes signer;
+        uint256 chainId;
+        bytes signer; // supports EOA, smart contracts, and passkeys
+        uint40 expiry;
         address permissionContract;
         bytes permissionData;
-        uint40 expiresAt;
-        // TODO: consider EIP-712 format instead
-        uint256 chainId; // prevent replay on other chains
-        address verifyingContract; // prevent replay on other potential SessionManager implementations
+        bytes approval; // signature from an account owner proving a session is valid
     }
 
     /// @notice Session account does not match currently authentication sender.
@@ -27,14 +26,8 @@ contract SmartWallet is CoinbaseSmartWallet {
     /// @notice Session chain is not agnositc and not this chain.
     error InvalidSessionChain();
 
-    /// @notice Session verifying contract is not this SessionManager.
-    error InvalidSessionVerifyingContract();
-
     /// @notice Session is revoked.
     error RevokedSession();
-    
-    /// @notice Session has expired.
-    error ExpiredSession();
     
     /// @notice SessionApproval is invalid
     error InvalidSessionApproval();
@@ -55,23 +48,37 @@ contract SmartWallet is CoinbaseSmartWallet {
     /// TODO: move to 7201 storage
     mapping(bytes32 sessionHash => bool revoked) internal _revokedSessions;
 
-    function _validateSession(bytes32 hash, bytes32 sessionHash, Session memory session, bytes memory signature) internal view {
-        // check chainId is agnostic or this chain
-        if (session.chainId != block.chainid) revert InvalidSessionChain();
-        // check verifyingContract is SessionManager
-        if (session.verifyingContract != address(this)) revert InvalidSessionVerifyingContract();
+    bytes32 constant public SESSION_MAGIC_VALUE = 0x7777777777777777777777777777777777777777777777777777777777777777;
+    bytes4 constant public EIP1271_MAGIC_VALUE = 0x1626ba7e;
+
+    function _validateSession(bytes32 hash, Session memory session, bytes memory signature, bytes memory requestData) internal view returns (uint256) {
+        bytes32 sessionHash = hashSession(session);
+
         // check account matches this
         if (session.account != address(this)) revert InvalidSessionAccount();
-        // check session not expired
-        /// TODO: return as validation data instead
-        if (session.expiresAt < block.timestamp) revert ExpiredSession();
+        // check chainId is agnostic or this chain
+        if (session.chainId != block.chainid) revert InvalidSessionChain();
         // check session not revoked
         if (_revokedSessions[sessionHash]) revert RevokedSession();
         // check session account approval
-        /// @dev EIP1271_MAGIC_VALUE = 0x1626ba7e 
-        if (bytes4(0x1626ba7e) != IERC1271(address(this)).isValidSignature(sessionHash, session.approval)) revert InvalidSessionApproval();
+        if (EIP1271_MAGIC_VALUE != IERC1271(address(this)).isValidSignature(sessionHash, session.approval)) revert InvalidSessionApproval();
         // check session signer's signature on hash
         if (!SignatureChecker.isValidSignatureNow(hash, signature, session.signer)) revert InvalidSignature();
+
+        // validate permission-specific logic, returns validationData for time expiry
+        // TODO: take session.expiry into account for the validUntil part of validationData
+        return IPermissionContract(session.permissionContract).validatePermission(address(this), hash, sessionHash, session.permissionData, requestData);
+    }
+
+    function hashSession(Session memory session) public pure returns (bytes32) {
+        return keccak256(abi.encode(
+            session.account,
+            session.chainId,
+            keccak256(session.signer),
+            session.expiry,
+            session.permissionContract,
+            keccak256(session.permissionData)
+        ));
     }
 
     function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
@@ -96,12 +103,9 @@ contract SmartWallet is CoinbaseSmartWallet {
         }
 
         // check signature prefix against magic value to activate session logic
-        if (bytes32(userOp.signature) == 0x7777777777777777777777777777777777777777777777777777777777777777) {
+        if (bytes32(userOp.signature) == SESSION_MAGIC_VALUE) {
             (/*bytes32 magicValue*/, Session memory session, bytes memory signature) = abi.decode(userOp.signature, (bytes32, Session, bytes));
-            bytes32 sessionHash = keccak256(abi.encode(session));
-            _validateSession(userOpHash, sessionHash, session, signature);
-            // validate permission-specific logic, returns validationData for time expiry
-            return IPermissionContract(session.permissionContract).validatePermission(address(this), userOpHash, sessionHash, session.permissionData, abi.encode(userOp));
+            return _validateSession(userOpHash, session, signature, abi.encode(userOp));
         }
 
         // Return 0 if the recovered address matches the owner.
@@ -117,12 +121,9 @@ contract SmartWallet is CoinbaseSmartWallet {
         SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
 
         // check ownerIndex against magic value to activate session logic
-        if (bytes32(sigWrapper.ownerIndex) == 0x7777777777777777777777777777777777777777777777777777777777777777) {
+        if (bytes32(sigWrapper.ownerIndex) == SESSION_MAGIC_VALUE) {
             (Session memory session, bytes memory sessionSignature, bytes memory requestData) = abi.decode(sigWrapper.signatureData, (Session, bytes, bytes));
-            bytes32 sessionHash = keccak256(abi.encode(session));
-            _validateSession(hash, sessionHash, session, sessionSignature);
-            // validate permission-specific logic, returns validationData for time expiry
-            uint256 validationData = IPermissionContract(session.permissionContract).validatePermission(address(this), hash, sessionHash, session.permissionData, requestData);
+            uint256 validationData = _validateSession(hash, session, sessionSignature, requestData);
             if (validationData != 0) revert InvalidSessionPermission();
         }
 

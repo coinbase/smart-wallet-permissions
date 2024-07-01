@@ -3,8 +3,8 @@ pragma solidity 0.8.23;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import {ISessionCall} from "../utils/ISessionCall.sol";
-import {UserOperationUtils} from "../utils/UserOperationUtils.sol";
+import {ISessionCall} from "../../utils/ISessionCall.sol";
+import {UserOperationUtils} from "../../utils/UserOperationUtils.sol";
 
 abstract contract FriendTechV1 {
     event SharesBought(address account, uint256 id, uint256 value);

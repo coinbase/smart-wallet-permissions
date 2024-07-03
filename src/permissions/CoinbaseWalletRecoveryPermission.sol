@@ -8,14 +8,9 @@ import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol
 ///
 /// @notice Trust a third-party to recover signers in the event of loss of primary keys used to control a Coinbase Smart Wallet.
 ///
-/// @author Coinbase (https://github.com/coinbase/smart-wallet)
+/// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 contract CoinbaseWalletRecoveryPermission is IPermissionContract, UserOperationUtils {
-    function validatePermission(address account, bytes32 hash, bytes32 /*sessionHash*/, bytes calldata /*permissionData*/, bytes calldata requestData) external view returns (uint256) {
-        (UserOperation memory userOp) = abi.decode(requestData, (UserOperation));
-        // check userOperation matches hash
-        _validateUserOperationHash(hash, userOp);
-        // check userOperation sender matches account;
-        _validateUserOperationSender(account, userOp.sender);
+    function validatePermission(bytes32 /*permissionHash*/, bytes calldata /*permissionData*/, UserOperation calldata userOp) external view returns (uint256) {
         // check userOp.callData is executeWithoutChainIdValidation (0x2c2abd1e)
         (bytes4 selector, bytes memory args) = _splitCallData(userOp.callData);
         if (selector != 0x2c2abd1e) revert SelectorNotAllowed();

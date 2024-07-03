@@ -6,18 +6,6 @@ import {CoinbaseSmartWalletFactory} from "smart-wallet/CoinbaseSmartWalletFactor
 
 import {IPermissionContract} from "../src/permissions/IPermissionContract.sol";
 
-contract MockSuccessPermission is IPermissionContract {
-    function validatePermission(address, bytes32, bytes32, bytes calldata, bytes calldata) external pure returns (uint256) {
-        return 0;
-    }
-}
-
-contract MockFailPermission is IPermissionContract {
-    function validatePermission(address, bytes32, bytes32, bytes calldata, bytes calldata) external pure returns (uint256) {
-        return 1;
-    }
-}
-
 contract TestUtils {
     CoinbaseSmartWalletFactory walletFactory;
 

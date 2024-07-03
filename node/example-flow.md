@@ -66,7 +66,7 @@
 
 6. `keys.`->User: prompt Approve Session
 
-7. User->`keys.`: sign `sessionHash` to approve
+7. User->`keys.`: sign `permissionHash` to approve
 
 8. `keys.`->SDK: response `wallet_grantPermissions` (complete step #2)
 

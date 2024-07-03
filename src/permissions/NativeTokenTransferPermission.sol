@@ -3,25 +3,20 @@ pragma solidity 0.8.23;
 
 import {IPermissionContract} from "./IPermissionContract.sol";
 import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
-import {NativeTokenLimitPolicy} from "../policies/NativeTokenLimitPolicy.sol";
+import {NativeTokenSpendLimitPolicy} from "../policies/NativeTokenSpendLimitPolicy.sol";
 
 /// @title NativeTokenTransferPermission
 ///
 /// @dev Supports setting spend limits on a rolling basis, e.g. 1 ETH per week.
 ///      Supports allowlisting and blocklisting function calls.
 ///
-/// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract NativeTokenTransferPermission  is IPermissionContract, NativeTokenLimitPolicy {
+/// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
+contract NativeTokenTransferPermission  is IPermissionContract, NativeTokenSpendLimitPolicy {
 
     error CallDataNotAllowed();
 
     /// @notice verify that the userOp calls match allowlisted contracts+selectors
-    function validatePermission(address account, bytes32 hash, bytes32 sessionHash, bytes calldata permissionData, bytes calldata requestData) external view returns (uint256) {
-        (UserOperation memory userOp) = abi.decode(requestData, (UserOperation));
-        // check userOperation matches hash
-        _validateUserOperationHash(hash, userOp);
-        // check userOperation sender matches account;
-        _validateUserOperationSender(account, userOp.sender);
+    function validatePermission(bytes32 permissionHash, bytes calldata permissionData, UserOperation calldata userOp) external view returns (uint256) {
         // check userOp.callData is `executeCalls` (0x34fcd5be)
         (bytes4 selector, bytes memory args) = _splitCallData(userOp.callData);
         if (selector != 0x34fcd5be) revert SelectorNotAllowed();
@@ -36,11 +31,10 @@ contract NativeTokenTransferPermission  is IPermissionContract, NativeTokenLimit
         }
         if (attemptSpend > 0) {
             // attmpted spend cannot exceed approved spend
-            (uint256 approvedSpend) = abi.decode(permissionData, (uint256));
-            _validateAttemptSpend(userOp.sender, sessionHash, attemptSpend, approvedSpend);
-            // must call this contract with registerSpend(sessionHash, attemptSpend)
-            Call memory lastCall = calls[calls.length - 1];
-            _validateAssertSpendCall(sessionHash, attemptSpend, lastCall);
+            (uint256 allowance) = abi.decode(permissionData, (uint256));
+            _validateAllowance(userOp.sender, permissionHash, allowance, attemptSpend);
+            // must call this contract with registerSpend(permissionHash, attemptSpend)
+            _validateAssertCall(permissionHash, attemptSpend, calls);
         }
         // TODO: return real validationData
         return 0;

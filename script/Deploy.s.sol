@@ -15,10 +15,10 @@ contract Deploy is Script {
 
         PermissionManager sessionManager = new PermissionManager();
         logAddress("PermissionManager", address(sessionManager));
-        CallWithPermission sessionCallPermission = new CallWithPermission();
-        logAddress("CallWithPermission", address(sessionCallPermission));
-        TestPermission testPermission = new TestPermission();
-        logAddress("TestPermission", address(testPermission));
+        // CallWithPermission sessionCallPermission = new CallWithPermission();
+        // logAddress("CallWithPermission", address(sessionCallPermission));
+        // TestPermission testPermission = new TestPermission();
+        // logAddress("TestPermission", address(testPermission));
 
         vm.stopBroadcast();
     }

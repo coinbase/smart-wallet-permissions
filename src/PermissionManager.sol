@@ -82,7 +82,7 @@ contract PermissionManager is IERC1271, UserOperationUtils {
         if (permission.verifyingContract != address(this)) revert InvalidPermissionVerifyingContract();
         // check permission not expired
         /// @dev accessing block.timestamp will cause 4337 error, need to get override consent from bundlers, long term need to move this logic inside of account
-        if (permission.expiry < block.timestamp) revert ExpiredPermission();
+        // if (permission.expiry < block.timestamp) revert ExpiredPermission();
         // check permission not revoked
         if (_revokedPermissions[permissionHash][permission.account]) revert RevokedPermission();
         // check permission account approval

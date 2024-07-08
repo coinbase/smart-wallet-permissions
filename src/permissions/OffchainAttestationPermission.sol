@@ -10,15 +10,11 @@ import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol
 ///
 /// @notice Trust a third-party to verify conditions offchain and sign attestations.
 ///
-/// @dev Most flexible verification logic.
-///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 contract OffchainAttestationPermission is IPermissionContract, UserOperationUtils {
     function validatePermission(bytes32 /*permissionHash*/, bytes calldata permissionData, UserOperation calldata userOp) external view returns (uint256) {
-        // check attestation
         address attestor = abi.decode(permissionData, (address));
-        SignatureCheckerLib.isValidSignatureNow(attestor, _hashUserOperation(userOp), userOp.signature);
-        // TODO: return real validationData
-        return 0;
+        bool isValid = SignatureCheckerLib.isValidSignatureNow(attestor, _hashUserOperation(userOp), userOp.signature);
+        return isValid ? 0 : 1; // sigFailed = 0 when signature valid and 1 when signature invalid
     }
 }

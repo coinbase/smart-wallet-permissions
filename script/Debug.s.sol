@@ -6,7 +6,7 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 // import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
-import {PermissionCallPermission, UserOperation} from "../src/permissions/PermissionCallPermission.sol";
+import {UserOperation} from "../src/utils/UserOperationUtils.sol";
 
 // w
 contract Debug is Script, PermissionManager {

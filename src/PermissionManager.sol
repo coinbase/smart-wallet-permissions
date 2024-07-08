@@ -20,8 +20,8 @@ contract PermissionManager is IERC1271, UserOperationUtils {
     struct Permission {
         address account;
         uint256 chainId;
-        bytes signer; // supports EOA, smart contracts, and passkeys
         uint40 expiry;
+        bytes signer; // supports EOA, smart contracts, and passkeys
         address permissionContract;
         bytes permissionData;
         address verifyingContract; // replay protection, not needed if this logic brought inside the account
@@ -76,7 +76,7 @@ contract PermissionManager is IERC1271, UserOperationUtils {
         _validateUserOperationSender(account, userOp.sender);
         // check userOperation matches hash
         _validateUserOperationHash(hash, userOp);
-        // check chainId is agnostic or this chain
+        // check chainId is this chain
         if (permission.chainId != block.chainid) revert InvalidPermissionChain();
         // check verifyingContract is PermissionManager
         if (permission.verifyingContract != address(this)) revert InvalidPermissionVerifyingContract();
@@ -113,8 +113,8 @@ contract PermissionManager is IERC1271, UserOperationUtils {
         return keccak256(abi.encode(
             permission.account,
             permission.chainId,
-            keccak256(permission.signer),
             permission.expiry,
+            keccak256(permission.signer),
             permission.permissionContract,
             keccak256(permission.permissionData),
             permission.verifyingContract

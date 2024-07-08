@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import {IPermissionContract} from "./IPermissionContract.sol";
-import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
-import {IPermissionCall} from "../permissionCall/IPermissionCall.sol";
-import {NativeTokenSpendLimitPolicy} from "../policies/NativeTokenSpendLimitPolicy.sol";
+import {IPermissionContract} from "../IPermissionContract.sol";
+import {UserOperation, UserOperationUtils} from "../../utils/UserOperationUtils.sol";
+import {NativeTokenSpendLimitPolicy} from "../../policies/NativeTokenSpendLimitPolicy.sol";
 
-/// @title PermissionCallPermission
+/// @title CallWithPermission
 ///
-/// @notice Only allow calls to PermissionCall selector with native token spend limits.
+/// @notice Only allow calls to IPermissionCallable selector with native token spend limits.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
-contract PermissionCallPermission is IPermissionContract, UserOperationUtils, NativeTokenSpendLimitPolicy {
+contract CallWithPermission is IPermissionContract, UserOperationUtils, NativeTokenSpendLimitPolicy {
 
-    /// @notice Only allow PermissionCalls that do not exceed approved native token spend
+    /// @notice Only allow callWithPermissions that do not exceed approved native token spend.
     ///
-    /// @dev Offchain userOp construction must add a call to registerSpend at the end of the calls array
+    /// @dev Offchain userOp construction should add a call to registerSpend at the end of the calls array.
+    /// @dev Offchain userOp construction should wrap callData with the proper permissionHash and permissionData.
     function validatePermission(bytes32 permissionHash, bytes calldata permissionData, UserOperation calldata userOp) external view returns (uint256 validationData) {
         // check userOp.callData is `executeBatch` (0x34fcd5be)
         (bytes4 selector, bytes memory args) = _splitCallData(userOp.callData);
@@ -26,11 +26,11 @@ contract PermissionCallPermission is IPermissionContract, UserOperationUtils, Na
         for (uint256 i; i < calls.length; i++) {
             // accumulate attemptedSpend
             attemptSpend += calls[i].value;
-            // check external calls only `permissionCall` or `assertSpend` on last call
+            // check external calls only `callWithPermission` or `assertSpend` on last call
             bytes4 callSelector = bytes4(calls[i].data);
-            bool isPermissionCall = callSelector == 0xcb56e602; // `permissionCall`
+            bool isCallWithPermission = callSelector == 0xb4d42ae1; // `callWithPermission`
             bool isLastCallAndAttemptSpendAndAssertSpend = i == calls.length - 1 && attemptSpend > 0 && callSelector == 0xd74b930e; // `assertSpend`
-            if (!isPermissionCall && !isLastCallAndAttemptSpendAndAssertSpend) revert SelectorNotAllowed();
+            if (!isCallWithPermission && !isLastCallAndAttemptSpendAndAssertSpend) revert SelectorNotAllowed();
         }
         if (attemptSpend > 0) {
             // attempted spend cannot exceed allowance

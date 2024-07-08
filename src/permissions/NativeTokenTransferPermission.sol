@@ -36,7 +36,6 @@ contract NativeTokenTransferPermission  is IPermissionContract, NativeTokenSpend
             // must call this contract with registerSpend(permissionHash, attemptSpend)
             _validateAssertCall(permissionHash, attemptSpend, calls);
         }
-        // TODO: return real validationData
         return 0;
     }
 }

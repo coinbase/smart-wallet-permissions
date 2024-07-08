@@ -27,9 +27,9 @@ contract FriendTechV2 is FriendTechV1, IPermissionCallable {
     error ExceededSellLimit();
     error SelectorNotAllowed();
 
-    function callWithPermission(bytes32 permissionHash, bytes calldata permissionData, bytes calldata call) external payable returns (bytes memory) {
+    function callWithPermission(bytes32 permissionHash, bytes calldata permissionArgs, bytes calldata call) external payable returns (bytes memory) {
         (bytes4 selector, bytes memory args) = _splitCallData(call);
-        (uint256 maxBuyAmount, uint256 maxSellAmount) = abi.decode(permissionData, (uint256, uint256));
+        (uint256 maxBuyAmount, uint256 maxSellAmount) = abi.decode(permissionArgs, (uint256, uint256));
 
         if (selector == 0xbeebc5da) {
             // selector is buyShares

@@ -22,8 +22,8 @@ contract CoinbaseSmartWalletV2 is CoinbaseSmartWallet {
     struct Permission {
         address account;
         uint256 chainId;
-        bytes signer; // supports EOA, smart contracts, and passkeys
         uint40 expiry;
+        bytes signer; // supports EOA, smart contracts, and passkeys
         address permissionContract;
         bytes permissionData;
         bytes approval; // signature from an account owner proving a permission is valid
@@ -124,8 +124,8 @@ contract CoinbaseSmartWalletV2 is CoinbaseSmartWallet {
         return keccak256(abi.encode(
             permission.account,
             permission.chainId,
-            keccak256(permission.signer),
             permission.expiry,
+            keccak256(permission.signer),
             permission.permissionContract,
             keccak256(permission.permissionData)
         ));

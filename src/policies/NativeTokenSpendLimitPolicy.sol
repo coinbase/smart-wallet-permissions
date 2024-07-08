@@ -35,11 +35,10 @@ abstract contract NativeTokenSpendLimitPolicy is UserOperationUtils {
         if (_permissionSpend[permissionHash][account] + attemptSpend > allowance) revert ExceededSpendingLimit();
     }
 
-    function _validateAssertCall(bytes32 permissionHash, uint256 attemptSpend, Call[] memory calls) internal view {
-        Call memory lastCall = calls[calls.length - 1];
+    function _validateAssertCall(bytes32 permissionHash, uint256 attemptSpend, Call memory call) internal view {
         uint256 expectedBalancePostCalls = msg.sender.balance - attemptSpend;
         bytes memory assertSpendData = abi.encodeWithSelector(NativeTokenSpendLimitPolicy.assertSpend.selector, expectedBalancePostCalls, permissionHash, attemptSpend);
-        if (lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(assertSpendData)) {
+        if (call.target != address(this) || keccak256(call.data) != keccak256(assertSpendData)) {
             revert MissingAssertSpend();
         }
     }

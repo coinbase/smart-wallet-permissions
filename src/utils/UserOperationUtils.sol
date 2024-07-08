@@ -29,6 +29,12 @@ contract UserOperationUtils {
     /// @notice Function selector not allowed.
     error SelectorNotAllowed();
 
+    /// @notice Target contract not allowed.
+    error ContractNotAllowed();
+
+    /// @notice Call arguments not allowed.
+    error ArgumentsNotAllowed();
+
     /// @notice UserOperation callData is invalid.
     error InvalidUserOperationCallData();
     

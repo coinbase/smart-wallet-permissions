@@ -16,3 +16,6 @@ docs/
 # node
 node/node_modules
 node/package-lock.json
+
+# macOS
+.DS_Store

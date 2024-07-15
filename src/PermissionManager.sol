@@ -73,7 +73,7 @@ contract PermissionManager is IERC1271, UserOperationUtils {
 
         address account = msg.sender; // assume that we have been called by the account as part of owner signature validation
         // check userOperation sender matches account;
-        _validateUserOperationSender(account, userOp.sender);
+        _validateUserOperationSender(userOp.sender, account);
         // check userOperation matches hash
         _validateUserOperationHash(hash, userOp);
         // check chainId is this chain
@@ -82,7 +82,7 @@ contract PermissionManager is IERC1271, UserOperationUtils {
         if (permission.verifyingContract != address(this)) revert InvalidPermissionVerifyingContract();
         // check permission not expired
         /// @dev accessing block.timestamp will cause 4337 error, need to get override consent from bundlers, long term need to move this logic inside of account
-        // if (permission.expiry < block.timestamp) revert ExpiredPermission();
+        if (permission.expiry < block.timestamp) revert ExpiredPermission();
         // check permission not revoked
         if (_revokedPermissions[permissionHash][permission.account]) revert RevokedPermission();
         // check permission account approval
@@ -109,6 +109,7 @@ contract PermissionManager is IERC1271, UserOperationUtils {
         emit PermissionRevoked(msg.sender, permissionHash);
     }
 
+    /// @dev important that this hash cannot be phished via EIP-191/712 or other method
     function hashPermission(Permission memory permission) public pure returns (bytes32) {
         return keccak256(abi.encode(
             permission.account,

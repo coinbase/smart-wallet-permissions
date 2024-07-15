@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
+import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 
@@ -12,6 +13,9 @@ import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 contract UserOperationUtils {
 
     address constant ENTRYPOINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+
+    // executeBatch((address,uint256,bytes)[])
+    bytes4 constant public EXECUTE_BATCH_SELECTOR = 0x34fcd5be;
 
     /// @notice Represents a call to make from the account.
     struct Call {
@@ -39,6 +43,8 @@ contract UserOperationUtils {
     error InvalidUserOperationCallData();
     
     /// @notice split encoded function call into selector and arguments
+    ///
+    /// @dev only needed for when working with bytes memory, use [i:j] for calldata
     function _splitCallData(bytes memory callData) internal pure returns (bytes4 selector, bytes memory args) {
         if (callData.length <= 4) revert InvalidUserOperationCallData();
         bytes memory trimmed = new bytes(callData.length - 4);
@@ -48,35 +54,11 @@ contract UserOperationUtils {
         return (bytes4(callData), trimmed);
     }
 
-    /// @dev TODO: couldn't get UserOperationLib to work with UserOperation memory type and needed a quick fix for build errors, we should find something less brute-forcey
-    function _hashUserOperation(UserOperation memory userOp) internal view returns (bytes32) {
-        address sender = userOp.sender;
-        uint256 nonce = userOp.nonce;
-        bytes32 hashInitCode = keccak256(userOp.initCode);
-        bytes32 hashCallData = keccak256(userOp.callData);
-        uint256 callGasLimit = userOp.callGasLimit;
-        uint256 verificationGasLimit = userOp.verificationGasLimit;
-        uint256 preVerificationGas = userOp.preVerificationGas;
-        uint256 maxFeePerGas = userOp.maxFeePerGas;
-        uint256 maxPriorityFeePerGas = userOp.maxPriorityFeePerGas;
-        bytes32 hashPaymasterAndData = keccak256(userOp.paymasterAndData);
-
-        bytes32 innerHash = keccak256(abi.encode(
-            sender, nonce,
-            hashInitCode, hashCallData,
-            callGasLimit, verificationGasLimit, preVerificationGas,
-            maxFeePerGas, maxPriorityFeePerGas,
-            hashPaymasterAndData
-        ));
-
-        return keccak256(abi.encode(innerHash, ENTRYPOINT_V06, block.chainid));
-    }
-
     function _validateUserOperationHash(bytes32 hash, UserOperation memory userOp) internal view {
-        if (_hashUserOperation(userOp) != hash) revert InvalidUserOperationHash();
+        if (IEntryPoint(ENTRYPOINT_V06).getUserOpHash(userOp) != hash) revert InvalidUserOperationHash();
     }
     
-    function _validateUserOperationSender(address account, address sender) internal pure {
+    function _validateUserOperationSender(address sender, address account) internal pure {
         if (sender != account) revert InvalidUserOperationSender();
     }
 }

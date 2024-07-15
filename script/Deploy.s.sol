@@ -6,7 +6,6 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
 import {CallWithPermission} from "../src/permissions/CallWithPermission/CallWithPermission.sol";
-import {TestPermission} from "../src/permissions/TestPermission.sol";
 
 // forge script script/Deploy.s.sol:Deploy --sender $SENDER --keystore $KS --password $PW --rpc-url $BASE_SEPOLIA_RPC --verify --verifier-url $SEPOLIA_BASESCAN_API --etherscan-api-key $BASESCAN_API_KEY --broadcast -vvvv
 contract Deploy is Script {
@@ -17,8 +16,6 @@ contract Deploy is Script {
         logAddress("PermissionManager", address(sessionManager));
         // CallWithPermission sessionCallPermission = new CallWithPermission();
         // logAddress("CallWithPermission", address(sessionCallPermission));
-        // TestPermission testPermission = new TestPermission();
-        // logAddress("TestPermission", address(testPermission));
 
         vm.stopBroadcast();
     }

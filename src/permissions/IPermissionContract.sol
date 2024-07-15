@@ -1,23 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
+import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
+
 /// @title IPermissionContract
 ///
-/// @author Coinbase (https://github.com/coinbase/smart-wallet)
+/// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 interface IPermissionContract {
-    /// @notice Validate the permissions for a session.
+    /// @notice Validate the permissions to execute a userOp.
     ///
-    /// @param hash, hash of arbitrary data being validated.
-    /// @param sessionHash, hash of the Session struct this permission check is validating.
-    /// @param permissionData, dynamic data stored in the session for validation.
-    /// @param requestData, dynamic data about the request to prove validation.
-    ///
-    /// @dev Reverts if validation does not pass; worth considering returning a magic-value.
+    /// @param permissionHash hash of the permission
+    /// @param permissionData dynamic data stored in the permission for validation
+    /// @param userOp user operation being attempted
     function validatePermission(
-        address account,
-        bytes32 hash,
-        bytes32 sessionHash, 
+        bytes32 permissionHash, 
         bytes calldata permissionData, 
-        bytes calldata requestData
+        UserOperation calldata userOp
     ) external view returns (uint256 validationData);
 }

@@ -116,6 +116,28 @@ export function encodePermissionContext(
   );
 }
 
+function extractPermissionArgsFromContext(permissionContext: Hex) {
+  const [permissionManagerOwnerIndex, permission] = decodeAbiParameters(
+    [
+      { name: "permissionManagerOwnerIndex", type: "uint256" },
+      permissionStruct,
+    ],
+    permissionContext
+  );
+
+  const [allowance, allowedContract, permissionArgs] = decodeAbiParameters(
+    [
+      { name: "allowance", type: "uint256" },
+      { name: "allowedContract", type: "address" },
+      { name: "permissionArgs", type: "bytes" },
+    ],
+    permission.permissionData
+  );
+  return { permissionArgs };
+}
+
+function wrapCall(call: { target: Address; value: bigint; data: Hex }) {}
+
 /**
  *  wallet_sendCalls utils
  */

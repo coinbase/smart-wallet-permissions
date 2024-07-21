@@ -41,8 +41,8 @@ contract Debug is Script, PermissionManager {
         // bytes memory newAuthData = abi.encode(session, signature, requestData);
         // console2.logBytes(newAuthData);
 
-        bytes32 userOpHash = _hashUserOperation(userOp);
-        console2.logBytes(abi.encode(userOpHash));
+        // bytes32 userOpHash = _hashUserOperation(userOp);
+        // console2.logBytes(abi.encode(userOpHash));
 
         // SignatureWrapper memory newSigWrapper = SignatureWrapper(3, newAuthData);
         // bytes memory newSignature = abi.encode(newSigWrapper);

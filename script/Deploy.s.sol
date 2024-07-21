@@ -18,6 +18,7 @@ contract Deploy is Script {
         // CallWithPermission sessionCallPermission = new CallWithPermission();
         // logAddress("CallWithPermission", address(sessionCallPermission));
         Click click = new Click();
+        logAddress("Click", address(click));
 
         vm.stopBroadcast();
     }

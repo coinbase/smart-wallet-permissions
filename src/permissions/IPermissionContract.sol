@@ -16,5 +16,5 @@ interface IPermissionContract {
         bytes32 permissionHash, 
         bytes calldata permissionData, 
         UserOperation calldata userOp
-    ) external view returns (uint256 validationData);
+    ) external view;
 }

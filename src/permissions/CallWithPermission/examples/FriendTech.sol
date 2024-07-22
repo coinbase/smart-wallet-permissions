@@ -15,6 +15,8 @@ abstract contract FriendTechCore {
     function sellShares(uint256 id, uint256 value) public payable {
         emit SharesSold(msg.sender, id, value);
     }
+
+    // selector = bytes4(keccak256("buyShares(uint256,uint256)"));
 }
 
 contract FriendTech is FriendTechCore, IPermissionCallable {

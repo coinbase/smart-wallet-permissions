@@ -51,7 +51,7 @@ contract PermissionedFriendTech is FriendTech, IPermissionCallable {
 }
 
 contract AuthorizedFriendTech is PermissionedFriendTech, AccessControl, IOffchainAuthorization {
-    function isAuthorizedRequest(bytes32 hash, bytes calldata authData) external view returns (Authorization) {
+    function getRequestAuthorization(bytes32 hash, bytes calldata authData) external view returns (Authorization) {
         (address signer, bytes memory signature) = abi.decode(authData, (address, bytes));
         if (!hasRole(keccak256("SIGNER"), signer)) return Authorization.UNAUTHORIZED;
         if (!SignatureChecker.isValidSignatureNow(signer, hash, signature)) {

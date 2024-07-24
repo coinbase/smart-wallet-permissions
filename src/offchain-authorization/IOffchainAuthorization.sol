@@ -13,9 +13,9 @@ interface IOffchainAuthorization {
         AUTHORIZED // should show secure label
     }
 
-    /// @notice Verify offchain if a permission is authorized by this contract.
+    /// @notice Verify offchain if a request is authorized by this contract.
     ///
-    /// @param hash Hash of the Permission
+    /// @param hash Hash of the request
     /// @param authData Arbitrary data used to validate authorization
-    function isAuthorizedRequest(bytes32 hash, bytes calldata authData) external view returns (Authorization);
+    function getRequestAuthorization(bytes32 hash, bytes calldata authData) external view returns (Authorization);
 }

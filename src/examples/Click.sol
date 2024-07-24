@@ -21,7 +21,7 @@ contract PermissionedClick is Click, IPermissionCallable {
 }
 
 contract AuthorizedClick is PermissionedClick, IOffchainAuthorization {
-    function isAuthorizedRequest(bytes32 hash, bytes calldata authData) external view returns (Authorization) {
+    function getRequestAuthorization(bytes32 hash, bytes calldata authData) external view returns (Authorization) {
         if (authData.length != 32) {
             return Authorization.UNAUTHORIZED;
         }

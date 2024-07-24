@@ -2,8 +2,11 @@
 pragma solidity 0.8.23;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {AccessControl} from "openzeppelin-contracts/contracts/access/AccessControl.sol";
+import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
-import {IPermissionCallable} from "../IPermissionCallable.sol";
+import {IPermissionCallable} from "../permissions/CallWithPermission/IPermissionCallable.sol";
+import {IOffchainAuthorization} from "../offchain-authorization/IOffchainAuthorization.sol";
 
 abstract contract FriendTech {
     event SharesBought(address account, uint256 id, uint256 value);
@@ -44,5 +47,17 @@ contract PermissionedFriendTech is FriendTech, IPermissionCallable {
         }
 
         return Address.functionDelegateCall(address(this), call);
+    }
+}
+
+contract AuthorizedFriendTech is PermissionedFriendTech, AccessControl, IOffchainAuthorization {
+    function isAuthorizedRequest(bytes32 hash, bytes calldata authData) external view returns (Authorization) {
+        (address signer, bytes memory signature) = abi.decode(authData, (address, bytes));
+        if (!hasRole(keccak256("SIGNER"), signer)) return Authorization.UNAUTHORIZED;
+        if (!SignatureChecker.isValidSignatureNow(signer, hash, signature)) {
+            return Authorization.UNAUTHORIZED;
+        } else {
+            return Authorization.AUTHORIZED;
+        }
     }
 }

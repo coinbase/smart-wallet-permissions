@@ -6,7 +6,7 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
 import {Click} from "../src/examples/Click.sol";
-import {CallWithPermission} from "../src/permissions/CallWithPermission/CallWithPermission.sol";
+import {AllowedContractPermission} from "../src/permissions/AllowedContract/AllowedContractPermission.sol";
 
 // forge script Deploy --account dev --rpc-url $BASE_SEPOLIA_RPC --verify --verifier-url $SEPOLIA_BASESCAN_API
 // --etherscan-api-key $BASESCAN_API_KEY --broadcast -vvvv
@@ -16,8 +16,8 @@ contract Deploy is Script {
 
         // PermissionManager sessionManager = new PermissionManager();
         // logAddress("PermissionManager", address(sessionManager));
-        // CallWithPermission sessionCallPermission = new CallWithPermission();
-        // logAddress("CallWithPermission", address(sessionCallPermission));
+        // AllowedContractPermission sessionCallPermission = new AllowedContractPermission();
+        // logAddress("AllowedContractPermission", address(sessionCallPermission));
         Click click = new Click();
         logAddress("Click", address(click));
 

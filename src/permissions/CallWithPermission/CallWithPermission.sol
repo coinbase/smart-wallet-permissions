@@ -49,7 +49,7 @@ contract CallWithPermission is IPermissionContract, UserOperationUtils, RollingN
             } else if (bytes4(calls[i].data) == IPermissionCallable.callWithPermission.selector) {
                 // check call target is the allowed contract
                 if (calls[i].target != allowedContract) {
-                    revert ContractNotAllowed();
+                    revert TargetNotAllowed();
                 }
                 // check the args for `callWithPermission` match this permission
                 (bytes32 callPermissionHash, bytes memory callPermissionArgs,) =

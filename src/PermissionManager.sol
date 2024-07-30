@@ -206,19 +206,34 @@ contract PermissionManager is IERC1271, UserOperationUtils, Ownable, Pausable {
         );
     }
 
-    function pause() external onlyOwner {
-        _pause();
+    /// @notice Get permission contract enabled status.
+    ///
+    /// @param permissionContract The contract resposible for checking permission logic.
+    ///
+    /// @return enabled True if the contract is enabled.
+    function isPermissionContractEnabled(address permissionContract) external view returns (bool enabled) {
+        return _enabledPermissionContracts[permissionContract];
     }
 
-    function unpause() external onlyOwner {
-        _unpause();
-    }
-
+    /// @notice Set permission contract enabled status.
+    ///
+    /// @param permissionContract The contract resposible for checking permission logic.
+    /// @param enabled True if the contract is enabled.
     function setPermissionContract(address permissionContract, bool enabled) external onlyOwner {
         if (_enabledPermissionContracts[permissionContract] == enabled) {
             revert UnchangedPermissionContractStatus();
         }
         _enabledPermissionContracts[permissionContract] = enabled;
         emit PermissionContractUpdated(permissionContract, enabled);
+    }
+
+    /// @notice Pause the manager contract from processing any userOps.
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Unpause the manager contract to enable processing userOps again.
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }

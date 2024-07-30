@@ -46,8 +46,6 @@ contract CallWithPermission is IPermissionContract, UserOperationUtils, RollingN
             // check if last call and nonzero spend value, then this is assertSpend call
             if (i == callsLen - 1 && spendValue > 0) {
                 _validateAssertSpendCall(spendValue, permissionHash, spendLimit, spendPeriod, calls[i]);
-                // check if selector is `callWithPermission`,
-                // then only on allowed contract and with arguments matching this permission
             } else if (bytes4(calls[i].data) == IPermissionCallable.callWithPermission.selector) {
                 // check call target is the allowed contract
                 if (calls[i].target != allowedContract) {

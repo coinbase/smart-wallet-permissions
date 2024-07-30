@@ -59,7 +59,7 @@ contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpe
                 // check call target is the allowed contract
                 // assume PermissionManager already prevents account as target
                 if (calls[i].target != allowedContract) revert TargetNotAllowed();
-            } else if (_isWithdrawSelector(bytes4(calls[i].data))) {
+            } else if (calls[i].target == MAGIC_SPEND_ADDRESS && _isWithdrawSelector(bytes4(calls[i].data))) {
                 // parse MagicSpend withdraw token and value
                 (address token, uint256 value) = _getWithdrawTransfer(_sliceCallArgs(calls[i].data));
                 // check withdraw is native token

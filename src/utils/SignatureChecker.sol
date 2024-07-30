@@ -28,10 +28,15 @@ library SignatureChecker {
     ///
     /// @param hash Arbitrary data to sign over.
     /// @param signature Data to verify signer's intent over the `hash`.
-    /// @param signerBytes The signer's public key, either type `address` for EOA+SCA or `(bytes32, bytes32)` for passkey.
+    /// @param signerBytes The signer's public key, either type `address` for EOA+SCA or `(bytes32, bytes32)` for
+    /// passkey.
     ///
     /// @dev temporarily made this a public function for easier testing
-    function isValidSignatureNow(bytes32 hash, bytes memory signature, bytes memory signerBytes) public view returns (bool) {
+    function isValidSignatureNow(bytes32 hash, bytes memory signature, bytes memory signerBytes)
+        public
+        view
+        returns (bool)
+    {
         // signer is an ethereum address (EOA or smart contract)
         if (signerBytes.length == 32) {
             if (uint256(bytes32(signerBytes)) > type(uint160).max) {

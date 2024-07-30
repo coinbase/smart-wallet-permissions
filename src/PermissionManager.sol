@@ -9,10 +9,12 @@ import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol"
 
 /// @title PermissionManager
 ///
-/// @notice EIP-1271-compatible permission key implementation that supports arbitrary permissions and EOA+passkey signers.
+/// @notice EIP-1271-compatible permission key implementation that supports arbitrary permissions and EOA+passkey
+/// signers.
 ///
 /// @dev Without the full UserOp and control of the execution flow, this contract only validates permission validity.
-///      Some permission implementations rely on assertation calls made at the end of a batch execution to uphold constraints.
+///      Some permission implementations rely on assertation calls made at the end of a batch execution to uphold
+/// constraints.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 contract PermissionManager is IERC1271, UserOperationUtils {
@@ -24,7 +26,8 @@ contract PermissionManager is IERC1271, UserOperationUtils {
         bytes signer; // supports Ethereum addresses (EOA, smart contract) and P256 public keys (passkey, cryptokey)
         address permissionContract;
         bytes permissionData;
-        address verifyingContract; // replay protection across potential future managers, not needed if this logic brought inside the account
+        address verifyingContract; // replay protection across potential future managers, not needed if this logic
+            // brought inside the account
         bytes approval; // signature from an account owner proving a permission is valid
     }
 
@@ -39,10 +42,10 @@ contract PermissionManager is IERC1271, UserOperationUtils {
 
     /// @notice Permission is revoked.
     error RevokedPermission();
-    
+
     /// @notice Permission has expired.
     error ExpiredPermission();
-    
+
     /// @notice PermissionApproval is invalid
     error InvalidPermissionApproval();
 
@@ -54,7 +57,7 @@ contract PermissionManager is IERC1271, UserOperationUtils {
     /// @param account The smart contract account the permission controlled.
     /// @param permissionHash The unique hash representing the permission.
     event PermissionRevoked(address indexed account, bytes32 indexed permissionHash);
-    
+
     /// @dev keying storage by account in deepest mapping enables us to pass 4337 storage access limitations
     mapping(bytes32 permissionHash => mapping(address account => bool revoked)) internal _revokedPermissions;
 
@@ -65,10 +68,12 @@ contract PermissionManager is IERC1271, UserOperationUtils {
     /// @dev Assumes called by CoinbaseSmartWallet where this contract is an owner.
     ///
     /// @param hash Arbitrary data signed over, intended to only support userOpHash.
-    /// @param authData Encoded group of Permission, signature from the Permission's signer for `hash`, and a UserOperation<v0.6>.
+    /// @param authData Encoded group of Permission, signature from the Permission's signer for `hash`, and a
+    /// UserOperation<v0.6>.
     function isValidSignature(bytes32 hash, bytes calldata authData) external view returns (bytes4 result) {
         // assume permission, signature, user operation encoded together
-        (Permission memory permission, bytes memory signature, UserOperation memory userOp) = abi.decode(authData, (Permission, bytes, UserOperation));
+        (Permission memory permission, bytes memory signature, UserOperation memory userOp) =
+            abi.decode(authData, (Permission, bytes, UserOperation));
         bytes32 permissionHash = hashPermission(permission);
 
         // assume Manager is called by the account as part of signature validation on smart contract owner
@@ -78,21 +83,32 @@ contract PermissionManager is IERC1271, UserOperationUtils {
         // check userOperation matches hash
         _validateUserOperationHash(hash, userOp);
         // check chainId is this chain
-        if (permission.chainId != block.chainid) revert InvalidPermissionChain();
+        if (permission.chainId != block.chainid) {
+            revert InvalidPermissionChain();
+        }
         // check verifyingContract is PermissionManager
-        if (permission.verifyingContract != address(this)) revert InvalidPermissionVerifyingContract();
+        if (permission.verifyingContract != address(this)) {
+            revert InvalidPermissionVerifyingContract();
+        }
         // check permission not expired
-        /// @dev accessing block.timestamp will cause 4337 error, need to get override consent from bundlers, long term need to move this logic inside of account
+        /// @dev accessing block.timestamp will cause 4337 error, need to get override consent from bundlers, long term
+        /// need to move this logic inside of account
         if (permission.expiry < block.timestamp) revert ExpiredPermission();
         // check permission not revoked
-        /// @dev accessing this storage passes 4337 constraints because mapping is keyed by account address last 
-        if (_revokedPermissions[permissionHash][permission.account]) revert RevokedPermission();
+        /// @dev accessing this storage passes 4337 constraints because mapping is keyed by account address last
+        if (_revokedPermissions[permissionHash][permission.account]) {
+            revert RevokedPermission();
+        }
         // check permission approval on account
-        if (EIP1271_MAGIC_VALUE != IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)) revert InvalidPermissionApproval();
+        if (EIP1271_MAGIC_VALUE != IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)) {
+            revert InvalidPermissionApproval();
+        }
         // check permission signer's signature on hash
         if (!SignatureChecker.isValidSignatureNow(hash, signature, permission.signer)) revert InvalidSignature();
         // validate permission-specific logic
-        IPermissionContract(permission.permissionContract).validatePermission(permissionHash, permission.permissionData, userOp);
+        IPermissionContract(permission.permissionContract).validatePermission(
+            permissionHash, permission.permissionData, userOp
+        );
 
         return EIP1271_MAGIC_VALUE;
     }
@@ -117,14 +133,16 @@ contract PermissionManager is IERC1271, UserOperationUtils {
     ///
     /// @param permission struct to hash
     function hashPermission(Permission memory permission) public pure returns (bytes32) {
-        return keccak256(abi.encode(
-            permission.account,
-            permission.chainId,
-            permission.expiry,
-            keccak256(permission.signer),
-            permission.permissionContract,
-            keccak256(permission.permissionData),
-            permission.verifyingContract
-        ));
+        return keccak256(
+            abi.encode(
+                permission.account,
+                permission.chainId,
+                permission.expiry,
+                keccak256(permission.signer),
+                permission.permissionContract,
+                keccak256(permission.permissionData),
+                permission.verifyingContract
+            )
+        );
     }
 }

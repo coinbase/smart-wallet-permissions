@@ -11,6 +11,7 @@ interface IOffchainAuthorization {
         UNPROTECTED, // should show caution label
         PUBLIC, // should show okay label
         AUTHORIZED // should show secure label
+
     }
 
     /// @notice Verify offchain if a request is authorized by this contract.

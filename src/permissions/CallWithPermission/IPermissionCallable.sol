@@ -12,5 +12,8 @@ interface IPermissionCallable {
     /// @param permissionHash, the hash of the currently active Permission
     /// @param permissionArgs, the arguments approved by the user just for this contract
     /// @param call, the call data to use
-    function callWithPermission(bytes32 permissionHash, bytes calldata permissionArgs, bytes calldata call) external payable returns (bytes memory);
+    function callWithPermission(bytes32 permissionHash, bytes calldata permissionArgs, bytes calldata call)
+        external
+        payable
+        returns (bytes memory);
 }

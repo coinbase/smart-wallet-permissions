@@ -17,6 +17,9 @@ contract CallWithPermission is IPermissionContract, UserOperationUtils, RollingN
     ///
     /// @dev Offchain userOp construction should add a call to registerSpend at the end of the calls array.
     /// @dev Offchain userOp construction should wrap calls with the proper permissionHash and permissionArgs.
+    /// @dev Rolling native token spend accounting does not protect against re-entrancy where an external call could
+    ///      trigger an authorized call back to the account to spend more ETH.
+    /// @dev Rolling native token spend accounting overestimates ETH spent via gas when a paymaster is not used.
     function validatePermission(bytes32 permissionHash, bytes calldata permissionData, UserOperation calldata userOp)
         external
         view
@@ -32,14 +35,17 @@ contract CallWithPermission is IPermissionContract, UserOperationUtils, RollingN
         Call[] memory calls = abi.decode(userOp.callData[4:], (Call[]));
         uint256 callsLen = calls.length;
         uint256 spendValue = 0;
+        // if no paymaster, set initial spendValue as requiredPrefund
+        /// @dev note that there is no accounting for the refund step so ETH spend is overestimated slightly.
+        if (userOp.paymasterAndData.length == 0) {
+            spendValue += _getRequiredPrefund(userOp);
+        }
         for (uint256 i; i < callsLen; i++) {
             // accumulate spend value
             spendValue += calls[i].value;
             // check if last call and nonzero spend value, then this is assertSpend call
             if (i == callsLen - 1 && spendValue > 0) {
                 _validateAssertSpendCall(spendValue, permissionHash, spendLimit, spendPeriod, calls[i]);
-                // check if selector is `callWithPermission`, then only on allowed contract and with arguments matching
-                // this permission
             } else if (bytes4(calls[i].data) == IPermissionCallable.callWithPermission.selector) {
                 // check call target is the allowed contract
                 if (calls[i].target != allowedContract) {

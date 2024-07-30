@@ -13,8 +13,7 @@ import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol"
 /// signers.
 ///
 /// @dev Without the full UserOp and control of the execution flow, this contract only validates permission validity.
-///      Some permission implementations rely on assertation calls made at the end of a batch execution to uphold
-/// constraints.
+///      Some permissions rely on assert calls made at the end of a batch execution to uphold constraints.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 contract PermissionManager is IERC1271, UserOperationUtils {

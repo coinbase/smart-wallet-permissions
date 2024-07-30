@@ -59,9 +59,7 @@ abstract contract RollingNativeTokenSpendLimit is UserOperationUtils {
 
     /// @notice Assert that a given call is made to assertSpend for the account
     ///
-    /// @dev Does not protect against re-entrancy where an external call could trigger an authorized call back to the
-    /// account to spend more ETH.
-    /// @dev Does not measure or account for ETH spent via gas if a paymaster is not used.
+    /// @dev Relies on proper calculation of spendValue to come from inheriting contract
     function _validateAssertSpendCall(
         uint256 spendValue,
         bytes32 permissionHash,
@@ -90,9 +88,11 @@ abstract contract RollingNativeTokenSpendLimit is UserOperationUtils {
         returns (uint256 rollingSpend)
     {
         uint256 index = _permissionSpendCount[permissionHash][account];
+        // end loop when index reaches 0 (spends indexed starting at 1)
         while (index > 0) {
             Spend memory spend = _permissionSpend[permissionHash][index][account];
-            if (block.timestamp - spendPeriod > spend.timestamp) {
+            // break loop if spend is before our spend period lower bound
+            if (spend.timestamp < block.timestamp - spendPeriod) {
                 break;
             }
             rollingSpend += spend.value;

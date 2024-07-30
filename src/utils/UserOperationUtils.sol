@@ -79,6 +79,14 @@ contract UserOperationUtils {
         }
     }
 
+    /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas
+    ///
+    /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process
+    function _getRequiredPrefund(UserOperation calldata userOp) internal pure returns (uint256 requiredPrefund) {
+        uint256 requiredGas = userOp.callGasLimit + userOp.verificationGasLimit + userOp.preVerificationGas;
+        requiredPrefund = requiredGas * userOp.maxFeePerGas;
+    }
+
     function _validateUserOperationHash(bytes32 hash, UserOperation memory userOp) internal view {
         if (IEntryPoint(ENTRYPOINT_V06).getUserOpHash(userOp) != hash) revert InvalidUserOperationHash();
     }

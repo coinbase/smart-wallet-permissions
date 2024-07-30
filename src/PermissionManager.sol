@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
@@ -15,7 +16,7 @@ import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol"
 /// @dev Designed specifically for Coinbase Smart Wallet (https://github.com/coinbase/smart-wallet)
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
-contract PermissionManager is IERC1271, UserOperationUtils, Pausable {
+contract PermissionManager is IERC1271, UserOperationUtils, Ownable, Pausable {
     /// @notice A time-bound permission over an account given to an external signer.
     struct Permission {
         address account;
@@ -52,6 +53,15 @@ contract PermissionManager is IERC1271, UserOperationUtils, Pausable {
     /// @notice Permission has expired.
     error ExpiredPermission();
 
+    /// @notice Permission contract status not changed.
+    error UnchangedPermissionContractStatus();
+
+    /// @notice Permission contract setting updated
+    ///
+    /// @param permissionContract The contract resposible for checking permission logic.
+    /// @param enabled The new setting allowing/preventing use.
+    event PermissionContractUpdated(address indexed permissionContract, bool enabled);
+
     /// @notice Permission was revoked prematurely by account.
     ///
     /// @param account The smart contract account the permission controlled.
@@ -69,6 +79,8 @@ contract PermissionManager is IERC1271, UserOperationUtils, Pausable {
     mapping(address permissionContract => bool enabled) internal _enabledPermissionContracts;
 
     bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
+
+    constructor(address owner) Ownable(owner) Pausable() {}
 
     /// @notice Validates a permission via EIP-1271.
     ///
@@ -192,5 +204,21 @@ contract PermissionManager is IERC1271, UserOperationUtils, Pausable {
                 permission.verifyingContract
             )
         );
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    function setPermissionContract(address permissionContract, bool enabled) external onlyOwner {
+        if (_enabledPermissionContracts[permissionContract] == enabled) {
+            revert UnchangedPermissionContractStatus();
+        }
+        _enabledPermissionContracts[permissionContract] = enabled;
+        emit PermissionContractUpdated(permissionContract, enabled);
     }
 }

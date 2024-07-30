@@ -7,6 +7,7 @@ import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 /// @title SignatureChecker
 ///
 /// @notice Verify signatures for EOAs, smart contracts, and passkeys.
+/// @notice Forked from official implementation in Coinbase Smart Wallet
 ///
 /// @dev Wraps SignatureCheckerLib and WebAuthn.
 ///

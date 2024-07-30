@@ -5,7 +5,7 @@ pragma solidity 0.8.23;
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 interface IOffchainAuthorization {
-    /// @notice Indicator if an offchain request comes from a signer authorized by this contract.
+    /// @notice Indicate if an offchain request comes from a signer authorized by this contract.
     enum Authorization {
         UNAUTHORIZED, // should show warning label and block requests
         UNPROTECTED, // should show caution label

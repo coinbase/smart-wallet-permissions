@@ -11,7 +11,7 @@ import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 ///
 /// @dev Wraps SignatureCheckerLib and WebAuthn.
 ///
-/// @author Coinbase (https://github.com/coinbase/smart-wallet)
+/// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 library SignatureChecker {
     /// @notice Thrown when a provided signer is neither 64 bytes long (for public key)

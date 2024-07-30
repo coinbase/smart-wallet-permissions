@@ -4,10 +4,10 @@ pragma solidity 0.8.23;
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {IOffchainAuthorization} from "../offchain-authorization/IOffchainAuthorization.sol";
-import {IPermissionCallable} from "../permissions/CallWithPermission/IPermissionCallable.sol";
+import {IPermissionCallable} from "../permissions/AllowedContract/IPermissionCallable.sol";
 
 contract Click {
-    event Clicked(address indexed sender);
+    event Clicked(address indexed account);
 
     function click() public {
         emit Clicked(msg.sender);
@@ -15,11 +15,7 @@ contract Click {
 }
 
 contract PermissionedClick is Click, IPermissionCallable {
-    function callWithPermission(bytes32, /*permissionHash*/ bytes calldata, /*permissionArgs*/ bytes calldata call)
-        external
-        payable
-        returns (bytes memory)
-    {
+    function permissionedCall(bytes calldata call) external payable returns (bytes memory) {
         return Address.functionDelegateCall(address(this), call);
     }
 }

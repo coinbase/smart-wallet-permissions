@@ -48,6 +48,9 @@ contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpe
             if (token != address(0)) revert MagicSpendUtils.InvalidWithdrawToken();
             spendValue += value;
         }
+        /// @dev rely on Coinbase Cosigner to prevent use of paymasters that spend user assets not tracked here,
+        /// e.g. ERC20 Paymaster. Use of app-sponsored paymasters are okay, but should be manually registered offchain.
+
         // ignore first call, enforced by PermissionManager as validation call on itself
         for (uint256 i = 1; i < callsLen; i++) {
             bytes4 selector = bytes4(calls[i].data);

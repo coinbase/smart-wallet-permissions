@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import {ICoinbaseSmartWallet} from "../../utils/ICoinbaseSmartWallet.sol";
-import {MagicSpendUtils} from "../../utils/MagicSpendUtils.sol";
+import {IMagicSpend, MagicSpendUtils} from "../../utils/MagicSpendUtils.sol";
 import {UserOperation, UserOperationUtils} from "../../utils/UserOperationUtils.sol";
 import {IPermissionContract} from "../IPermissionContract.sol";
 import {IPermissionCallable} from "./IPermissionCallable.sol";
@@ -41,30 +41,35 @@ contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpe
         /// @dev no accounting done for the refund step so ETH spend is overestimated slightly
         if (userOp.paymasterAndData.length == 0) {
             spendValue += _getRequiredPrefund(userOp);
-        } else if (address(userOp.paymasterAndData[:20]) == MAGIC_SPEND_ADDRESS) {
+        } else if (address(bytes20(userOp.paymasterAndData[:20])) == MagicSpendUtils.MAGIC_SPEND_ADDRESS) {
             // parse MagicSpend withdraw token and value
-            (address token, uint256 value) = _getWithdrawTransfer(userOp.paymasterAndData[20:]);
+            (address token, uint256 value) = MagicSpendUtils.getWithdrawTransfer(userOp.paymasterAndData[20:]);
             // check withdraw is native token
-            if (token != address(0)) revert InvalidWithdrawToken();
+            if (token != address(0)) revert MagicSpendUtils.InvalidWithdrawToken();
             spendValue += value;
         }
         // ignore first call, enforced by PermissionManager as validation call on itself
         for (uint256 i = 1; i < callsLen; i++) {
+            bytes4 selector = bytes4(calls[i].data);
             // accumulate spend value
             spendValue += calls[i].value;
             // check if last call and nonzero spend value, then this must be assertSpend call
             if (i == callsLen - 1 && spendValue > 0) {
                 _validateAssertSpendCall(spendValue, permissionHash, spendLimit, spendPeriod, calls[i]);
-            } else if (bytes4(calls[i].data) == IPermissionCallable.permissionedCall.selector) {
+            } else if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
                 // assume PermissionManager already prevents account as target
                 if (calls[i].target != allowedContract) revert TargetNotAllowed();
-            } else if (calls[i].target == MAGIC_SPEND_ADDRESS && _isWithdrawSelector(bytes4(calls[i].data))) {
-                // parse MagicSpend withdraw token and value
-                (address token, uint256 value) = _getWithdrawTransfer(_sliceCallArgs(calls[i].data));
-                // check withdraw is native token
-                if (token != address(0)) revert InvalidWithdrawToken();
-                spendValue += value;
+            } else if (calls[i].target == MagicSpendUtils.MAGIC_SPEND_ADDRESS) {
+                if (selector == IMagicSpend.withdraw.selector) {
+                    // parse MagicSpend withdraw token
+                    /// @dev do not need to accrue spendValue because withdrawn value will be spent in other calls
+                    (address token,) = MagicSpendUtils.getWithdrawTransfer(_sliceCallArgs(calls[i].data));
+                    // check withdraw is native token
+                    if (token != address(0)) revert MagicSpendUtils.InvalidWithdrawToken();
+                } else if (selector != IMagicSpend.withdrawGasExcess.selector) {
+                    revert SelectorNotAllowed();
+                }
             } else {
                 revert UserOperationUtils.SelectorNotAllowed();
             }

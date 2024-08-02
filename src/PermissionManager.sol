@@ -153,15 +153,6 @@ contract PermissionManager is IERC1271, UserOperationUtils, Ownable, Pausable {
         // check permission signer's signature on hash
         if (!SignatureChecker.isValidSignatureNow(hash, signature, permission.signer)) revert InvalidSignature();
 
-        // check cosignature from cosigner or pendingCosigner
-        if (
-            !SignatureChecker.isValidSignatureNow(hash, cosignature, abi.encode(cosigner))
-                && (
-                    pendingCosigner == address(0)
-                        || !SignatureChecker.isValidSignatureNow(hash, cosignature, abi.encode(pendingCosigner))
-                )
-        ) revert InvalidSignature();
-
         // check userOp.callData is `executeBatch`
         bytes4 selector = bytes4(userOp.callData);
         if (selector != EXECUTE_BATCH_SELECTOR) revert SelectorNotAllowed();
@@ -172,7 +163,11 @@ contract PermissionManager is IERC1271, UserOperationUtils, Ownable, Pausable {
         Call memory validationCall = calls[0];
         if (validationCall.target != address(this)) revert TargetNotAllowed();
         bytes memory validatePermissionExecutionData = abi.encodeWithSelector(
-            PermissionManager.validatePermissionExecution.selector, permission.permissionContract, permission.expiry
+            PermissionManager.validatePermissionExecution.selector,
+            hash,
+            cosignature,
+            permission.permissionContract,
+            permission.expiry
         );
         if (keccak256(validationCall.data) != keccak256(validatePermissionExecutionData)) {
             revert InvalidUserOperationCallData();
@@ -197,12 +192,26 @@ contract PermissionManager is IERC1271, UserOperationUtils, Ownable, Pausable {
     ///
     /// @dev Access paused state
     /// @dev Access enabled permission contract state
+    /// @dev Access cosigner and pendingCosigner state
     /// @dev Use TIMESTAMP opcode to check expiry
-    function validatePermissionExecution(address permissionContract, uint256 expiry) external view {
+    function validatePermissionExecution(
+        bytes32 userOpHash,
+        bytes calldata cosignature,
+        address permissionContract,
+        uint256 expiry
+    ) external view {
         // check manager not paused
         _requireNotPaused();
         // check permission contract enabled
         if (!_enabledPermissionContracts[permissionContract]) revert DisabledPermissionContract();
+        // check cosignature from cosigner or pendingCosigner
+        if (
+            !SignatureChecker.isValidSignatureNow(userOpHash, cosignature, abi.encode(cosigner))
+                && (
+                    pendingCosigner == address(0)
+                        || !SignatureChecker.isValidSignatureNow(userOpHash, cosignature, abi.encode(pendingCosigner))
+                )
+        ) revert InvalidSignature();
         // check permission not expired
         if (expiry < block.timestamp) revert ExpiredPermission();
     }

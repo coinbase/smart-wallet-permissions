@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
+import {ICoinbaseSmartWallet} from "../../utils/ICoinbaseSmartWallet.sol";
 import {UserOperation, UserOperationUtils} from "../../utils/UserOperationUtils.sol";
 import {IPermissionContract} from "../IPermissionContract.sol";
 import {IPermissionCallable} from "./IPermissionCallable.sol";
@@ -15,7 +16,7 @@ import {RollingNativeTokenSpendLimit} from "./RollingNativeTokenSpendLimit.sol";
 /// @dev Called by PermissionManager at end of its validation flow.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
-contract AllowedContractPermission is IPermissionContract, UserOperationUtils, RollingNativeTokenSpendLimit {
+contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpendLimit {
     /// @notice Only allow permissioned calls that do not exceed approved native token spend.
     ///
     /// @dev Offchain userOp construction should append assertSpend call to calls array if spending value.
@@ -32,13 +33,13 @@ contract AllowedContractPermission is IPermissionContract, UserOperationUtils, R
 
         // for each call, accumulate attempted spend and check if call allowed
         // assumes PermissionManager already enforces use of `executeBatch` selector
-        Call[] memory calls = abi.decode(userOp.callData[4:], (Call[]));
+        ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
         uint256 callsLen = calls.length;
         uint256 spendValue = 0;
         // if no paymaster, set initial spendValue as requiredPrefund
         /// @dev no accounting done for the refund step so ETH spend is overestimated slightly
         if (userOp.paymasterAndData.length == 0) {
-            spendValue += _getRequiredPrefund(userOp);
+            spendValue += UserOperationUtils.getRequiredPrefund(userOp);
         }
         // ignore first call, enforced by PermissionManager as validation call on itself
         for (uint256 i = 1; i < callsLen; i++) {
@@ -50,9 +51,9 @@ contract AllowedContractPermission is IPermissionContract, UserOperationUtils, R
             } else if (bytes4(calls[i].data) == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
                 // assume PermissionManager already prevents account as target
-                if (calls[i].target != allowedContract) revert TargetNotAllowed();
+                if (calls[i].target != allowedContract) revert UserOperationUtils.TargetNotAllowed();
             } else {
-                revert SelectorNotAllowed();
+                revert UserOperationUtils.SelectorNotAllowed();
             }
         }
     }

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
+import {ICoinbaseSmartWallet} from "../../utils/ICoinbaseSmartWallet.sol";
 import {UserOperationUtils} from "../../utils/UserOperationUtils.sol";
 
-abstract contract RollingNativeTokenSpendLimit is UserOperationUtils {
+abstract contract RollingNativeTokenSpendLimit {
     /// @notice Spend of native token at a timestamp
     ///
     /// @dev Only supports individual spend value <= 1e65 to support packing and realistic cases
@@ -65,7 +66,7 @@ abstract contract RollingNativeTokenSpendLimit is UserOperationUtils {
         bytes32 permissionHash,
         uint256 spendLimit,
         uint256 spendPeriod,
-        Call memory call
+        ICoinbaseSmartWallet.Call memory call
     ) internal view {
         bytes memory assertSpendData = abi.encodeWithSelector(
             RollingNativeTokenSpendLimit.assertSpend.selector, spendValue, permissionHash, spendLimit, spendPeriod

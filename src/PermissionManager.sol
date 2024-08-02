@@ -6,6 +6,8 @@ import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 import {IPermissionContract} from "./permissions/IPermissionContract.sol";
+
+import {ICoinbaseSmartWallet} from "./utils/ICoinbaseSmartWallet.sol";
 import {SignatureChecker} from "./utils/SignatureChecker.sol";
 import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol";
 
@@ -16,7 +18,7 @@ import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol"
 /// @dev Designed specifically for Coinbase Smart Wallet (https://github.com/coinbase/smart-wallet)
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
-contract PermissionManager is IERC1271, UserOperationUtils, Ownable, Pausable {
+contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice A time-bound permission over an account given to an external signer.
     struct Permission {
         address account;
@@ -95,14 +97,12 @@ contract PermissionManager is IERC1271, UserOperationUtils, Ownable, Pausable {
             abi.decode(authData, (Permission, bytes, UserOperation));
         bytes32 permissionHash = hashPermission(permission);
 
-        // assume Manager is called by the account as part of signature validation on smart contract owner
-        address account = msg.sender;
-
         // check userOperation sender matches account;
-        _validateUserOperationSender(userOp.sender, account);
+        if (userOp.sender != permission.account) revert UserOperationUtils.InvalidUserOperationSender();
 
         // check userOperation matches hash
-        _validateUserOperationHash(hash, userOp);
+        bytes32 userOpHash = UserOperationUtils.getUserOpHash(userOp);
+        if (userOpHash != hash) revert UserOperationUtils.InvalidUserOperationHash();
 
         // check chainId is this chain
         if (permission.chainId != block.chainid) {
@@ -130,24 +130,25 @@ contract PermissionManager is IERC1271, UserOperationUtils, Ownable, Pausable {
 
         // check userOp.callData is `executeBatch`
         bytes4 selector = bytes4(userOp.callData);
-        if (selector != EXECUTE_BATCH_SELECTOR) revert SelectorNotAllowed();
+        if (selector != ICoinbaseSmartWallet.executeBatch.selector) revert UserOperationUtils.SelectorNotAllowed();
 
         // check first call is PermissionManager.validatePermissionExecution with proper args
         /// @dev rely on validation call to check for paused Manager, enabled permission contract, and permission expiry
-        Call[] memory calls = abi.decode(_sliceCallArgs(userOp.callData), (Call[]));
-        Call memory validationCall = calls[0];
-        if (validationCall.target != address(this)) revert TargetNotAllowed();
+        ICoinbaseSmartWallet.Call[] memory calls =
+            abi.decode(UserOperationUtils.sliceCallArgs(userOp.callData), (ICoinbaseSmartWallet.Call[]));
+        ICoinbaseSmartWallet.Call memory validationCall = calls[0];
+        if (validationCall.target != address(this)) revert UserOperationUtils.TargetNotAllowed();
         bytes memory validatePermissionExecutionData = abi.encodeWithSelector(
             PermissionManager.validatePermissionExecution.selector, permission.permissionContract, permission.expiry
         );
         if (keccak256(validationCall.data) != keccak256(validatePermissionExecutionData)) {
-            revert InvalidUserOperationCallData();
+            revert UserOperationUtils.InvalidUserOperationCallData();
         }
 
         // check no self-calls
         uint256 callsLen = calls.length;
         for (uint256 i = 1; i < callsLen; i++) {
-            if (calls[i].target == account) revert TargetNotAllowed();
+            if (calls[i].target == permission.account) revert UserOperationUtils.TargetNotAllowed();
             /// @dev TODO could also extend coverage to not allow targets that are owners of the account?
         }
 

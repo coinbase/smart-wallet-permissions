@@ -10,18 +10,8 @@ import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 /// @notice Utilities for user operations on Entrypoint V0.6
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-contract UserOperationUtils {
-    address constant ENTRYPOINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
-
-    // executeBatch((address,uint256,bytes)[])
-    bytes4 public constant EXECUTE_BATCH_SELECTOR = 0x34fcd5be;
-
-    /// @notice Represents a call to make from the account.
-    struct Call {
-        address target;
-        uint256 value;
-        bytes data;
-    }
+library UserOperationUtils {
+    address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
     /// @notice UserOperation does not match provided hash.
     error InvalidUserOperationHash();
@@ -48,7 +38,7 @@ contract UserOperationUtils {
     /// @param callData the data of the external call
     ///
     /// @return args the arguments of the call with the selector parsed out
-    function _sliceCallArgs(bytes memory callData) internal pure returns (bytes memory args) {
+    function sliceCallArgs(bytes memory callData) internal pure returns (bytes memory args) {
         assembly {
             // calculate the length of the new args array (subtract 4 from the callData length)
             let len := sub(mload(callData), 4)
@@ -82,16 +72,12 @@ contract UserOperationUtils {
     /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas
     ///
     /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process
-    function _getRequiredPrefund(UserOperation calldata userOp) internal pure returns (uint256 requiredPrefund) {
+    function getRequiredPrefund(UserOperation memory userOp) internal pure returns (uint256 requiredPrefund) {
         uint256 requiredGas = userOp.callGasLimit + userOp.verificationGasLimit + userOp.preVerificationGas;
         requiredPrefund = requiredGas * userOp.maxFeePerGas;
     }
 
-    function _validateUserOperationHash(bytes32 hash, UserOperation memory userOp) internal view {
-        if (IEntryPoint(ENTRYPOINT_V06).getUserOpHash(userOp) != hash) revert InvalidUserOperationHash();
-    }
-
-    function _validateUserOperationSender(address sender, address account) internal pure {
-        if (sender != account) revert InvalidUserOperationSender();
+    function getUserOpHash(UserOperation memory userOp) internal view returns (bytes32) {
+        return IEntryPoint(ENTRY_POINT_V06).getUserOpHash(userOp);
     }
 }

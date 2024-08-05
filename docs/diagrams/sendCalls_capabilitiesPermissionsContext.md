@@ -2,18 +2,28 @@
 
 ```mermaid
 sequenceDiagram
-    App->>SDK: wallet_sendCalls
-    SDK->>Wallet Server: wallet_fillUserOp
-    Wallet Server->>Paymaster: pm_getPaymasterStubData
-    Wallet Server->>Paymaster: pm_getPaymasterData
-    Wallet Server->>SDK: filled userOp
+    autonumber
+    participant A as App
+    participant SDK as SDK
+    participant WS as Wallet Server
+    participant P as Paymaster
+    participant CS as Cosigner Service
+    participant B as Bundler
+
+    A->>SDK: wallet_sendCalls
+    SDK->>WS: wallet_fillUserOp
+    WS->>P: pm_getPaymasterStubData
+    P-->>WS: paymaster stub data
+    WS->>P: pm_getPaymasterData
+    P-->>WS: paymaster data
+    WS-->>SDK: filled userOp
     SDK->>SDK: sign
-    SDK->>Wallet Server: wallet_sendUserOpWithSignature
-    Wallet Server->>Cosign Service: cosign userOp
-    Cosign Service->>Cosign Service: validate userOp + sign
-    Cosign Service->>Wallet Server: signature
-    Wallet Server->>Bundler: eth_sendUserOperation
-    Bundler->>Wallet Server: userOpHash
-    Wallet Server->>SDK: callsId
-    SDK->>App: callsId
+    SDK->>WS: wallet_sendUserOpWithSignature
+    WS->>CS: cosign userOp
+    CS->>CS: validate userOp + sign
+    CS-->>WS: cosignature
+    WS->>B: eth_sendUserOperation
+    B-->>WS: userOpHash
+    WS-->>SDK: callsId
+    SDK-->>A: callsId
 ```

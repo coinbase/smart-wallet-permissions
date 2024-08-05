@@ -8,9 +8,10 @@ import {PermissionManager} from "../src/PermissionManager.sol";
 contract PermissionManagerTest is Test {
     PermissionManager sessionManager;
     address owner = address(0xbeef);
+    address cosigner = address(0xbabe);
 
     function setUp() public {
-        sessionManager = new PermissionManager(owner);
+        sessionManager = new PermissionManager(owner, cosigner);
     }
 
     function test_isValidSignature_reverts_invalidChainId() public {}

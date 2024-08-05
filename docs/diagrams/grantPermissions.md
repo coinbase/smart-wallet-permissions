@@ -1,3 +1,5 @@
+## Grant Permissions
+
 ```mermaid
 sequenceDiagram
     App->>SDK: wallet_grantPermissions

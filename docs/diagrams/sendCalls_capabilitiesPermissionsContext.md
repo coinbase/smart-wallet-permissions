@@ -1,3 +1,5 @@
+## Send Calls with Permissions Context Capability
+
 ```mermaid
 sequenceDiagram
     App->>SDK: wallet_sendCalls

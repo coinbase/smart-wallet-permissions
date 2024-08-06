@@ -7,7 +7,7 @@ sequenceDiagram
     participant SDK as SDK
     participant WS as Wallet Server
     participant P as Paymaster
-    participant CS as Cosigner Service
+    participant CS as Cosigner
     participant B as Bundler
 
     A->>SDK: wallet_sendCalls
@@ -18,6 +18,7 @@ sequenceDiagram
     P-->>WS: paymaster data
     WS-->>SDK: filled userOp
     SDK->>SDK: sign
+    Note right of SDK: signing with CryptoKey P256
     SDK->>WS: wallet_sendUserOpWithSignature
     WS->>CS: cosign userOp
     CS->>CS: validate userOp + sign

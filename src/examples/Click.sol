@@ -1,30 +1,29 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
 import {IOffchainAuthorization} from "../offchain-authorization/IOffchainAuthorization.sol";
-import {IPermissionCallable} from "../permissions/AllowedContract/IPermissionCallable.sol";
+import {PermissionCallable} from "../permissions/AllowedContract/PermissionCallable.sol";
 
-contract Click {
+contract Click is PermissionCallable {
     event Clicked(address indexed account);
 
-    function click() public {
+    function click() public permissionCallable {
         emit Clicked(msg.sender);
     }
 }
 
-contract PermissionedClick is Click, IPermissionCallable {
-    function permissionedCall(bytes calldata call) external payable returns (bytes memory) {
-        return Address.functionDelegateCall(address(this), call);
-    }
-}
+contract AuthorizedClick is Click, Ownable, IOffchainAuthorization {
+    constructor(address initialOwner) Ownable(initialOwner) {}
 
-contract AuthorizedClick is PermissionedClick, IOffchainAuthorization {
-    function getRequestAuthorization(bytes32, /*hash*/ bytes calldata authData) external pure returns (Authorization) {
-        if (authData.length != 32) {
-            return Authorization.UNAUTHORIZED;
+    function getRequestAuthorization(bytes32 hash, bytes calldata signature) external view returns (Authorization) {
+        if (!SignatureChecker.isValidSignatureNow(owner(), hash, signature)) {
+            return Authorization.UNVERIFIED;
+        } else {
+            return Authorization.VERIFIED;
         }
-        return abi.decode(authData, (Authorization));
     }
 }

@@ -31,7 +31,7 @@ abstract contract PermissionCallable is IPermissionCallable {
     /// @dev If a function is called normally, execution proceeds undisturbed.
     modifier permissionCallable() {
         _;
-        if (_isActive()) _setActive(false);
+        if (_isPermissionedCall()) _setCallableTriggered();
     }
 
     /// @notice Explicitly blocks calls via session keys.
@@ -39,7 +39,7 @@ abstract contract PermissionCallable is IPermissionCallable {
     /// @dev OpenZeppelin's Multicall is blocked by default, so this is an additional protection.
     /// @dev Recommended to use on any function with multicall-like functionality.
     modifier blockPermissionedCalls() {
-        if (_isActive()) revert NotPermissionCallable();
+        if (_isPermissionedCall()) revert NotPermissionCallable();
         _;
     }
 
@@ -55,33 +55,52 @@ abstract contract PermissionCallable is IPermissionCallable {
         // not allowed to make permissioned calls to multicall
         // if one call in multicall batch is permission-callable, then whole batch accidentally gets allowed
         if (bytes4(call) == Multicall.multicall.selector) revert NotPermissionCallable();
-        // activate permissioned call process
-        _setActive(true);
         // make self-delegatecall with provided call data
         res = Address.functionDelegateCall(address(this), call);
-        // expect call to deactivate via modifier, revert if still active
-        if (_isActive()) revert NotPermissionCallable();
+        // expect call to activate via modifier, revert if not activated
+        if (!_callableTriggered()) revert NotPermissionCallable();
+        // reset transient storage for atomic permissionedCall processing
+        _resetTrigger();
 
         return res;
     }
 
     /// @notice Read if permissionedCall is active.
     ///
-    /// @return active status of permissionedCall activation
-    function _isActive() private view returns (bool active) {
+    /// @dev Recall `msg` object will be in context of permissionedCall if active because of self-delegatecall.
+    ///
+    /// @return indicator if current context is within permissionedCall.
+    function _isPermissionedCall() private pure returns (bool) {
+        return msg.sig == PermissionCallable.permissionedCall.selector;
+    }
+
+    /// @notice Read if a permissionCallable function was triggered.
+    ///
+    /// @return triggered status of self-delegatecall.
+    function _callableTriggered() private view returns (bool triggered) {
         /// @solidity memory-safe-assembly
         assembly {
-            active := tload(SLOT)
+            triggered := tload(SLOT)
         }
     }
 
-    /// @notice Read if permissionedCall is active.
+    /// @notice Set trigger within permissionCallable function.
     ///
-    /// @param active status of permissionedCall activation
-    function _setActive(bool active) private {
+    /// @dev Uses transient storage for gas optimization.
+    function _setCallableTriggered() private {
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(SLOT, active)
+            tstore(SLOT, 1)
+        }
+    }
+
+    /// @notice Reset trigger storage for atomic permissionedCall processing.
+    ///
+    /// @dev Uses transient storage for gas optimization.
+    function _resetTrigger() private {
+        /// @solidity memory-safe-assembly
+        assembly {
+            tstore(SLOT, 0)
         }
     }
 }

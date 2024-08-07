@@ -22,7 +22,7 @@ abstract contract FriendTech is PermissionCallable, Multicall {
         emit SharesSold(msg.sender, id, value);
     }
 
-    function transferOwnership(uint256 id, address newOwner) public {
+    function transferClub(uint256 id, address newOwner) public {
         // should theoretically check caller is current owner
         emit ClubTransferred(id, newOwner);
     }

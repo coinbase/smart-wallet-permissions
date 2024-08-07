@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity 0.8.23;
 
 import {AccessControl} from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
@@ -46,7 +46,7 @@ contract AuthorizedFriendTech is FriendTech, AccessControl, IOffchainAuthorizati
         if (!SignatureChecker.isValidSignatureNow(signer, hash, signature)) {
             return Authorization.UNAUTHORIZED;
         } else {
-            return Authorization.VERIFIED;
+            return Authorization.AUTHORIZED;
         }
     }
 }

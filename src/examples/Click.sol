@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity 0.8.23;
 
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
@@ -25,9 +25,9 @@ contract AuthorizedClick is Click, Ownable, IOffchainAuthorization {
 
     function getRequestAuthorization(bytes32 hash, bytes calldata signature) external view returns (Authorization) {
         if (!SignatureChecker.isValidSignatureNow(owner(), hash, signature)) {
-            return Authorization.UNVERIFIED;
+            return Authorization.UNPROTECTED;
         } else {
-            return Authorization.VERIFIED;
+            return Authorization.AUTHORIZED;
         }
     }
 }

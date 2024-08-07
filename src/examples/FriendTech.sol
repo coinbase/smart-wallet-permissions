@@ -12,7 +12,7 @@ import {PermissionCallable} from "../permissions/AllowedContract/PermissionCalla
 abstract contract FriendTech is PermissionCallable, Multicall {
     event SharesBought(address account, uint256 id, uint256 value);
     event SharesSold(address account, uint256 id, uint256 value);
-    event SharesBurnt(address account, uint256 id, uint256 value);
+    event ClubTransferred(uint256 id, address newOwner);
 
     function buyShares(uint256 id, uint256 value) public payable permissionCallable {
         emit SharesBought(msg.sender, id, value);
@@ -22,8 +22,9 @@ abstract contract FriendTech is PermissionCallable, Multicall {
         emit SharesSold(msg.sender, id, value);
     }
 
-    function burnShares(uint256 id, uint256 value) public {
-        emit SharesBurnt(msg.sender, id, value);
+    function transferOwnership(uint256 id, address newOwner) public {
+        // should theoretically check caller is current owner
+        emit ClubTransferred(id, newOwner);
     }
 }
 

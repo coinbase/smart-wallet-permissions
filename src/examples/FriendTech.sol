@@ -9,22 +9,31 @@ import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptogra
 import {IOffchainAuthorization} from "../offchain-authorization/IOffchainAuthorization.sol";
 import {PermissionCallable} from "../permissions/AllowedContract/PermissionCallable.sol";
 
-abstract contract FriendTech is PermissionCallable, Multicall {
+interface IFriendTech {
+    function buyShares(uint256 id, uint256 value) external payable;
+    function sellShares(uint256 id, uint256 value) external;
+    function transferClub(uint256 id, address newOwner) external;
+}
+
+contract FriendTech is IFriendTech, PermissionCallable, Multicall {
     event SharesBought(address account, uint256 id, uint256 value);
     event SharesSold(address account, uint256 id, uint256 value);
     event ClubTransferred(uint256 id, address newOwner);
 
-    function buyShares(uint256 id, uint256 value) public payable permissionCallable {
+    function buyShares(uint256 id, uint256 value) public payable {
         emit SharesBought(msg.sender, id, value);
     }
 
-    function sellShares(uint256 id, uint256 value) public permissionCallable {
+    function sellShares(uint256 id, uint256 value) public {
         emit SharesSold(msg.sender, id, value);
     }
 
     function transferClub(uint256 id, address newOwner) public {
-        // should theoretically check caller is current owner
         emit ClubTransferred(id, newOwner);
+    }
+
+    function supportsPermissionedCallSelector(bytes4 selector) public pure override returns (bool) {
+        return (selector == IFriendTech.buyShares.selector || selector == IFriendTech.sellShares.selector);
     }
 }
 

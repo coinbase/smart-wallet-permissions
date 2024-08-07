@@ -11,8 +11,12 @@ import {PermissionCallable} from "../permissions/AllowedContract/PermissionCalla
 contract Click is PermissionCallable {
     event Clicked(address indexed account);
 
-    function click() public permissionCallable {
+    function click() public {
         emit Clicked(msg.sender);
+    }
+
+    function supportsPermissionedCallSelector(bytes4 /*selector*/ ) public pure override returns (bool) {
+        return true;
     }
 }
 

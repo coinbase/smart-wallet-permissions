@@ -15,8 +15,10 @@ import {IPermissionCallable} from "./IPermissionCallable.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 abstract contract PermissionCallable is IPermissionCallable {
-    /// @notice Function does not enable calls via smart wallet permissions.
-    error NotPermissionCallable();
+    /// @notice Call not enabled through permissionedCall and smart wallet permissions systems.
+    ///
+    /// @param selector The function that was attempting to go through permissionedCall.
+    error NotPermissionCallable(bytes4 selector);
 
     /// @notice Wrap a call to the contract with a new selector.
     ///
@@ -25,10 +27,10 @@ abstract contract PermissionCallable is IPermissionCallable {
     ///
     /// @param call Call data exactly matching an existing selector+arguments on the target contract.
     ///
-    /// @return res data from self-delegatecall on other contract function.
+    /// @return res Data from self-delegatecall on other contract function.
     function permissionedCall(bytes calldata call) external payable returns (bytes memory res) {
         // check if call selector is allowed through permissionedCall
-        if (!supportsPermissionedCallSelector(bytes4(call))) revert NotPermissionCallable();
+        if (!supportsPermissionedCallSelector(bytes4(call))) revert NotPermissionCallable(bytes4(call));
 
         // make self-delegatecall with provided call data
         res = Address.functionDelegateCall(address(this), call);

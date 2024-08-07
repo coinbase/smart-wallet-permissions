@@ -2,8 +2,6 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-evm_version = "cancun"
-solc_version = "0.8.24"
 
 [profile.deploy]
 optimizer = true

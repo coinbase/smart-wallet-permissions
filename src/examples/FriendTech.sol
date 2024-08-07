@@ -3,12 +3,13 @@ pragma solidity ^0.8.23;
 
 import {AccessControl} from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {Multicall} from "openzeppelin-contracts/contracts/utils/Multicall.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
 import {IOffchainAuthorization} from "../offchain-authorization/IOffchainAuthorization.sol";
 import {PermissionCallable} from "../permissions/AllowedContract/PermissionCallable.sol";
 
-abstract contract FriendTech is PermissionCallable {
+abstract contract FriendTech is PermissionCallable, Multicall {
     event SharesBought(address account, uint256 id, uint256 value);
     event SharesSold(address account, uint256 id, uint256 value);
     event SharesBurnt(address account, uint256 id, uint256 value);

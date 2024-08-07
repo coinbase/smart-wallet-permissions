@@ -23,9 +23,7 @@ abstract contract PermissionCallable is IPermissionCallable {
     bytes32 private constant SLOT = 0xfc8130b6d8abefc62e9245c60aaf858f44c3a4bcd3f793f1cc55690320ca5000;
 
     /// @notice Function does not enable calls via smart wallet permissions.
-    ///
-    /// @param selector function selector that was called.
-    error NotPermissionCallable(bytes4 selector);
+    error NotPermissionCallable();
 
     /// @notice Enable calls via session keys.
     ///
@@ -34,6 +32,15 @@ abstract contract PermissionCallable is IPermissionCallable {
     modifier permissionCallable() {
         _;
         if (_isActive()) _setActive(false);
+    }
+
+    /// @notice Explicitly blocks calls via session keys.
+    ///
+    /// @dev OpenZeppelin's Multicall is blocked by default, so this is an additional protection.
+    /// @dev Recommended to use on any function with multicall-like functionality.
+    modifier blockPermissionedCalls() {
+        if (_isActive()) revert NotPermissionCallable();
+        _;
     }
 
     /// @notice Wrap a call to the contract with a new selector.
@@ -47,14 +54,13 @@ abstract contract PermissionCallable is IPermissionCallable {
     function permissionedCall(bytes calldata call) external payable returns (bytes memory res) {
         // not allowed to make permissioned calls to multicall
         // if one call in multicall batch is permission-callable, then whole batch accidentally gets allowed
-        bytes4 selector = bytes4(call);
-        if (selector == Multicall.multicall.selector) revert NotPermissionCallable(selector);
+        if (bytes4(call) == Multicall.multicall.selector) revert NotPermissionCallable();
         // activate permissioned call process
         _setActive(true);
         // make self-delegatecall with provided call data
         res = Address.functionDelegateCall(address(this), call);
         // expect call to deactivate via modifier, revert if still active
-        if (_isActive()) revert NotPermissionCallable(selector);
+        if (_isActive()) revert NotPermissionCallable();
 
         return res;
     }

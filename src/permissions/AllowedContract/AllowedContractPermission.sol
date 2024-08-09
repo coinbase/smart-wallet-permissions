@@ -19,7 +19,7 @@ import {RollingNativeTokenSpendLimit} from "./RollingNativeTokenSpendLimit.sol";
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpendLimit {
     /// @dev Deployment address consistent across chains
-    ///      (https://github.com/coinbase/magic-spend/tree/main?tab=readme-ov-file#deployments)
+    ///      (https://github.com/coinbase/magic-spend#deployments)
     address public constant MAGIC_SPEND_ADDRESS = 0x011A61C07DbF256A68256B1cB51A5e246730aB92;
 
     /// @notice MagicSpend withdraw asset is not native token.
@@ -46,17 +46,17 @@ contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpe
         uint256 spendValue = 0;
 
         // increment spendValue if gas cost beared by the user
-        /// @dev no accounting done for the refund step so ETH spend is overestimated slightly
-        if (userOp.paymasterAndData.length == 0) {
+        /// @dev No accounting done for the refund step so native token spend is overestimated slightly
+        /// @dev MagicSpend only allows withdrawing native token when used as a paymaster
+        /// @dev Rely on Coinbase Cosigner to prevent use of paymasters that spend user assets not tracked here
+        if (
+            userOp.paymasterAndData.length == 0 || address(bytes20(userOp.paymasterAndData[:20])) == MAGIC_SPEND_ADDRESS
+        ) {
             spendValue += UserOperationUtils.getRequiredPrefund(userOp);
-        } else if (address(bytes20(userOp.paymasterAndData[:20])) == MAGIC_SPEND_ADDRESS) {
-            spendValue += UserOperationUtils.getRequiredPrefund(userOp);
-            /// @dev MagicSpend only allows withdrawing native token when used as a paymaster
         }
-        /// @dev rely on Coinbase Cosigner to prevent use of paymasters that spend user assets not tracked here,
-        ///      Use of app-sponsored paymasters are okay, but should be manually registered offchain.
 
-        // ignore first call, enforced by PermissionManager as validation call on itself
+        // loop over calls to validate native token spend and allowed contracts
+        // start index at 1 to ignore first call, enforced by PermissionManager as validation call on itself
         for (uint256 i = 1; i < callsLen; i++) {
             bytes4 selector = bytes4(calls[i].data);
             // accumulate spend value

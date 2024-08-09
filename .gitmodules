@@ -20,3 +20,6 @@
 [submodule "lib/ether-email-auth"]
 	path = lib/ether-email-auth
 	url = https://github.com/zkemail/ether-email-auth
+[submodule "lib/magic-spend"]
+	path = lib/magic-spend
+	url = https://github.com/coinbase/magic-spend

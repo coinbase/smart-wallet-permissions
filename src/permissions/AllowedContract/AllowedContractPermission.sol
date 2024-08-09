@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import {ICoinbaseSmartWallet} from "../../utils/ICoinbaseSmartWallet.sol";
-import {IMagicSpend, MagicSpendUtils} from "../../utils/MagicSpendUtils.sol";
+import {IMagicSpend} from "../../utils/IMagicSpend.sol";
 import {UserOperation, UserOperationUtils} from "../../utils/UserOperationUtils.sol";
 import {IPermissionContract} from "../IPermissionContract.sol";
 import {IPermissionCallable} from "./IPermissionCallable.sol";
@@ -18,6 +18,13 @@ import {RollingNativeTokenSpendLimit} from "./RollingNativeTokenSpendLimit.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpendLimit {
+    /// @dev Deployment address consistent across chains
+    ///      (https://github.com/coinbase/magic-spend/tree/main?tab=readme-ov-file#deployments)
+    address public constant MAGIC_SPEND_ADDRESS = 0x011A61C07DbF256A68256B1cB51A5e246730aB92;
+
+    /// @notice MagicSpend withdraw asset is not native token.
+    error InvalidWithdrawAsset();
+
     /// @notice Only allow permissioned calls that do not exceed approved native token spend.
     ///
     /// @dev Offchain userOp construction should append assertSpend call to calls array if spending value.
@@ -37,19 +44,17 @@ contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpe
         ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
         uint256 callsLen = calls.length;
         uint256 spendValue = 0;
-        // if no paymaster, set initial spendValue as requiredPrefund
+
+        // increment spendValue if gas cost beared by the user
         /// @dev no accounting done for the refund step so ETH spend is overestimated slightly
         if (userOp.paymasterAndData.length == 0) {
             spendValue += UserOperationUtils.getRequiredPrefund(userOp);
-        } else if (address(bytes20(userOp.paymasterAndData[:20])) == MagicSpendUtils.MAGIC_SPEND_ADDRESS) {
-            // parse MagicSpend withdraw token and value
-            (address token, uint256 value) = MagicSpendUtils.getWithdrawTransfer(userOp.paymasterAndData[20:]);
-            // check withdraw is native token
-            if (token != address(0)) revert MagicSpendUtils.InvalidWithdrawToken();
-            spendValue += value;
+        } else if (address(bytes20(userOp.paymasterAndData[:20])) == MAGIC_SPEND_ADDRESS) {
+            spendValue += UserOperationUtils.getRequiredPrefund(userOp);
+            /// @dev MagicSpend only allows withdrawing native token when used as a paymaster
         }
         /// @dev rely on Coinbase Cosigner to prevent use of paymasters that spend user assets not tracked here,
-        /// e.g. ERC20 Paymaster. Use of app-sponsored paymasters are okay, but should be manually registered offchain.
+        ///      Use of app-sponsored paymasters are okay, but should be manually registered offchain.
 
         // ignore first call, enforced by PermissionManager as validation call on itself
         for (uint256 i = 1; i < callsLen; i++) {
@@ -63,14 +68,14 @@ contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpe
                 // check call target is the allowed contract
                 // assume PermissionManager already prevents account as target
                 if (calls[i].target != allowedContract) revert UserOperationUtils.TargetNotAllowed();
-            } else if (calls[i].target == MagicSpendUtils.MAGIC_SPEND_ADDRESS) {
+            } else if (calls[i].target == MAGIC_SPEND_ADDRESS) {
                 if (selector == IMagicSpend.withdraw.selector) {
-                    // parse MagicSpend withdraw token
-                    /// @dev do not need to accrue spendValue because withdrawn value will be spent in other calls
-                    (address token,) =
-                        MagicSpendUtils.getWithdrawTransfer(UserOperationUtils.sliceCallArgs(calls[i].data));
+                    // parse MagicSpend withdraw request
+                    IMagicSpend.WithdrawRequest memory withdraw =
+                        abi.decode(UserOperationUtils.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
                     // check withdraw is native token
-                    if (token != address(0)) revert MagicSpendUtils.InvalidWithdrawToken();
+                    if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
+                    /// @dev do not need to accrue spendValue because withdrawn value will be spent in other calls
                 } else if (selector != IMagicSpend.withdrawGasExcess.selector) {
                     revert UserOperationUtils.SelectorNotAllowed();
                 }

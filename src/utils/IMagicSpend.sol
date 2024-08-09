@@ -27,19 +27,3 @@ interface IMagicSpend {
     /// @param withdrawRequest The withdraw request.
     function withdraw(WithdrawRequest memory withdrawRequest) external;
 }
-
-/// @title MagicSpendUtils
-///
-/// @notice Utilities for MagicSpend
-///
-/// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
-library MagicSpendUtils {
-    error InvalidWithdrawToken();
-
-    address public constant MAGIC_SPEND_ADDRESS = 0x011A61C07DbF256A68256B1cB51A5e246730aB92;
-
-    function getWithdrawTransfer(bytes memory requestBytes) internal pure returns (address token, uint256 value) {
-        IMagicSpend.WithdrawRequest memory request = abi.decode(requestBytes, (IMagicSpend.WithdrawRequest));
-        return (request.asset, request.amount);
-    }
-}

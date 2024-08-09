@@ -160,9 +160,9 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             revert RevokedPermission();
         }
 
-        // check permission is approved or has an approval signature
+        // check permission is approved via storage or signature
         if (
-            !_approvedPermissions[permissionHash][msg.sender]
+            !_approvedPermissions[permissionHash][permission.account]
                 && EIP1271_MAGIC_VALUE != IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
         ) {
             revert InvalidPermissionApproval();
@@ -259,17 +259,17 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         emit PermissionRevoked(msg.sender, permissionHash);
     }
 
-    /// @notice Approve a permission to enable its use via storage.
+    /// @notice Approve a permission to enable its use in user operations.
     ///
     /// @dev Entire Permission struct taken as argument for indexers to cache relevant data.
     /// @dev Permissions can also be validated just-in-time via approval signatures instead of approval storage.
     /// @dev This can be called by anyone after an approval signature has been used for gas optimization.
     ///
-    /// @param permission data for the permission
+    /// @param permission Details of the permission.
     function approvePermission(Permission calldata permission) external {
         bytes32 permissionHash = hashPermission(permission);
 
-        // check sender is permissioned account or approval signature is valid
+        // check sender is permission account or approval signature is valid for permission account
         if (
             msg.sender != permission.account
                 && EIP1271_MAGIC_VALUE != IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)

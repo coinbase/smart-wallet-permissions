@@ -6,8 +6,8 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {Multicall} from "openzeppelin-contracts/contracts/utils/Multicall.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
-import {IOffchainAuthorization} from "../offchain-authorization/IOffchainAuthorization.sol";
-import {PermissionCallable} from "../permissions/AllowedContract/PermissionCallable.sol";
+import {PermissionCallable} from "../permissions/NativeTokenRollingSpendLimit/PermissionCallable.sol";
+import {IOffchainAuthorization} from "../policies/OffchainAuthorization/IOffchainAuthorization.sol";
 
 interface IFriendTech {
     function buyShares(uint256 id, uint256 value) external payable;
@@ -46,7 +46,7 @@ contract AuthorizedFriendTech is FriendTech, AccessControl, IOffchainAuthorizati
         if (!SignatureChecker.isValidSignatureNow(signer, hash, signature)) {
             return Authorization.UNAUTHORIZED;
         } else {
-            return Authorization.AUTHORIZED;
+            return Authorization.VERIFIED;
         }
     }
 }

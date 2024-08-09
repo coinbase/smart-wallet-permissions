@@ -1,15 +1,14 @@
 {
-  "name": "smart-wallet-periphery",
+  "name": "smart-wallet-permissions",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Coinbase",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "permissionless": "^0.1.31",
-    "viem": "^2.16.2"
+    "viem": "^2.18.0"
   }
 }

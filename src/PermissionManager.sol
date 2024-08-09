@@ -6,7 +6,6 @@ import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 import {IPermissionContract} from "./permissions/IPermissionContract.sol";
-
 import {ICoinbaseSmartWallet} from "./utils/ICoinbaseSmartWallet.sol";
 import {SignatureChecker} from "./utils/SignatureChecker.sol";
 import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol";
@@ -30,15 +29,6 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         address verifyingContract; // replay protection across potential future managers
         bytes approval; // signature from an account owner proving a permission is valid
     }
-
-    /// @notice Permission account does not match currently authentication sender.
-    error InvalidPermissionAccount();
-
-    /// @notice Permission chain is not agnositc and not this chain.
-    error InvalidPermissionChain();
-
-    /// @notice Permission verifying contract is not this PermissionManager.
-    error InvalidPermissionVerifyingContract();
 
     /// @notice Permission is revoked.
     error RevokedPermission();
@@ -113,10 +103,9 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///
     /// @dev Assumes called by CoinbaseSmartWallet where this contract is an owner.
     ///
-    /// @param hash Arbitrary data signed over, intended to only support userOpHash.
-    /// @param authData Encoded group of Permission, signature from the Permission's signer for `hash`, and a
-    /// UserOperation<v0.6>.
-    function isValidSignature(bytes32 hash, bytes calldata authData) external view returns (bytes4 result) {
+    /// @param userOpHash Hash of user operation signed by permission signer.
+    /// @param authData Variable data for validating permissioned user operation.
+    function isValidSignature(bytes32 userOpHash, bytes calldata authData) external view returns (bytes4 result) {
         // assume permission, signature, cosignature, user operation encoded together
         (Permission memory permission, bytes memory signature, bytes memory cosignature, UserOperation memory userOp) =
             abi.decode(authData, (Permission, bytes, bytes, UserOperation));
@@ -125,18 +114,9 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         // check userOperation sender matches account;
         if (userOp.sender != permission.account) revert UserOperationUtils.InvalidUserOperationSender();
 
-        // check userOperation matches hash
-        bytes32 userOpHash = UserOperationUtils.getUserOpHash(userOp);
-        if (userOpHash != hash) revert UserOperationUtils.InvalidUserOperationHash();
-
-        // check chainId is this chain
-        if (permission.chainId != block.chainid) {
-            revert InvalidPermissionChain();
-        }
-
-        // check verifyingContract is PermissionManager
-        if (permission.verifyingContract != address(this)) {
-            revert InvalidPermissionVerifyingContract();
+        // check userOp matches userOpHash
+        if (UserOperationUtils.getUserOpHash(userOp) != userOpHash) {
+            revert UserOperationUtils.InvalidUserOperationHash();
         }
 
         // check permission not revoked
@@ -150,35 +130,34 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             revert InvalidPermissionApproval();
         }
 
-        // check permission signer's signature on hash
-        if (!SignatureChecker.isValidSignatureNow(hash, signature, permission.signer)) revert InvalidSignature();
+        // check permission signer's signature on userOpHash
+        if (!SignatureChecker.isValidSignatureNow(userOpHash, signature, permission.signer)) revert InvalidSignature();
 
         // check userOp.callData is `executeBatch`
-        bytes4 selector = bytes4(userOp.callData);
-        if (selector != ICoinbaseSmartWallet.executeBatch.selector) revert UserOperationUtils.SelectorNotAllowed();
+        if (bytes4(userOp.callData) != ICoinbaseSmartWallet.executeBatch.selector) {
+            revert UserOperationUtils.SelectorNotAllowed();
+        }
 
-        // check first call is PermissionManager.validatePermissionExecution with proper args
-        /// @dev rely on validation call to check for paused Manager, enabled permission contract, and permission expiry
+        // check first call is PermissionManager.checkBeforeCalls with proper arguments
         ICoinbaseSmartWallet.Call[] memory calls =
             abi.decode(UserOperationUtils.sliceCallArgs(userOp.callData), (ICoinbaseSmartWallet.Call[]));
         ICoinbaseSmartWallet.Call memory validationCall = calls[0];
         if (validationCall.target != address(this)) revert UserOperationUtils.TargetNotAllowed();
-        bytes memory validatePermissionExecutionData = abi.encodeWithSelector(
-            PermissionManager.validatePermissionExecution.selector,
-            hash,
-            cosignature,
+        bytes memory checkBeforeCallsData = abi.encodeWithSelector(
+            PermissionManager.checkBeforeCalls.selector,
+            permission.expiry,
             permission.permissionContract,
-            permission.expiry
+            userOpHash,
+            cosignature
         );
-        if (keccak256(validationCall.data) != keccak256(validatePermissionExecutionData)) {
+        if (keccak256(validationCall.data) != keccak256(checkBeforeCallsData)) {
             revert UserOperationUtils.InvalidUserOperationCallData();
         }
 
-        // check no self-calls
+        // check batch has no self-calls
         uint256 callsLen = calls.length;
         for (uint256 i = 1; i < callsLen; i++) {
             if (calls[i].target == permission.account) revert UserOperationUtils.TargetNotAllowed();
-            /// @dev TODO could also extend coverage to not allow targets that are owners of the account?
         }
 
         // validate permission-specific logic
@@ -186,23 +165,25 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             permissionHash, permission.permissionData, userOp
         );
 
+        // return back to account to complete owner signature verification of userOpHash
         return EIP1271_MAGIC_VALUE;
     }
 
-    /// @notice Validate permission constraints not allowed during userOp validation phase
+    /// @notice Check permission constraints not allowed during userOp validation phase as first call in batch.
     ///
-    /// @dev Access paused state
-    /// @dev Access enabled permission contract state
-    /// @dev Access cosigner and pendingCosigner state
-    /// @dev Use TIMESTAMP opcode to check expiry
-    function validatePermissionExecution(
-        bytes32 userOpHash,
-        bytes calldata cosignature,
+    /// @dev Accessing data only available in execution-phase:
+    ///      * Manager paused state
+    ///      * Expiry TIMESTAMP opcode
+    ///      * Enabled permission contract state
+    ///      * Cosigner and pendingCosigner state
+    function checkBeforeCalls(
+        uint256 expiry,
         address permissionContract,
-        uint256 expiry
-    ) external view {
-        // check manager not paused
-        _requireNotPaused();
+        bytes32 userOpHash,
+        bytes calldata cosignature
+    ) external view whenNotPaused {
+        // check permission not expired
+        if (expiry < block.timestamp) revert ExpiredPermission();
         // check permission contract enabled
         if (!_enabledPermissionContracts[permissionContract]) revert DisabledPermissionContract();
         // check cosignature from cosigner or pendingCosigner
@@ -213,8 +194,6 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
                         || !SignatureChecker.isValidSignatureNow(userOpHash, cosignature, abi.encode(pendingCosigner))
                 )
         ) revert InvalidSignature();
-        // check permission not expired
-        if (expiry < block.timestamp) revert ExpiredPermission();
     }
 
     /// @notice Revoke a permission to disable its use indefinitely.
@@ -233,19 +212,19 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
     /// @notice Hash a Permission struct for signing.
     ///
-    /// @dev important that this hash cannot be phished via EIP-191/712 or other method
+    /// @dev Important that this hash cannot be phished via EIP-191/712 or other method.
     ///
-    /// @param permission struct to hash
-    function hashPermission(Permission memory permission) public pure returns (bytes32) {
+    /// @param permission Struct to hash.
+    function hashPermission(Permission memory permission) public view returns (bytes32) {
         return keccak256(
             abi.encode(
                 permission.account,
-                permission.chainId,
+                block.chainid,
                 permission.expiry,
                 keccak256(permission.signer),
                 permission.permissionContract,
                 keccak256(permission.permissionData),
-                permission.verifyingContract
+                address(this)
             )
         );
     }

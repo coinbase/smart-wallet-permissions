@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
+import {MagicSpend} from "magic-spend/MagicSpend.sol";
+
 import {PermissionManager} from "../../PermissionManager.sol";
 import {ICoinbaseSmartWallet} from "../../utils/ICoinbaseSmartWallet.sol";
-import {IMagicSpend} from "../../utils/IMagicSpend.sol";
 import {UserOperation, UserOperationUtils} from "../../utils/UserOperationUtils.sol";
 import {IPermissionContract} from "../IPermissionContract.sol";
 import {IPermissionCallable} from "../PermissionCallable/IPermissionCallable.sol";
+// import {IMagicSpend} from "../../utils/IMagicSpend.sol";
 
 /// @title NativeTokenRollingSpendLimitPermission
 ///
@@ -112,14 +114,14 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
                 // check call target is the allowed contract
                 // assume PermissionManager already prevents account as target
                 if (call.target != allowedContract) revert UserOperationUtils.TargetNotAllowed();
-            } else if (selector == IMagicSpend.withdraw.selector) {
+            } else if (selector == MagicSpend.withdraw.selector) {
                 // parse MagicSpend withdraw request
-                IMagicSpend.WithdrawRequest memory withdraw =
-                    abi.decode(UserOperationUtils.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
+                MagicSpend.WithdrawRequest memory withdraw =
+                    abi.decode(UserOperationUtils.sliceCallArgs(calls[i].data), (MagicSpend.WithdrawRequest));
                 // check withdraw is native token
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
                 // do not need to accrue spendValue because withdrawn value will be spent in other calls
-            } else if (selector != IMagicSpend.withdrawGasExcess.selector) {
+            } else if (selector != MagicSpend.withdrawGasExcess.selector) {
                 revert UserOperationUtils.SelectorNotAllowed();
             }
         }

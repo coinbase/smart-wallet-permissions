@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 /// @title IOffchainAuthorization
 ///
@@ -7,10 +7,9 @@ pragma solidity 0.8.23;
 interface IOffchainAuthorization {
     /// @notice Indicate if an offchain request comes from a signer authorized by this contract.
     enum Authorization {
-        UNAUTHORIZED, // should show warning label and block requests
-        UNPROTECTED, // should show caution label
-        PUBLIC, // should show okay label
-        AUTHORIZED // should show secure label
+        UNAUTHORIZED, // show warning + reject request
+        UNVERIFIED, // show caution
+        VERIFIED // show okay
 
     }
 

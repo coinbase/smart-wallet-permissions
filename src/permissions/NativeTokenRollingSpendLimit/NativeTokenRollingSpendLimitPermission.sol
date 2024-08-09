@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
+import {PermissionManager} from "../../PermissionManager.sol";
 import {ICoinbaseSmartWallet} from "../../utils/ICoinbaseSmartWallet.sol";
 import {IMagicSpend} from "../../utils/IMagicSpend.sol";
 import {UserOperation, UserOperationUtils} from "../../utils/UserOperationUtils.sol";
@@ -17,10 +18,6 @@ import {IPermissionCallable} from "../PermissionCallable/IPermissionCallable.sol
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
 
 contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
-    /// @dev Deployment address consistent across chains
-    ///      (https://github.com/coinbase/magic-spend#deployments)
-    address public constant MAGIC_SPEND_ADDRESS = 0x011A61C07DbF256A68256B1cB51A5e246730aB92;
-
     /// @notice Spend of native token at a timestamp
     ///
     /// @dev Only supports individual spend value <= 1e65 to support packing and realistic cases
@@ -44,6 +41,8 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     /// @notice Register native token spend for a permission
     event SpendRegistered(address indexed account, bytes32 indexed permissionHash, uint256 value);
 
+    PermissionManager public immutable permissionManager;
+
     /// @notice Count of native token spends per permission per account.
     ///
     /// @dev last mapping key must be account address for 4337 slot access.
@@ -55,12 +54,16 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     mapping(bytes32 permissionHash => mapping(uint256 spendIndex => mapping(address account => Spend spend))) private
         _permissionSpend;
 
+    constructor(address manager) {
+        permissionManager = PermissionManager(manager);
+    }
+
     /// @notice Only allow permissioned calls that do not exceed approved native token spend.
     ///
     /// @dev Offchain userOp construction should append assertSpend call to calls array if spending value.
     /// @dev Rolling native token spend accounting does not protect against re-entrancy where an external call could
     ///      trigger an authorized call back to the account to spend more ETH.
-    /// @dev Rolling native token spend accounting overestimates ETH spent via gas when a paymaster is not used.
+    /// @dev Rolling native token spend accounting overestimates spend via gas when a paymaster is not used.
     function validatePermission(bytes32 permissionHash, bytes calldata permissionData, UserOperation calldata userOp)
         external
         view
@@ -76,13 +79,13 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         uint256 spendValue = 0;
 
         // increment spendValue if gas cost beared by the user
-        /// @dev No accounting done for the refund step so native token spend is overestimated slightly
-        /// @dev MagicSpend only allows withdrawing native token when used as a paymaster
-        /// @dev Rely on Coinbase Cosigner to prevent use of paymasters that spend user assets not tracked here
         if (
-            userOp.paymasterAndData.length == 0 || address(bytes20(userOp.paymasterAndData[:20])) == MAGIC_SPEND_ADDRESS
+            userOp.paymasterAndData.length == 0
+                || permissionManager.addPaymasterGasSpend(address(bytes20(userOp.paymasterAndData[:20])))
         ) {
+            // over-debits by ~3x actual gas used
             spendValue += UserOperationUtils.getRequiredPrefund(userOp);
+            // recall MagicSpend enforces withdraw to be native token when used as a paymaster
         }
 
         // loop over calls to validate native token spend and allowed contracts
@@ -109,18 +112,14 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
                 // check call target is the allowed contract
                 // assume PermissionManager already prevents account as target
                 if (call.target != allowedContract) revert UserOperationUtils.TargetNotAllowed();
-            } else if (calls[i].target == MAGIC_SPEND_ADDRESS) {
-                if (selector == IMagicSpend.withdraw.selector) {
-                    // parse MagicSpend withdraw request
-                    IMagicSpend.WithdrawRequest memory withdraw =
-                        abi.decode(UserOperationUtils.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
-                    // check withdraw is native token
-                    if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
-                    /// @dev do not need to accrue spendValue because withdrawn value will be spent in other calls
-                } else if (selector != IMagicSpend.withdrawGasExcess.selector) {
-                    revert UserOperationUtils.SelectorNotAllowed();
-                }
-            } else {
+            } else if (selector == IMagicSpend.withdraw.selector) {
+                // parse MagicSpend withdraw request
+                IMagicSpend.WithdrawRequest memory withdraw =
+                    abi.decode(UserOperationUtils.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
+                // check withdraw is native token
+                if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
+                // do not need to accrue spendValue because withdrawn value will be spent in other calls
+            } else if (selector != IMagicSpend.withdrawGasExcess.selector) {
                 revert UserOperationUtils.SelectorNotAllowed();
             }
         }

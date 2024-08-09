@@ -5,8 +5,8 @@ import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
-import {IOffchainAuthorization} from "../offchain-authorization/IOffchainAuthorization.sol";
-import {PermissionCallable} from "../permissions/AllowedContract/PermissionCallable.sol";
+import {PermissionCallable} from "../permissions/NativeTokenRollingSpendLimit/PermissionCallable.sol";
+import {IOffchainAuthorization} from "../policies/OffchainAuthorization/IOffchainAuthorization.sol";
 
 contract Click is PermissionCallable {
     event Clicked(address indexed account);
@@ -25,9 +25,9 @@ contract AuthorizedClick is Click, Ownable, IOffchainAuthorization {
 
     function getRequestAuthorization(bytes32 hash, bytes calldata signature) external view returns (Authorization) {
         if (!SignatureChecker.isValidSignatureNow(owner(), hash, signature)) {
-            return Authorization.UNPROTECTED;
+            return Authorization.UNVERIFIED;
         } else {
-            return Authorization.AUTHORIZED;
+            return Authorization.VERIFIED;
         }
     }
 }

@@ -1,4 +1,4 @@
-## Send Calls with Permissions Request Capability
+## Send Calls with Grant Permissions Capability
 
 ```mermaid
 sequenceDiagram

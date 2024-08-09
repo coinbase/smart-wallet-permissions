@@ -31,11 +31,8 @@ abstract contract PermissionCallable is IPermissionCallable {
     function permissionedCall(bytes calldata call) external payable returns (bytes memory res) {
         // check if call selector is allowed through permissionedCall
         if (!supportsPermissionedCallSelector(bytes4(call))) revert NotPermissionCallable(bytes4(call));
-
         // make self-delegatecall with provided call data
-        res = Address.functionDelegateCall(address(this), call);
-
-        return res;
+        return Address.functionDelegateCall(address(this), call);
     }
 
     function supportsPermissionedCallSelector(bytes4 selector) public view virtual returns (bool);

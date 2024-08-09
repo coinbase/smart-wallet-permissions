@@ -40,7 +40,7 @@ contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpe
         // if no paymaster, set initial spendValue as requiredPrefund
         /// @dev no accounting done for the refund step so ETH spend is overestimated slightly
         if (userOp.paymasterAndData.length == 0) {
-            spendValue += _getRequiredPrefund(userOp);
+            spendValue += UserOperationUtils.getRequiredPrefund(userOp);
         } else if (address(bytes20(userOp.paymasterAndData[:20])) == MagicSpendUtils.MAGIC_SPEND_ADDRESS) {
             // parse MagicSpend withdraw token and value
             (address token, uint256 value) = MagicSpendUtils.getWithdrawTransfer(userOp.paymasterAndData[20:]);
@@ -62,16 +62,17 @@ contract AllowedContractPermission is IPermissionContract, RollingNativeTokenSpe
             } else if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
                 // assume PermissionManager already prevents account as target
-                if (calls[i].target != allowedContract) revert TargetNotAllowed();
+                if (calls[i].target != allowedContract) revert UserOperationUtils.TargetNotAllowed();
             } else if (calls[i].target == MagicSpendUtils.MAGIC_SPEND_ADDRESS) {
                 if (selector == IMagicSpend.withdraw.selector) {
                     // parse MagicSpend withdraw token
                     /// @dev do not need to accrue spendValue because withdrawn value will be spent in other calls
-                    (address token,) = MagicSpendUtils.getWithdrawTransfer(_sliceCallArgs(calls[i].data));
+                    (address token,) =
+                        MagicSpendUtils.getWithdrawTransfer(UserOperationUtils.sliceCallArgs(calls[i].data));
                     // check withdraw is native token
                     if (token != address(0)) revert MagicSpendUtils.InvalidWithdrawToken();
                 } else if (selector != IMagicSpend.withdrawGasExcess.selector) {
-                    revert SelectorNotAllowed();
+                    revert UserOperationUtils.SelectorNotAllowed();
                 }
             } else {
                 revert UserOperationUtils.SelectorNotAllowed();

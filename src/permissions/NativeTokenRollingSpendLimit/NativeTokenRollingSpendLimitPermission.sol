@@ -4,7 +4,7 @@ pragma solidity 0.8.23;
 import {ICoinbaseSmartWallet} from "../../utils/ICoinbaseSmartWallet.sol";
 import {UserOperation, UserOperationUtils} from "../../utils/UserOperationUtils.sol";
 import {IPermissionContract} from "../IPermissionContract.sol";
-import {IPermissionCallable} from "./IPermissionCallable.sol";
+import {IPermissionCallable} from "../PermissionCallable/IPermissionCallable.sol";
 
 /// @title NativeTokenRollingSpendLimitPermission
 ///

@@ -6,7 +6,7 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {Multicall} from "openzeppelin-contracts/contracts/utils/Multicall.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
-import {PermissionCallable} from "../permissions/NativeTokenRollingSpendLimit/PermissionCallable.sol";
+import {PermissionCallable} from "../permissions/PermissionCallable/PermissionCallable.sol";
 import {IOffchainAuthorization} from "../policies/OffchainAuthorization/IOffchainAuthorization.sol";
 
 interface IFriendTech {

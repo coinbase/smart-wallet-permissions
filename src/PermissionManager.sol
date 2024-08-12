@@ -41,6 +41,9 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Permission is revoked.
     error RevokedPermission();
 
+    /// @notice Permission is approved.
+    error ApprovedPermission();
+
     /// @notice PermissionApproval is invalid
     error InvalidPermissionApproval();
 
@@ -74,6 +77,12 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @param permissionHash The unique hash representing the permission.
     event PermissionRevoked(address indexed account, bytes32 indexed permissionHash);
 
+    /// @notice Permission was approved via transaction.
+    ///
+    /// @param account The smart contract account the permission controls.
+    /// @param permissionHash The unique hash representing the permission.
+    event PermissionApproved(address indexed account, bytes32 indexed permissionHash);
+
     /// @notice Pending cosigner set, initiating rotation.
     ///
     /// @param newCosigner Address of the new cosigner.
@@ -91,6 +100,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///
     /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
     mapping(bytes32 permissionHash => mapping(address account => bool revoked)) public isPermissionRevoked;
+
+    /// @notice Track if permissions are approved by accounts via transactions.
+    ///
+    /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
+    mapping(bytes32 permissionHash => mapping(address account => bool approved)) public isPermissionApproved;
 
     /// @notice Track if permission contracts are enabled.
     ///
@@ -146,9 +160,17 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             revert RevokedPermission();
         }
 
-        // check account approved permission
-        if (EIP1271_MAGIC_VALUE != IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)) {
-            revert InvalidPermissionApproval();
+        if (permission.approval.length == 0) {
+            // check permission is approved via storage
+            if (isPermissionApproved[permissionHash][permission.account]) revert InvalidPermissionApproval();
+        } else {
+            // check permission is approved via signature
+            if (
+                EIP1271_MAGIC_VALUE
+                    == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+            ) {
+                revert InvalidPermissionApproval();
+            }
         }
 
         // check permission signer signed userOpHash
@@ -240,6 +262,41 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         isPermissionRevoked[permissionHash][msg.sender] = true;
 
         emit PermissionRevoked(msg.sender, permissionHash);
+    }
+
+    /// @notice Approve a permission to enable its use in user operations.
+    ///
+    /// @dev Entire Permission struct taken as argument for indexers to cache relevant data.
+    /// @dev Permissions can also be validated just-in-time via approval signatures instead of approval storage.
+    /// @dev This can be called by anyone after an approval signature has been used for gas optimization.
+    ///
+    /// @param permission Details of the permission.
+    function approvePermission(Permission calldata permission) external {
+        bytes32 permissionHash = hashPermission(permission);
+
+        // check sender is permission account or approval signature is valid for permission account
+        if (
+            !(
+                msg.sender == permission.account
+                    || EIP1271_MAGIC_VALUE
+                        == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+            )
+        ) {
+            revert InvalidPermissionApproval();
+        }
+
+        // check permission contract enabled
+        if (!isPermissionContractEnabled[permission.permissionContract]) revert DisabledPermissionContract();
+
+        // check permission not revoked
+        if (isPermissionRevoked[permissionHash][permission.account]) revert RevokedPermission();
+
+        // check permission not approved
+        if (isPermissionApproved[permissionHash][permission.account]) revert ApprovedPermission();
+
+        isPermissionApproved[permissionHash][permission.account] = true;
+
+        emit PermissionApproved(permission.account, permissionHash);
     }
 
     /// @notice Hash a Permission struct for signing.

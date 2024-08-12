@@ -12,18 +12,18 @@ import {IPermissionCallable} from "../PermissionCallable/IPermissionCallable.sol
 /// @title NativeTokenRollingSpendLimitPermission
 ///
 /// @notice Supports spending native token with rolling limits.
-/// @notice Only allow calls to a single allowed contract using IPermissionCallable.permissionedCall.
+/// @notice Only allow calls to a single allowed contract using IPermissionCallable.permissionedCall selector.
 ///
 /// @dev Called by PermissionManager at end of its validation flow.
 ///
-/// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
+/// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 
 contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
-    /// @notice Spend of native token at a timestamp
-    ///
-    /// @dev Only supports individual spend value <= 1e65 to support packing and realistic cases
+    /// @notice Spend of native token at a specific time.
     struct Spend {
+        /// @dev Unix timestamp of the spend.
         uint48 timestamp;
+        /// @dev Amount of native token spent, max value <= 1e65.
         uint208 value;
     }
 
@@ -42,41 +42,39 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     /// @notice Register native token spend for a permission
     event SpendRegistered(address indexed account, bytes32 indexed permissionHash, uint256 value);
 
+    /// @notice All native token spends per account per permission.
+    mapping(address account => mapping(bytes32 permissionHash => Spend[] spends)) internal _permissionSpends;
+
+    /// @notice PermissionManager this permission contract trusts for paymaster gas spend data.
     PermissionManager public immutable permissionManager;
-
-    /// @notice Count of native token spends per permission per account.
-    ///
-    /// @dev last mapping key must be account address for 4337 slot access.
-    mapping(bytes32 permissionHash => mapping(address account => uint256 count)) private _permissionSpendCount;
-
-    /// @notice All native token spends per permission per account.
-    ///
-    /// @dev last mapping key must be account address for 4337 slot access.
-    mapping(bytes32 permissionHash => mapping(uint256 spendIndex => mapping(address account => Spend spend))) private
-        _permissionSpend;
 
     constructor(address manager) {
         permissionManager = PermissionManager(manager);
     }
 
-    /// @notice Only allow permissioned calls that do not exceed approved native token spend.
+    /// @notice Validate the permission to execute a userOp.
     ///
     /// @dev Offchain userOp construction should append assertSpend call to calls array if spending value.
     /// @dev Rolling native token spend accounting does not protect against re-entrancy where an external call could
     ///      trigger an authorized call back to the account to spend more ETH.
     /// @dev Rolling native token spend accounting overestimates spend via gas when a paymaster is not used.
-    function validatePermission(bytes32 permissionHash, bytes calldata permissionData, UserOperation calldata userOp)
+    ///
+    /// @param permissionHash Hash of the permission.
+    /// @param permissionFields Additional arguments for validation.
+    /// @param userOp User operation to validate permission for.
+    function validatePermission(bytes32 permissionHash, bytes calldata permissionFields, UserOperation calldata userOp)
         external
         view
     {
-        /// @dev TODO: pack spendLimit and spendPeriod
-        (uint256 spendLimit, uint256 spendPeriod, address allowedContract) =
-            abi.decode(permissionData, (uint256, uint256, address));
+        // parse permission
+        (uint256 spendPeriodLimit, uint256 spendPeriodDuration, address allowedContract) =
+            abi.decode(permissionFields, (uint256, uint256, address));
 
-        // for each call, accumulate attempted spend and check if call allowed
-        // assumes PermissionManager already enforces use of `executeBatch` selector
+        // parse user operation call data as `executeBatch` arguments (call array)
         ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
         uint256 callsLen = calls.length;
+
+        // initialize spend value accumulator
         uint256 spendValue = 0;
 
         // increment spendValue if gas cost beared by the user
@@ -94,34 +92,50 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         for (uint256 i = 1; i < callsLen; i++) {
             ICoinbaseSmartWallet.Call memory call = calls[i];
             bytes4 selector = bytes4(call.data);
-            // accumulate spend value
-            spendValue += call.value;
-            // check if last call and nonzero spend value, then this must be assertSpend call
-            if (i == callsLen - 1 && spendValue > 0) {
-                // check call is this contract and call data matches prepared assertSpend args
-                bytes memory assertSpendData = abi.encodeWithSelector(
-                    NativeTokenRollingSpendLimitPermission.assertSpend.selector,
-                    spendValue,
-                    permissionHash,
-                    spendLimit,
-                    spendPeriod
-                );
-                if (call.target != address(this) || keccak256(call.data) != keccak256(assertSpendData)) {
-                    revert MissingAssertSpend();
-                }
-            } else if (selector == IPermissionCallable.permissionedCall.selector) {
+
+            if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
-                // assume PermissionManager already prevents account as target
                 if (call.target != allowedContract) revert UserOperationUtils.TargetNotAllowed();
+                // assume PermissionManager already prevents account as target
             } else if (selector == IMagicSpend.withdraw.selector) {
                 // parse MagicSpend withdraw request
                 IMagicSpend.WithdrawRequest memory withdraw =
                     abi.decode(UserOperationUtils.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
+
                 // check withdraw is native token
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
                 // do not need to accrue spendValue because withdrawn value will be spent in other calls
-            } else if (selector != IMagicSpend.withdrawGasExcess.selector) {
+            } else if (selector == IMagicSpend.withdrawGasExcess.selector) {
+                // ok
+            } else if (selector == NativeTokenRollingSpendLimitPermission.assertSpend.selector) {
+                // ok
+            } else {
                 revert UserOperationUtils.SelectorNotAllowed();
+            }
+
+            // accumulate spend value
+            spendValue += call.value;
+        }
+
+        // check if spending value, then last call must be assertSpend
+        if (spendValue > 0) {
+            // prepare expected call data for `assertSpend`
+            bytes memory assertSpendData = abi.encodeWithSelector(
+                NativeTokenRollingSpendLimitPermission.assertSpend.selector,
+                spendValue,
+                permissionHash,
+                spendPeriodLimit,
+                spendPeriodDuration
+            );
+
+            // check call target is this contract and call data matches prepared assertSpend args
+            if (
+                !(
+                    calls[callsLen - 1].target == address(this)
+                        && keccak256(calls[callsLen - 1].data) == keccak256(assertSpendData)
+                )
+            ) {
+                revert MissingAssertSpend();
             }
         }
     }
@@ -129,21 +143,29 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     /// @notice Register a spend of native token for a given permission.
     ///
     /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS vector.
-    function assertSpend(bytes32 permissionHash, uint256 spendValue, uint256 spendLimit, uint256 spendPeriod)
-        external
-    {
+    ///
+    /// @param permissionHash Hash of the permission.
+    /// @param spendValue Value of native token spent in user operation.
+    /// @param spendPeriodLimit Value of native token that cannot be exceeded over the rolling period.
+    /// @param spendPeriodDuration Seconds duration for the rolling period.
+    function assertSpend(
+        bytes32 permissionHash,
+        uint256 spendValue,
+        uint256 spendPeriodLimit,
+        uint256 spendPeriodDuration
+    ) external {
         // early return if no value spent
         if (spendValue == 0) return;
-        // check spend value within 208 bits
+
+        // check spend value within max value
         if (spendValue > type(uint208).max) revert SpendValueOverflow();
+
         // check spend value does not exceed limit for period
-        uint256 rollingSpend = _calculateRollingSpend(msg.sender, permissionHash, spendPeriod);
-        if (spendValue + rollingSpend > spendLimit) {
-            revert ExceededSpendingLimit();
-        }
+        uint256 rollingSpend = calculateRollingSpend(msg.sender, permissionHash, spendPeriodDuration);
+        if (spendValue + rollingSpend > spendPeriodLimit) revert ExceededSpendingLimit();
+
         // add spend to state
-        uint256 index = ++_permissionSpendCount[permissionHash][msg.sender];
-        _permissionSpend[permissionHash][index][msg.sender] = Spend(uint48(block.timestamp), uint208(spendValue));
+        _permissionSpends[msg.sender][permissionHash].push(Spend(uint48(block.timestamp), uint208(spendValue)));
 
         emit SpendRegistered(msg.sender, permissionHash, spendValue);
     }
@@ -152,24 +174,25 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     ///
     /// @param account The account to localize to
     /// @param permissionHash The unique permission to localize to
-    /// @param spendPeriod Time in seconds to look back from now for current spend period
+    /// @param spendPeriodDuration Time in seconds to look back from now for current spend period
     ///
     /// @return rollingSpend Value of spend done by this permission in the past period
-    function _calculateRollingSpend(address account, bytes32 permissionHash, uint256 spendPeriod)
-        internal
+    function calculateRollingSpend(address account, bytes32 permissionHash, uint256 spendPeriodDuration)
+        public
         view
         returns (uint256 rollingSpend)
     {
-        uint256 index = _permissionSpendCount[permissionHash][account];
-        // end loop when index reaches 0 (spends indexed starting at 1)
-        while (index > 0) {
-            Spend memory spend = _permissionSpend[permissionHash][index][account];
+        uint256 spendsLen = _permissionSpends[account][permissionHash].length;
+
+        // loop backwards from most recent to oldest spends
+        for (uint256 i = spendsLen; i > 0; i--) {
+            Spend memory spend = _permissionSpends[account][permissionHash][i - 1];
+
             // break loop if spend is before our spend period lower bound
-            if (spend.timestamp < block.timestamp - spendPeriod) {
-                break;
-            }
+            if (spend.timestamp < block.timestamp - spendPeriodDuration) break;
+
+            // increment rolling spend
             rollingSpend += spend.value;
-            index -= 1;
         }
     }
 }

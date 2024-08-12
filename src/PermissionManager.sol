@@ -160,15 +160,17 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             revert RevokedPermission();
         }
 
-        // check permission is approved via storage or signature
-        if (
-            !(
-                (permission.approval.length == 0 && isPermissionApproved[permissionHash][permission.account])
-                    || EIP1271_MAGIC_VALUE
-                        == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
-            )
-        ) {
-            revert InvalidPermissionApproval();
+        if (permission.approval.length == 0) {
+            // check permission is approved via storage
+            if (isPermissionApproved[permissionHash][permission.account]) revert InvalidPermissionApproval();
+        } else {
+            // check permission is approved via signature
+            if (
+                EIP1271_MAGIC_VALUE
+                    == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+            ) {
+                revert InvalidPermissionApproval();
+            }
         }
 
         // check permission signer signed userOpHash
@@ -284,17 +286,13 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         }
 
         // check permission contract enabled
-        if (!_enabledPermissionContracts[permission.permissionContract]) revert DisabledPermissionContract();
+        if (!isPermissionContractEnabled[permission.permissionContract]) revert DisabledPermissionContract();
 
         // check permission not revoked
-        if (_revokedPermissions[permissionHash][permission.account]) {
-            revert RevokedPermission();
-        }
+        if (isPermissionRevoked[permissionHash][permission.account]) revert RevokedPermission();
 
         // check permission not approved
-        if (isPermissionApproved[permissionHash][permission.account]) {
-            revert ApprovedPermission();
-        }
+        if (isPermissionApproved[permissionHash][permission.account]) revert ApprovedPermission();
 
         isPermissionApproved[permissionHash][permission.account] = true;
 

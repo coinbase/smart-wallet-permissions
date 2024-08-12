@@ -5,14 +5,14 @@ import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 
 /// @title IPermissionContract
 ///
-/// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
+/// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 interface IPermissionContract {
-    /// @notice Validate the permissions to execute a userOp.
+    /// @notice Validate the permission to execute a userOp.
     ///
-    /// @param permissionHash hash of the permission
-    /// @param permissionData dynamic data stored in the permission for validation
-    /// @param userOp user operation being attempted
-    function validatePermission(bytes32 permissionHash, bytes calldata permissionData, UserOperation calldata userOp)
+    /// @param permissionHash Hash of the permission.
+    /// @param permissionFields Additional arguments for validation.
+    /// @param userOp User operation to validate permission for.
+    function validatePermission(bytes32 permissionHash, bytes calldata permissionFields, UserOperation calldata userOp)
         external
         view;
 }

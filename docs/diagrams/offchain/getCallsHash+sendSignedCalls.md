@@ -1,12 +1,11 @@
-## Send Calls with Permissions Context Capability
+## Get Calls Hash and Send Signed Calls
+
+General flow for sending user operations with a Wallet Server. Supports server signers and our own Wallet A (see [sendCalls+permissionsContext](./sendCalls+permissionsContext.md)).
 
 ```mermaid
 sequenceDiagram
     autonumber
-    box transparent App
-        participant A as App Interface
-        participant SDK as Wallet SDK
-    end
+    participant A as App
     box transparent Wallet
         participant WS as Wallet Server
         participant CS as Cosigner
@@ -16,20 +15,18 @@ sequenceDiagram
         participant B as Bundler
     end
 
-    A->>SDK: wallet_sendCalls
-    SDK->>WS: wallet_getCallsHash
+    A->>WS: wallet_getCallsHash
     WS->>P: pm_getPaymasterStubData
     P-->>WS: paymaster stub data
     WS->>P: pm_getPaymasterData
     P-->>WS: paymaster data
-    WS-->>SDK: calls hash with context
-    SDK->>SDK: sign
-    SDK->>WS: wallet_sendSignedCalls
+    WS-->>A: calls hash with context
+    A->>A: sign
+    A->>WS: wallet_sendSignedCalls
     WS->>CS: cosign userOp
-    CS->>CS: validate userOp and sign
+    CS->>CS: validate userOp + sign
     CS-->>WS: cosignature
     WS->>B: eth_sendUserOperation
     B-->>WS: userOpHash
-    WS-->>SDK: callsId
-    SDK-->>A: callsId
+    WS-->>A: callsId
 ```

@@ -3,13 +3,19 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as App
-    participant SDK as SDK
-    participant W as Wallet
-    participant P as Paymaster
-    participant U as User
-    participant B as Bundler
-    participant WS as Wallet Server
+    box transparent App
+        participant A as App Interface
+        participant SDK as Wallet SDK
+    end
+    box transparent Wallet
+        participant W as Wallet Interface
+        participant U as User
+        participant WS as Wallet Server
+    end
+    box transparent External
+        participant P as Paymaster
+        participant B as Bundler
+    end
 
     A->>SDK: wallet_sendCalls
     SDK->>W: wallet_sendCalls

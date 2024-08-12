@@ -53,6 +53,9 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Permission contract not enabled.
     error DisabledPermissionContract();
 
+    /// @notice Paymaster contract not enabled.
+    error DisabledPaymaster();
+
     /// @notice Permission has expired.
     error ExpiredPermission();
 
@@ -64,6 +67,12 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @param permissionContract The contract resposible for checking permission logic.
     /// @param enabled The new setting allowing/preventing use.
     event PermissionContractUpdated(address indexed permissionContract, bool enabled);
+
+    /// @notice Paymaster setting updated.
+    ///
+    /// @param paymaster ERC-4337 paymaster contract.
+    /// @param enabled The new setting allowing/preventing use.
+    event PaymasterUpdated(address indexed paymaster, bool enabled);
 
     /// @notice Paymaster gas spend setting updated.
     ///
@@ -110,6 +119,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///
     /// @dev Storage not keyable by account, can only be accessed in execution phase.
     mapping(address permissionContract => bool enabled) public isPermissionContractEnabled;
+
+    /// @notice Track if paymasters are enabled.
+    ///
+    /// @dev Storage not keyable by account, can only be accessed in execution phase.
+    mapping(address paymaster => bool enabled) public isPaymasterEnabled;
 
     /// @notice Track if a permission contract should account for gas spent by paymaster.
     ///
@@ -195,6 +209,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             PermissionManager.checkBeforeCalls.selector,
             permission.expiry,
             permission.permissionContract,
+            address(bytes20(userOp.paymasterAndData)),
             userOpHash,
             userOpCosignature
         );
@@ -223,6 +238,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///      * Manager paused state
     ///      * Expiry TIMESTAMP opcode
     ///      * Enabled permission contract state
+    ///      * Enabled paymaster state
     ///      * Cosigner and pendingCosigner state
     ///
     /// @param expiry Unix timestamp this permission is valid until.
@@ -232,6 +248,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     function checkBeforeCalls(
         uint256 expiry,
         address permissionContract,
+        address paymaster,
         bytes32 userOpHash,
         bytes calldata userOpCosignature
     ) external view whenNotPaused {
@@ -240,6 +257,9 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // check permission contract enabled
         if (!isPermissionContractEnabled[permissionContract]) revert DisabledPermissionContract();
+
+        // check paymaster enabled
+        if (!isPaymasterEnabled[paymaster]) revert DisabledPaymaster();
 
         // check userOpCosignature from cosigner or pendingCosigner
         if (
@@ -325,6 +345,15 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     function setPermissionContractEnabled(address permissionContract, bool enabled) external onlyOwner {
         isPermissionContractEnabled[permissionContract] = enabled;
         emit PermissionContractUpdated(permissionContract, enabled);
+    }
+
+    /// @notice Set paymaster enabled status.
+    ///
+    /// @param paymaster ERC-4337 paymaster contract.
+    /// @param enabled True if the contract is enabled.
+    function setPaymasterEnabled(address paymaster, bool enabled) external onlyOwner {
+        isPaymasterEnabled[paymaster] = enabled;
+        emit PaymasterUpdated(paymaster, enabled);
     }
 
     /// @notice Set paymaster should add gas spend or not.

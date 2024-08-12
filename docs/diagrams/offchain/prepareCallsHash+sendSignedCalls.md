@@ -1,4 +1,4 @@
-## Get Calls Hash and Send Signed Calls
+## Prepare Calls Hash and Send Signed Calls
 
 General flow for sending user operations with a Wallet Server. Supports server signers and our own Wallet A (see [sendCalls+permissionsContext](./sendCalls+permissionsContext.md)).
 
@@ -15,7 +15,7 @@ sequenceDiagram
         participant B as Bundler
     end
 
-    A->>WS: wallet_getCallsHash
+    A->>WS: wallet_prepareCallsHash
     WS->>P: pm_getPaymasterStubData
     P-->>WS: paymaster stub data
     WS->>P: pm_getPaymasterData

@@ -3,7 +3,6 @@ pragma solidity 0.8.23;
 
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
-import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 
 /// @title UserOperationUtils
 ///
@@ -72,8 +71,14 @@ library UserOperationUtils {
     /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas
     ///
     /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process
-    function getRequiredPrefund(UserOperation memory userOp) internal pure returns (uint256 requiredPrefund) {
-        uint256 requiredGas = userOp.callGasLimit + userOp.verificationGasLimit + userOp.preVerificationGas;
+    /// @dev Implementation forked from
+    ///      https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.6/contracts/core/EntryPoint.sol#L325
+    function getRequiredPrefund(UserOperation calldata userOp) internal pure returns (uint256 requiredPrefund) {
+        // if using paymaster, use a multiplier for verificationGasLimit
+        uint256 mul = address(bytes20(userOp.paymasterAndData[:20])) != address(0) ? 3 : 1;
+        // sum gas parameters
+        uint256 requiredGas = userOp.callGasLimit + mul * userOp.verificationGasLimit + userOp.preVerificationGas;
+        // calculate max gas fees required for prefund
         requiredPrefund = requiredGas * userOp.maxFeePerGas;
     }
 

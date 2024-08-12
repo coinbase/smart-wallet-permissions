@@ -51,11 +51,17 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Tried to rotate cosigner without a pending one set.
     error MissingPendingCosigner();
 
-    /// @notice Permission contract setting updated
+    /// @notice Permission contract setting updated.
     ///
     /// @param permissionContract The contract resposible for checking permission logic.
     /// @param enabled The new setting allowing/preventing use.
     event PermissionContractUpdated(address indexed permissionContract, bool enabled);
+
+    /// @notice Paymaster gas spend setting updated.
+    ///
+    /// @param paymaster The paymaster contract, potentially spending user assets.
+    /// @param addGasSpend The new setting to add gas spend or not.
+    event PaymasterGasSpendUpdated(address indexed paymaster, bool addGasSpend);
 
     /// @notice Permission was revoked prematurely by account.
     ///
@@ -85,6 +91,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///
     /// @dev Storage not keyable by account, can only be accessed in execution phase.
     mapping(address permissionContract => bool enabled) internal _enabledPermissionContracts;
+
+    /// @notice Track if a permission contract should account for gas spent by paymaster.
+    ///
+    /// @dev Storage not keyable by account, can only be accessed in execution phase.
+    mapping(address paymaster => bool enabled) public shouldAddPaymasterGasToTotalSpend;
 
     /// @notice Second-factor signer owned by Coinbase, required to have approval for each userOp.
     address public cosigner;
@@ -248,6 +259,15 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         }
         _enabledPermissionContracts[permissionContract] = enabled;
         emit PermissionContractUpdated(permissionContract, enabled);
+    }
+
+    /// @notice Set paymaster should add gas spend or not.
+    ///
+    /// @param paymaster The paymaster contract, potentially spending user assets.
+    /// @param addGasSpend The new setting to add gas spend or not.
+    function setShouldAddPaymasterGasToTotalSpend(address paymaster, bool addGasSpend) external onlyOwner {
+        shouldAddPaymasterGasToTotalSpend[paymaster] = addGasSpend;
+        emit PaymasterGasSpendUpdated(paymaster, addGasSpend);
     }
 
     /// @notice Pause the manager contract from processing any userOps.

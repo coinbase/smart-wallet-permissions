@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
+import {PermissionManager} from "../../PermissionManager.sol";
 import {ICoinbaseSmartWallet} from "../../utils/ICoinbaseSmartWallet.sol";
+
+import {IMagicSpend} from "../../utils/IMagicSpend.sol";
 import {UserOperation, UserOperationUtils} from "../../utils/UserOperationUtils.sol";
 import {IPermissionContract} from "../IPermissionContract.sol";
 import {IPermissionCallable} from "../PermissionCallable/IPermissionCallable.sol";
@@ -33,8 +36,13 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     /// @notice Spend in user operation not registered at end of execution.
     error MissingAssertSpend();
 
+    /// @notice MagicSpend withdraw asset is not native token.
+    error InvalidWithdrawAsset();
+
     /// @notice Register native token spend for a permission
     event SpendRegistered(address indexed account, bytes32 indexed permissionHash, uint256 value);
+
+    PermissionManager public immutable permissionManager;
 
     /// @notice Count of native token spends per permission per account.
     ///
@@ -47,12 +55,16 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     mapping(bytes32 permissionHash => mapping(uint256 spendIndex => mapping(address account => Spend spend))) private
         _permissionSpend;
 
+    constructor(address manager) {
+        permissionManager = PermissionManager(manager);
+    }
+
     /// @notice Only allow permissioned calls that do not exceed approved native token spend.
     ///
     /// @dev Offchain userOp construction should append assertSpend call to calls array if spending value.
     /// @dev Rolling native token spend accounting does not protect against re-entrancy where an external call could
     ///      trigger an authorized call back to the account to spend more ETH.
-    /// @dev Rolling native token spend accounting overestimates ETH spent via gas when a paymaster is not used.
+    /// @dev Rolling native token spend accounting overestimates spend via gas when a paymaster is not used.
     function validatePermission(bytes32 permissionHash, bytes calldata permissionData, UserOperation calldata userOp)
         external
         view
@@ -66,18 +78,27 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
         uint256 callsLen = calls.length;
         uint256 spendValue = 0;
-        // if no paymaster, set initial spendValue as requiredPrefund
-        /// @dev no accounting done for the refund step so ETH spend is overestimated slightly
-        if (userOp.paymasterAndData.length == 0) {
+
+        // increment spendValue if gas cost beared by the user
+        if (
+            userOp.paymasterAndData.length == 0
+                || permissionManager.shouldAddPaymasterGasToTotalSpend(address(bytes20(userOp.paymasterAndData[:20])))
+        ) {
+            // over-debits by ~3x actual gas used
             spendValue += UserOperationUtils.getRequiredPrefund(userOp);
+            // recall MagicSpend enforces withdraw to be native token when used as a paymaster
         }
-        // ignore first call, enforced by PermissionManager as validation call on itself
+
+        // loop over calls to validate native token spend and allowed contracts
+        // start index at 1 to ignore first call, enforced by PermissionManager as validation call on itself
         for (uint256 i = 1; i < callsLen; i++) {
             ICoinbaseSmartWallet.Call memory call = calls[i];
+            bytes4 selector = bytes4(call.data);
             // accumulate spend value
             spendValue += call.value;
             // check if last call and nonzero spend value, then this must be assertSpend call
             if (i == callsLen - 1 && spendValue > 0) {
+                // check call is this contract and call data matches prepared assertSpend args
                 bytes memory assertSpendData = abi.encodeWithSelector(
                     NativeTokenRollingSpendLimitPermission.assertSpend.selector,
                     spendValue,
@@ -88,11 +109,18 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
                 if (call.target != address(this) || keccak256(call.data) != keccak256(assertSpendData)) {
                     revert MissingAssertSpend();
                 }
-            } else if (bytes4(call.data) == IPermissionCallable.permissionedCall.selector) {
+            } else if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
                 // assume PermissionManager already prevents account as target
                 if (call.target != allowedContract) revert UserOperationUtils.TargetNotAllowed();
-            } else {
+            } else if (selector == IMagicSpend.withdraw.selector) {
+                // parse MagicSpend withdraw request
+                IMagicSpend.WithdrawRequest memory withdraw =
+                    abi.decode(UserOperationUtils.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
+                // check withdraw is native token
+                if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
+                // do not need to accrue spendValue because withdrawn value will be spent in other calls
+            } else if (selector != IMagicSpend.withdrawGasExcess.selector) {
                 revert UserOperationUtils.SelectorNotAllowed();
             }
         }

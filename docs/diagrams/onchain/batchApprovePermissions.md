@@ -1,6 +1,6 @@
-## Update Permissions
+## Batch Approve Permissions
 
-Accounts can update permissions via batching `revokePermission` and `approvePermission` calls to `PermissionManager`.
+Accounts can batch approve permissions via batching `approvePermission` calls to `PermissionManager`.
 
 ```mermaid
 sequenceDiagram
@@ -14,10 +14,6 @@ sequenceDiagram
     A-->>E: validation data
     E->>A: executeBatch
     Note left of E: Execution phase
-    loop
-        A->>M: revokePermission
-        Note over A,M: bytes32 permissionHash
-    end
     loop
         A->>M: approvePermission
         Note over A,M: struct permission

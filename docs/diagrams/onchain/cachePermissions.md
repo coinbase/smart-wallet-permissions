@@ -8,8 +8,6 @@ sequenceDiagram
     participant E as External
     participant M as Permission Manager
 
-    loop
-        E->>M: approvePermission
-        Note over E,M: struct permission
-    end
+    E->>M: approvePermission
+    Note over E,M: struct permission
 ```

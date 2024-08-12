@@ -27,17 +27,17 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         uint208 value;
     }
 
+    /// @notice MagicSpend withdraw asset is not native token.
+    error InvalidWithdrawAsset();
+
+    /// @notice Spend assertation call not made in last call.
+    error MustAssertSpendLastCall();
+
     /// @notice Spend value exceeds max size of uint208
     error SpendValueOverflow();
 
     /// @notice Spend value exceeds permission's spending limit
     error ExceededSpendingLimit();
-
-    /// @notice Spend in user operation not registered at end of execution.
-    error MissingAssertSpend();
-
-    /// @notice MagicSpend withdraw asset is not native token.
-    error InvalidWithdrawAsset();
 
     /// @notice Register native token spend for a permission
     event SpendRegistered(address indexed account, bytes32 indexed permissionHash, uint256 value);
@@ -67,16 +67,16 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         view
     {
         // parse permission fields
-        (uint256 spendPeriod, address allowedContract) = abi.decode(permissionFields, (uint256, address));
-        uint256 spendPeriodDuration = uint48(spendPeriod);
-        uint256 spendPeriodLimit = spendPeriod >> 48;
+        (uint256 spendPeriodDuration, uint256 spendPeriodLimit, address allowedContract) =
+            abi.decode(permissionFields, (uint256, uint256, address));
 
         // parse user operation call data as `executeBatch` arguments (call array)
         ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
         uint256 callsLen = calls.length;
 
-        // initialize spend value accumulator
+        // initialize loop accumulators
         uint256 spendValue = 0;
+        bool makesAssertSpendCallback = false;
 
         // increment spendValue if gas cost beared by the user
         if (
@@ -109,7 +109,28 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
             } else if (selector == IMagicSpend.withdrawGasExcess.selector) {
                 // ok
             } else if (selector == NativeTokenRollingSpendLimitPermission.assertSpend.selector) {
-                // ok
+                // check call index last call
+                if (i < callsLen - 1) revert MustAssertSpendLastCall();
+
+                // check call target is this contract
+                if (call.target != address(this)) revert UserOperationUtils.TargetNotAllowed();
+
+                // prepare expected call data for `assertSpend`
+                bytes memory assertSpendData = abi.encodeWithSelector(
+                    NativeTokenRollingSpendLimitPermission.assertSpend.selector,
+                    permissionHash,
+                    spendPeriodDuration,
+                    spendPeriodLimit,
+                    spendValue
+                );
+
+                // check call data matches prepared assertSpend arguments
+                if (keccak256(calls[callsLen - 1].data) != keccak256(assertSpendData)) {
+                    revert UserOperationUtils.ArgumentsNotAllowed();
+                }
+
+                // mark assertSpend callback
+                makesAssertSpendCallback = true;
             } else {
                 revert UserOperationUtils.SelectorNotAllowed();
             }
@@ -119,26 +140,7 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         }
 
         // check if spending value, then last call must be assertSpend
-        if (spendValue > 0) {
-            // prepare expected call data for `assertSpend`
-            bytes memory assertSpendData = abi.encodeWithSelector(
-                NativeTokenRollingSpendLimitPermission.assertSpend.selector,
-                permissionHash,
-                spendPeriodDuration,
-                spendPeriodLimit,
-                spendValue
-            );
-
-            // check call target is this contract and call data matches prepared assertSpend args
-            if (
-                !(
-                    calls[callsLen - 1].target == address(this)
-                        && keccak256(calls[callsLen - 1].data) == keccak256(assertSpendData)
-                )
-            ) {
-                revert MissingAssertSpend();
-            }
-        }
+        if (spendValue > 0 && !makesAssertSpendCallback) revert MustAssertSpendLastCall();
     }
 
     /// @notice Register a spend of native token for a given permission.

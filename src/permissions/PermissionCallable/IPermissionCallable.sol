@@ -5,7 +5,7 @@ pragma solidity ^0.8.18;
 ///
 /// @notice Interface for external contracts to support Session Keys permissionlessly.
 ///
-/// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
+/// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 interface IPermissionCallable {
     /// @notice Wrap a call to the contract with a new selector.
     ///

@@ -15,7 +15,7 @@ interface IFriendTech {
     function transferClub(uint256 id, address newOwner) external;
 }
 
-contract FriendTech is IFriendTech, PermissionCallable, Multicall {
+contract FriendTech is IFriendTech, AccessControl, PermissionCallable, Multicall, IOffchainAuthorization {
     event SharesBought(address account, uint256 id, uint256 value);
     event SharesSold(address account, uint256 id, uint256 value);
     event ClubTransferred(uint256 id, address newOwner);
@@ -35,9 +35,7 @@ contract FriendTech is IFriendTech, PermissionCallable, Multicall {
     function supportsPermissionedCallSelector(bytes4 selector) public pure override returns (bool) {
         return (selector == IFriendTech.buyShares.selector || selector == IFriendTech.sellShares.selector);
     }
-}
 
-contract AuthorizedFriendTech is FriendTech, AccessControl, IOffchainAuthorization {
     function getRequestAuthorization(bytes32 hash, bytes calldata authData) external view returns (Authorization) {
         (address signer, bytes memory signature) = abi.decode(authData, (address, bytes));
         if (!hasRole(keccak256("SIGNER"), signer)) {

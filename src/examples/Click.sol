@@ -8,8 +8,10 @@ import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptogra
 import {PermissionCallable} from "../permissions/PermissionCallable/PermissionCallable.sol";
 import {IOffchainAuthorization} from "../policies/OffchainAuthorization/IOffchainAuthorization.sol";
 
-contract Click is PermissionCallable {
+contract Click is Ownable, PermissionCallable, IOffchainAuthorization {
     event Clicked(address indexed account);
+
+    constructor(address initialOwner) Ownable(initialOwner) {}
 
     function click() public {
         emit Clicked(msg.sender);
@@ -18,10 +20,6 @@ contract Click is PermissionCallable {
     function supportsPermissionedCallSelector(bytes4 /*selector*/ ) public pure override returns (bool) {
         return true;
     }
-}
-
-contract AuthorizedClick is Click, Ownable, IOffchainAuthorization {
-    constructor(address initialOwner) Ownable(initialOwner) {}
 
     function getRequestAuthorization(bytes32 hash, bytes calldata signature) external view returns (Authorization) {
         if (!SignatureChecker.isValidSignatureNow(owner(), hash, signature)) {

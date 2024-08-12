@@ -12,22 +12,30 @@ import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol"
 
 /// @title PermissionManager
 ///
-/// @notice EIP-1271-compatible session key implementation that supports flexible permissions and signers.
+/// @notice A dynamic permission system built into an EIP-1271 module designed for Coinbase Smart Wallet
+///         (https://github.com/coinbase/smart-wallet).
 ///
-/// @dev Designed specifically for Coinbase Smart Wallet (https://github.com/coinbase/smart-wallet)
-///
-/// @author Coinbase (https://github.com/coinbase/smart-wallet-periphery)
+/// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice A time-bound permission over an account given to an external signer.
     struct Permission {
+        /// @dev Smart wallet address this permission is valid for.
         address account;
+        /// @dev Chain this permision is valid for.
         uint256 chainId;
-        uint40 expiry; // unix timestamp in seconds
-        bytes signer; // supports Ethereum addresses (EOA, smart contract) and P256 public keys (passkey, cryptokey)
+        /// @dev Unix timestamp this permission is valid until.
+        uint40 expiry;
+        /// @dev Non-account entity given permission to sign user operations.
+        /// @dev Supports Ethereum addresses (EOA, smart contract) and P256 public keys (passkey, cryptokey).
+        bytes signer;
+        /// @dev External contract to verify specific permission logic.
         address permissionContract;
+        /// @dev Additional arguments sent to permissionContract for permission validation.
         bytes permissionData;
-        address verifyingContract; // replay protection across potential future managers
-        bytes approval; // signature from an account owner proving a permission is valid
+        /// @dev Manager contract that verifies permissions for replay protection across potential future managers.
+        address verifyingContract;
+        /// @dev Optional signature from account owner proving a permission is approved.
+        bytes approval;
     }
 
     /// @notice Permission is revoked.
@@ -100,23 +108,29 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Pending cosigner for a two-step rotation to limit failed userOps during rotation.
     address public pendingCosigner;
 
+    /// @dev bytes4(keccak256("isValidSignature(bytes32,bytes)"))
     bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
 
     constructor(address owner, address cosigner_) Ownable(owner) Pausable() {
-        _setPendingCosigner(cosigner_);
-        _rotateCosigner();
+        cosigner = cosigner_;
+        emit CosignerRotated(address(0), cosigner_);
     }
 
     /// @notice Validates a permission via EIP-1271.
     ///
     /// @dev Assumes called by CoinbaseSmartWallet where this contract is an owner.
+    /// @dev All accessed storage must be nested by account address to pass ERC-4337 constraints.
     ///
     /// @param userOpHash Hash of user operation signed by permission signer.
     /// @param authData Variable data for validating permissioned user operation.
     function isValidSignature(bytes32 userOpHash, bytes calldata authData) external view returns (bytes4 result) {
-        // assume permission, signature, cosignature, user operation encoded together
-        (Permission memory permission, bytes memory signature, bytes memory cosignature, UserOperation memory userOp) =
-            abi.decode(authData, (Permission, bytes, bytes, UserOperation));
+        // assume specific encoding of authData
+        (
+            UserOperation memory userOp,
+            bytes memory userOpSignature, // signed by permission signer
+            bytes memory userOpCosignature, // signed by cosigner
+            Permission memory permission // approved by user
+        ) = abi.decode(authData, (UserOperation, bytes, bytes, Permission));
         bytes32 permissionHash = hashPermission(permission);
 
         // check userOperation sender matches account;
@@ -128,41 +142,45 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         }
 
         // check permission not revoked
-        /// @dev accessing this storage passes 4337 constraints because mapping is keyed by account address last
         if (isPermissionRevoked[permissionHash][permission.account]) {
             revert RevokedPermission();
         }
 
-        // check permission approval on account
+        // check account approved permission
         if (EIP1271_MAGIC_VALUE != IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)) {
             revert InvalidPermissionApproval();
         }
 
-        // check permission signer's signature on userOpHash
-        if (!SignatureChecker.isValidSignatureNow(userOpHash, signature, permission.signer)) revert InvalidSignature();
+        // check permission signer signed userOpHash
+        if (!SignatureChecker.isValidSignatureNow(userOpHash, userOpSignature, permission.signer)) {
+            revert InvalidSignature();
+        }
 
         // check userOp.callData is `executeBatch`
         if (bytes4(userOp.callData) != ICoinbaseSmartWallet.executeBatch.selector) {
             revert UserOperationUtils.SelectorNotAllowed();
         }
 
-        // check first call is PermissionManager.checkBeforeCalls with proper arguments
+        // decode userOp calldata as `executeBatch` args (call array)
         ICoinbaseSmartWallet.Call[] memory calls =
             abi.decode(UserOperationUtils.sliceCallArgs(userOp.callData), (ICoinbaseSmartWallet.Call[]));
-        ICoinbaseSmartWallet.Call memory validationCall = calls[0];
-        if (validationCall.target != address(this)) revert UserOperationUtils.TargetNotAllowed();
+
+        // check first call target is PermissionManager
+        if (calls[0].target != address(this)) revert UserOperationUtils.TargetNotAllowed();
+
+        // check first call data is `checkBeforeCalls` with proper arguments
         bytes memory checkBeforeCallsData = abi.encodeWithSelector(
             PermissionManager.checkBeforeCalls.selector,
             permission.expiry,
             permission.permissionContract,
             userOpHash,
-            cosignature
+            userOpCosignature
         );
-        if (keccak256(validationCall.data) != keccak256(checkBeforeCallsData)) {
+        if (keccak256(calls[0].data) != keccak256(checkBeforeCallsData)) {
             revert UserOperationUtils.InvalidUserOperationCallData();
         }
 
-        // check batch has no self-calls
+        // check calls batch has no self-calls
         uint256 callsLen = calls.length;
         for (uint256 i = 1; i < callsLen; i++) {
             if (calls[i].target == permission.account) revert UserOperationUtils.TargetNotAllowed();
@@ -184,23 +202,29 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///      * Expiry TIMESTAMP opcode
     ///      * Enabled permission contract state
     ///      * Cosigner and pendingCosigner state
+    ///
+    /// @param expiry Unix timestamp this permission is valid until.
+    /// @param permissionContract External contract to verify specific permission logic.
+    /// @param userOpHash Hash of the user operation currently executing.
+    /// @param userOpCosignature Signature of userOpHash from a cosigner or pending cosigner.
     function checkBeforeCalls(
         uint256 expiry,
         address permissionContract,
         bytes32 userOpHash,
-        bytes calldata cosignature
+        bytes calldata userOpCosignature
     ) external view whenNotPaused {
         // check permission not expired
         if (expiry < block.timestamp) revert ExpiredPermission();
+
         // check permission contract enabled
         if (!isPermissionContractEnabled[permissionContract]) revert DisabledPermissionContract();
-        // check cosignature from cosigner or pendingCosigner
+
+        // check userOpCosignature from cosigner or pendingCosigner
         if (
-            !SignatureChecker.isValidSignatureNow(userOpHash, cosignature, abi.encode(cosigner))
-                && (
-                    pendingCosigner == address(0)
-                        || !SignatureChecker.isValidSignatureNow(userOpHash, cosignature, abi.encode(pendingCosigner))
-                )
+            !(
+                SignatureChecker.isValidSignatureNow(userOpHash, userOpCosignature, abi.encode(cosigner))
+                    || (SignatureChecker.isValidSignatureNow(userOpHash, userOpCosignature, abi.encode(pendingCosigner)))
+            )
         ) revert InvalidSignature();
     }
 
@@ -232,7 +256,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
                 keccak256(permission.signer),
                 permission.permissionContract,
                 keccak256(permission.permissionData),
-                address(this)
+                address(this) // verifyingContract
             )
         );
     }
@@ -255,6 +279,22 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         emit PaymasterGasSpendUpdated(paymaster, addGasSpend);
     }
 
+    /// @notice Add pending cosigner.
+    ///
+    /// @param newCosigner Address of new cosigner to rotate to.
+    function setPendingCosigner(address newCosigner) external onlyOwner {
+        pendingCosigner = newCosigner;
+        emit PendingCosignerSet(newCosigner);
+    }
+
+    /// @notice Rotate cosigners.
+    function rotateCosigner() external onlyOwner {
+        if (pendingCosigner == address(0)) revert MissingPendingCosigner();
+        emit CosignerRotated(cosigner, pendingCosigner);
+        cosigner = pendingCosigner;
+        pendingCosigner = address(0);
+    }
+
     /// @notice Pause the manager contract from processing any userOps.
     function pause() external onlyOwner {
         _pause();
@@ -263,29 +303,5 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Unpause the manager contract to enable processing userOps again.
     function unpause() external onlyOwner {
         _unpause();
-    }
-
-    /// @notice Add pending cosigner.
-    function setPendingCosigner(address newCosigner) external onlyOwner {
-        _setPendingCosigner(newCosigner);
-    }
-
-    /// @notice Rotate cosigners.
-    function rotateCosigner() external onlyOwner {
-        _rotateCosigner();
-    }
-
-    /// @notice Add pending cosigner.
-    function _setPendingCosigner(address newCosigner) internal {
-        pendingCosigner = newCosigner;
-        emit PendingCosignerSet(newCosigner);
-    }
-
-    /// @notice Rotate cosigners.
-    function _rotateCosigner() internal {
-        if (pendingCosigner == address(0)) revert MissingPendingCosigner();
-        emit CosignerRotated(cosigner, pendingCosigner);
-        cosigner = pendingCosigner;
-        pendingCosigner = address(0);
     }
 }

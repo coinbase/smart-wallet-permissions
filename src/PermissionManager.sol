@@ -104,7 +104,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Track if permissions are approved by accounts via transactions.
     ///
     /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
-    mapping(bytes32 permissionHash => mapping(address account => bool approved)) internal _approvedPermissions;
+    mapping(bytes32 permissionHash => mapping(address account => bool approved)) public isPermissionApproved;
 
     /// @notice Track if permission contracts are enabled.
     ///
@@ -163,7 +163,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         // check permission is approved via storage or signature
         if (
             !(
-                (permission.approval.length == 0 && _approvedPermissions[permissionHash][permission.account])
+                (permission.approval.length == 0 && isPermissionApproved[permissionHash][permission.account])
                     || EIP1271_MAGIC_VALUE
                         == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
             )
@@ -292,11 +292,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         }
 
         // check permission not approved
-        if (_approvedPermissions[permissionHash][permission.account]) {
+        if (isPermissionApproved[permissionHash][permission.account]) {
             revert ApprovedPermission();
         }
 
-        _approvedPermissions[permissionHash][permission.account] = true;
+        isPermissionApproved[permissionHash][permission.account] = true;
 
         emit PermissionApproved(permission.account, permissionHash);
     }

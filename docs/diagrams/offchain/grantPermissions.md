@@ -3,10 +3,14 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as App
-    participant SDK as SDK
-    participant W as Wallet
-    participant U as User
+    box transparent App
+        participant A as App Interface
+        participant SDK as Wallet SDK
+    end
+    box transparent Wallet
+        participant W as Wallet Interface
+        participant U as User
+    end
 
     A->>SDK: wallet_grantPermissions
     SDK->>W: wallet_grantPermissions

@@ -66,9 +66,10 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         external
         view
     {
-        // parse permission
-        (uint256 spendPeriodLimit, uint256 spendPeriodDuration, address allowedContract) =
-            abi.decode(permissionFields, (uint256, uint256, address));
+        // parse permission fields
+        (uint256 spendPeriod, address allowedContract) = abi.decode(permissionFields, (uint256, address));
+        uint256 spendPeriodDuration = uint48(spendPeriod);
+        uint256 spendPeriodLimit = spendPeriod >> 48;
 
         // parse user operation call data as `executeBatch` arguments (call array)
         ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
@@ -122,10 +123,10 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
             // prepare expected call data for `assertSpend`
             bytes memory assertSpendData = abi.encodeWithSelector(
                 NativeTokenRollingSpendLimitPermission.assertSpend.selector,
-                spendValue,
                 permissionHash,
+                spendPeriodDuration,
                 spendPeriodLimit,
-                spendPeriodDuration
+                spendValue
             );
 
             // check call target is this contract and call data matches prepared assertSpend args
@@ -145,14 +146,14 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS vector.
     ///
     /// @param permissionHash Hash of the permission.
-    /// @param spendValue Value of native token spent in user operation.
-    /// @param spendPeriodLimit Value of native token that cannot be exceeded over the rolling period.
     /// @param spendPeriodDuration Seconds duration for the rolling period.
+    /// @param spendPeriodLimit Value of native token that cannot be exceeded over the rolling period.
+    /// @param spendValue Value of native token spent in user operation.
     function assertSpend(
         bytes32 permissionHash,
-        uint256 spendValue,
+        uint256 spendPeriodDuration,
         uint256 spendPeriodLimit,
-        uint256 spendPeriodDuration
+        uint256 spendValue
     ) external {
         // early return if no value spent
         if (spendValue == 0) return;

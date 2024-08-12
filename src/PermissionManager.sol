@@ -162,8 +162,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // check permission is approved via storage or signature
         if (
-            !_approvedPermissions[permissionHash][permission.account]
-                && EIP1271_MAGIC_VALUE != IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+            !(
+                (permission.approval.length == 0 && _approvedPermissions[permissionHash][permission.account])
+                    || EIP1271_MAGIC_VALUE
+                        == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+            )
         ) {
             revert InvalidPermissionApproval();
         }
@@ -271,8 +274,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // check sender is permission account or approval signature is valid for permission account
         if (
-            msg.sender != permission.account
-                && EIP1271_MAGIC_VALUE != IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+            !(
+                msg.sender == permission.account
+                    || EIP1271_MAGIC_VALUE
+                        == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+            )
         ) {
             revert InvalidPermissionApproval();
         }

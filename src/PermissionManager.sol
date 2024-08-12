@@ -45,9 +45,6 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Permission has expired.
     error ExpiredPermission();
 
-    /// @notice Permission contract status not changed.
-    error UnchangedPermissionContractStatus();
-
     /// @notice Tried to rotate cosigner without a pending one set.
     error MissingPendingCosigner();
 
@@ -90,7 +87,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Track if permission contracts are enabled.
     ///
     /// @dev Storage not keyable by account, can only be accessed in execution phase.
-    mapping(address permissionContract => bool enabled) internal _enabledPermissionContracts;
+    mapping(address permissionContract => bool enabled) public isPermissionContractEnabled;
 
     /// @notice Track if a permission contract should account for gas spent by paymaster.
     ///
@@ -196,7 +193,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         // check permission not expired
         if (expiry < block.timestamp) revert ExpiredPermission();
         // check permission contract enabled
-        if (!_enabledPermissionContracts[permissionContract]) revert DisabledPermissionContract();
+        if (!isPermissionContractEnabled[permissionContract]) revert DisabledPermissionContract();
         // check cosignature from cosigner or pendingCosigner
         if (
             !SignatureChecker.isValidSignatureNow(userOpHash, cosignature, abi.encode(cosigner))
@@ -240,24 +237,12 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         );
     }
 
-    /// @notice Get permission contract enabled status.
-    ///
-    /// @param permissionContract The contract resposible for checking permission logic.
-    ///
-    /// @return enabled True if the contract is enabled.
-    function isPermissionContractEnabled(address permissionContract) external view returns (bool enabled) {
-        return _enabledPermissionContracts[permissionContract];
-    }
-
     /// @notice Set permission contract enabled status.
     ///
     /// @param permissionContract The contract resposible for checking permission logic.
     /// @param enabled True if the contract is enabled.
-    function setPermissionContract(address permissionContract, bool enabled) external onlyOwner {
-        if (_enabledPermissionContracts[permissionContract] == enabled) {
-            revert UnchangedPermissionContractStatus();
-        }
-        _enabledPermissionContracts[permissionContract] = enabled;
+    function setPermissionContractEnabled(address permissionContract, bool enabled) external onlyOwner {
+        isPermissionContractEnabled[permissionContract] = enabled;
         emit PermissionContractUpdated(permissionContract, enabled);
     }
 

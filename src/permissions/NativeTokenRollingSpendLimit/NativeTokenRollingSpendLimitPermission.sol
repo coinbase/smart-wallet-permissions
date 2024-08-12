@@ -82,7 +82,7 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         // increment spendValue if gas cost beared by the user
         if (
             userOp.paymasterAndData.length == 0
-                || permissionManager.addPaymasterGasSpend(address(bytes20(userOp.paymasterAndData[:20])))
+                || permissionManager.shouldAddPaymasterGasToTotalSpend(address(bytes20(userOp.paymasterAndData[:20])))
         ) {
             // over-debits by ~3x actual gas used
             spendValue += UserOperationUtils.getRequiredPrefund(userOp);

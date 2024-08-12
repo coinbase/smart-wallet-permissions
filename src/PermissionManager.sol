@@ -48,9 +48,6 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Permission contract status not changed.
     error UnchangedPermissionContractStatus();
 
-    /// @notice Paymaster gas spend not changed.
-    error UnchangedPaymasterGasSpend();
-
     /// @notice Tried to rotate cosigner without a pending one set.
     error MissingPendingCosigner();
 
@@ -98,7 +95,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Track if a permission contract should account for gas spent by paymaster.
     ///
     /// @dev Storage not keyable by account, can only be accessed in execution phase.
-    mapping(address paymaster => bool enabled) public addPaymasterGasSpend;
+    mapping(address paymaster => bool enabled) public shouldAddPaymasterGasToTotalSpend;
 
     /// @notice Second-factor signer owned by Coinbase, required to have approval for each userOp.
     address public cosigner;
@@ -268,11 +265,8 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///
     /// @param paymaster The paymaster contract, potentially spending user assets.
     /// @param addGasSpend The new setting to add gas spend or not.
-    function setPaymasterGasSpend(address paymaster, bool addGasSpend) external onlyOwner {
-        if (addPaymasterGasSpend[paymaster] == addGasSpend) {
-            revert UnchangedPaymasterGasSpend();
-        }
-        addPaymasterGasSpend[paymaster] = addGasSpend;
+    function setShouldAddPaymasterGasToTotalSpend(address paymaster, bool addGasSpend) external onlyOwner {
+        shouldAddPaymasterGasToTotalSpend[paymaster] = addGasSpend;
         emit PaymasterGasSpendUpdated(paymaster, addGasSpend);
     }
 

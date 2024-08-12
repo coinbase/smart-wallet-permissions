@@ -85,7 +85,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Track if permissions are revoked by accounts.
     ///
     /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
-    mapping(bytes32 permissionHash => mapping(address account => bool revoked)) internal _revokedPermissions;
+    mapping(bytes32 permissionHash => mapping(address account => bool revoked)) public isPermissionRevoked;
 
     /// @notice Track if permission contracts are enabled.
     ///
@@ -132,7 +132,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // check permission not revoked
         /// @dev accessing this storage passes 4337 constraints because mapping is keyed by account address last
-        if (_revokedPermissions[permissionHash][permission.account]) {
+        if (isPermissionRevoked[permissionHash][permission.account]) {
             revert RevokedPermission();
         }
 
@@ -213,10 +213,10 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///
     /// @param permissionHash hash of the permission to revoke
     function revokePermission(bytes32 permissionHash) external {
-        if (_revokedPermissions[permissionHash][msg.sender]) {
+        if (isPermissionRevoked[permissionHash][msg.sender]) {
             revert RevokedPermission();
         }
-        _revokedPermissions[permissionHash][msg.sender] = true;
+        isPermissionRevoked[permissionHash][msg.sender] = true;
 
         emit PermissionRevoked(msg.sender, permissionHash);
     }

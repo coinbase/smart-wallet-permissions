@@ -1,6 +1,6 @@
-## Update Permissions
+## Batch Update Permissions
 
-Accounts can update permissions via batching `revokePermission` and `approvePermission` calls to `PermissionManager`.
+Accounts can batch-update permissions via batching `revokePermission` and `approvePermission` calls to `PermissionManager`.
 
 ```mermaid
 sequenceDiagram

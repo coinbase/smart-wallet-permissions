@@ -4,6 +4,7 @@ pragma solidity 0.8.23;
 import {PermissionManager} from "../../PermissionManager.sol";
 import {ICoinbaseSmartWallet} from "../../utils/ICoinbaseSmartWallet.sol";
 
+import {Bytes} from "../../utils/Bytes.sol";
 import {IMagicSpend} from "../../utils/IMagicSpend.sol";
 import {UserOperation, UserOperationUtils} from "../../utils/UserOperationUtils.sol";
 import {IPermissionContract} from "../IPermissionContract.sol";
@@ -101,7 +102,7 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
             } else if (selector == IMagicSpend.withdraw.selector) {
                 // parse MagicSpend withdraw request
                 IMagicSpend.WithdrawRequest memory withdraw =
-                    abi.decode(UserOperationUtils.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
+                    abi.decode(Bytes.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
 
                 // check withdraw is native token
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();

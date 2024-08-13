@@ -29,8 +29,6 @@ sequenceDiagram
         A->>C: permissionedCall
         Note over C,A: send intended calldata wrapped with special selector
     end
-    opt
-        A->>P: assertSpend
-        Note over A,P: assert spend within rolling limit
-    end
+    A->>P: assertSpend
+    Note over A,P: assert spend within rolling limit
 ```

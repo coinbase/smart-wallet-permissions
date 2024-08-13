@@ -6,6 +6,7 @@ import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 import {IPermissionContract} from "./permissions/IPermissionContract.sol";
+import {Bytes} from "./utils/Bytes.sol";
 import {ICoinbaseSmartWallet} from "./utils/ICoinbaseSmartWallet.sol";
 import {SignatureChecker} from "./utils/SignatureChecker.sol";
 import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol";
@@ -199,7 +200,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // decode userOp calldata as `executeBatch` args (call array)
         ICoinbaseSmartWallet.Call[] memory calls =
-            abi.decode(UserOperationUtils.sliceCallArgs(userOp.callData), (ICoinbaseSmartWallet.Call[]));
+            abi.decode(Bytes.sliceCallArgs(userOp.callData), (ICoinbaseSmartWallet.Call[]));
 
         // check first call target is PermissionManager
         if (calls[0].target != address(this)) revert UserOperationUtils.TargetNotAllowed();

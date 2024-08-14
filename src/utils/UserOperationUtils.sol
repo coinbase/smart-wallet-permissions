@@ -37,7 +37,7 @@ library UserOperationUtils {
     ///      https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.6/contracts/core/EntryPoint.sol#L325
     function getRequiredPrefund(UserOperation calldata userOp) internal pure returns (uint256 requiredPrefund) {
         // if using paymaster, use a multiplier for verificationGasLimit
-        uint256 mul = address(bytes20(userOp.paymasterAndData[:20])) != address(0) ? 3 : 1;
+        uint256 mul = userOp.paymasterAndData.length == 0 ? 1 : 3;
         // sum gas parameters
         uint256 requiredGas = userOp.callGasLimit + mul * userOp.verificationGasLimit + userOp.preVerificationGas;
         // calculate max gas fees required for prefund

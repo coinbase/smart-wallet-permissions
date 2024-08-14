@@ -1,28 +1,25 @@
 import { Address, encodeFunctionData, Hex } from "viem";
-import { Call } from "../types";
+import { Call, SmartWalletPermission } from "../types";
 import { decodePermissionContext } from "./decodePermissionContext";
 import { nativeTokenRollingSpendLimitPermissionAbi } from "../abi/NativeTokenRollingSpendLimitPermission";
 import { hashPermission } from "./hashPermission";
+import { decodePermissionFields } from "./decodePermissionFields";
 
-type AssertSpendArgs = {
-    permisisonsContext: Hex,
-    spendLimit: bigint,
-    rollingPeriod: number,
+type PrepareAssertSpendArgs = {
+    permission: SmartWalletPermission,
     callsSpend: bigint,
     gasSpend: bigint, // equivalent to EntryPoint.getRequiredPrefund
     paymaster: Address
 }
 
-export async function prepareAssertSpendCall({
-    permisisonsContext,
-    spendLimit,
-    rollingPeriod,
+export async function prepareAssertSpend({
+    permission,
     callsSpend,
     gasSpend,
     paymaster,
-}: AssertSpendArgs): Promise<Call> {
-    const { permission } = decodePermissionContext(permisisonsContext);
-    const assertSpendCall = {
+}: PrepareAssertSpendArgs): Promise<Call> {
+    const { spendLimit, rollingPeriod } = decodePermissionFields(permission.permissionFields)
+    const assertSpend = {
         target: permission.permissionContract as Address,
         value: "0x0" as Hex,
         data: encodeFunctionData({
@@ -38,6 +35,6 @@ export async function prepareAssertSpendCall({
             ],
         }),
     };
-    return assertSpendCall;
+    return assertSpend;
 }
   

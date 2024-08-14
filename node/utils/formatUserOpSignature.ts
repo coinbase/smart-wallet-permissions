@@ -1,6 +1,6 @@
 
-  import { Hex, encodeAbiParameters, parseAbiParameter } from "viem";
-  import { UserOperation } from "permissionless";
+import { Hex, encodeAbiParameters, parseAbiParameter } from "viem";
+import { UserOperation } from "permissionless";
 import { permissionStruct, SmartWalletPermission } from "../types";
   
   // note this is for v0.6, our current Entrypoint version for CoinbaseSmartWallet

@@ -9,7 +9,7 @@ type AssertSpendArgs = {
     spendLimit: bigint,
     rollingPeriod: number,
     callsSpend: bigint,
-    gasSpend: bigint,
+    gasSpend: bigint, // equivalent to EntryPoint.getRequiredPrefund
     paymaster: Address
 }
 

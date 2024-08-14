@@ -8,29 +8,31 @@ import { permissionStruct, SmartWalletPermission } from "../types";
     "UserOperation userOperation",
     "struct UserOperation { address sender; uint256 nonce; bytes initCode; bytes callData; uint256 callGasLimit; uint256 verificationGasLimit; uint256 preVerificationGas; uint256 maxFeePerGas; uint256 maxPriorityFeePerGas; bytes paymasterAndData; bytes signature; }",
   ]);
+
+  type FormatSignatureArgs = {
+    userOp: UserOperation<"v0.6">;
+    userOpSignature: Hex;
+    userOpCosignature: Hex;
+    permission: SmartWalletPermission;
+    permissionManagerOwnerIndex: bigint;
+  }
   
   // returns a new UserOperation with the signature properly formatted for use with the PermissionManager
   export function formatUserOpSignature({
     userOp,
-    permissionSignerSignature,
-    cosignature,
-    permissionManagerOwnerIndex,
+    userOpSignature,
+    userOpCosignature,
     permission,
-  }: {
-    userOp: UserOperation<"v0.6">;
-    permissionSignerSignature: Hex;
-    cosignature: Hex;
-    permissionManagerOwnerIndex: bigint;
-    permission: SmartWalletPermission;
-  }): Hex {
+    permissionManagerOwnerIndex,
+  }: FormatSignatureArgs): Hex {
     const authData = encodeAbiParameters(
         [
             userOperationStruct,
-            { name: "signature", type: "bytes" }, // permission signer
-            { name: "cosignature", type: "bytes" }, // coinbase cosigner
+            { name: "userOpSignature", type: "bytes" }, // permission signer
+            { name: "userOpCosignature", type: "bytes" }, // coinbase cosigner
             permissionStruct,
         ],
-        [userOp, permissionSignerSignature, cosignature, permission] as never,
+        [userOp, userOpSignature, userOpCosignature, permission] as never,
     );
     const signature = wrapSignature({
         ownerIndex: permissionManagerOwnerIndex,

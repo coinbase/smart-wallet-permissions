@@ -1,42 +1,46 @@
 import { Address, encodeAbiParameters, Hex } from "viem";
-import { SmartWalletPermission } from "../types";
+import { DataType, NativeTokenRollingSpendLimitPermissionType, P256SignerType, PermissionType, SignerType, SmartWalletPermission } from "../types";
 import { PermissionManager, NativeTokenRollingSpendLimitPermission } from "../constants";
 
+// convert between received PermissionRequest to contract-compatible SmartWalletPermission
 export function createSmartWalletPermission({
-    account,
-    chainId,
+    chainId, 
+    address,
     expiry,
     signer,
     permission,
     policies
-  }: {
-    account: Address;
-    chainId: bigint;
+}: {
+    chainId: Hex;
+    address: Address;
     expiry: number; // unix seconds
-    signer: { type: "p256", data: {publicKey: Hex} };
-    permission: { type: "native-token-rolling-spend-limit", data: {
-        spendLimit: bigint; // wei
-        spendPeriod: number; // unix seconds
-        allowedContract: Address
-    }}
-    policies: { type: string, data: Record<string, any> }[]
-  }): SmartWalletPermission {
-    const permissionData = encodeAbiParameters(
+    signer: DataType
+    permission: DataType;
+    policies: { type: string, data: Record<string, any> }[];
+}): SmartWalletPermission {
+    if (signer.type !== SignerType.P256) {
+        throw Error("Invalid signer type")
+    }
+    if (permission.type !== PermissionType.NativeTokenRollingSpendLimit) {
+        throw Error("Invalid permission type")
+    }
+
+    const permissionFields = encodeAbiParameters(
         [
-          { name: 'spendLimit', type: 'uint256' },
-          { name: 'spendPeriod', type: 'uint256' },
-          { name: 'allowedContract', type: 'address' },
+            { name: 'spendLimit', type: 'uint256' },
+            { name: 'rollingPeriod', type: 'uint256' },
+            { name: 'allowedContract', type: 'address' },
         ],
-        [permission.data.spendLimit, BigInt(permission.data.spendPeriod), permission.data.allowedContract],
-      );
+        [BigInt(permission.data.spendLimit), BigInt(permission.data.rollingPeriod), permission.data.allowedContract],
+    );
 
     return {
-      account,
-      chainId,
+      account: address,
+      chainId: BigInt(chainId),
       expiry,
       signer: signer.data.publicKey,
       permissionContract: NativeTokenRollingSpendLimitPermission,
-      permissionData,
+      permissionFields,
       verifyingContract: PermissionManager,
       approval: "0x",
     };

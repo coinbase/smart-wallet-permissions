@@ -3,11 +3,11 @@ import { SmartWalletPermission } from "../types";
 
 const hashablePermissionStruct = parseAbiParameter([
   "HashablePermission hashablePermission",
-  "struct HashablePermission { address account; uint256 chainId; uint40 expiry; bytes32 signerHash; address permissionContract; bytes32 permissionDataHash; address verifyingContract; }",
+  "struct HashablePermission { address account; uint256 chainId; uint40 expiry; bytes32 signerHash; address permissionContract; bytes32 permissionFieldsHash; address verifyingContract; }",
 ]);
 
 export function hashPermission(permission: SmartWalletPermission): Hex {
-  const { signer, permissionData, approval, ...hashablePermission } =
+  const { signer, permissionFields, approval, ...hashablePermission } =
     permission;
   return keccak256(
     encodeAbiParameters(
@@ -16,7 +16,7 @@ export function hashPermission(permission: SmartWalletPermission): Hex {
         {
           ...hashablePermission,
           signerHash: keccak256(signer),
-          permissionDataHash: keccak256(permissionData),
+          permissionFieldsHash: keccak256(permissionFields),
         } as never,
       ],
     ),

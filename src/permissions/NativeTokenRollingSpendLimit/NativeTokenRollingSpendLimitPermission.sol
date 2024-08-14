@@ -68,7 +68,7 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         view
     {
         // parse permission fields
-        (uint256 spendPeriodDuration, uint256 spendPeriodLimit, address allowedContract) =
+        (uint256 spendLimit, uint256 rollingPeriod, address allowedContract) =
             abi.decode(permissionFields, (uint256, uint256, address));
 
         // parse user operation call data as `executeBatch` arguments (call array)
@@ -114,8 +114,8 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         bytes memory assertSpendData = abi.encodeWithSelector(
             NativeTokenRollingSpendLimitPermission.assertSpend.selector,
             permissionHash,
-            spendPeriodDuration,
-            spendPeriodLimit,
+            spendLimit,
+            rollingPeriod,
             callsSpend,
             // gasSpend is prefund required by entrypoint (ignores refund for unused gas)
             UserOperationUtils.getRequiredPrefund(userOp),
@@ -133,15 +133,15 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     /// @dev State read on Manager for adding paymaster gas to total spend must happen in execution phase.
     ///
     /// @param permissionHash Hash of the permission.
-    /// @param spendPeriodDuration Seconds duration for the rolling period.
-    /// @param spendPeriodLimit Value of native token that cannot be exceeded over the rolling period.
+    /// @param spendLimit Value of native token that cannot be exceeded over the rolling period.
+    /// @param rollingPeriod Seconds duration for the rolling period.
     /// @param callsSpend Value of native token spent in calls.
     /// @param gasSpend Value of native token spent by gas.
     /// @param paymaster Paymaster used by user operation.
     function assertSpend(
         bytes32 permissionHash,
-        uint256 spendPeriodDuration,
-        uint256 spendPeriodLimit,
+        uint256 spendLimit,
+        uint256 rollingPeriod,
         uint256 callsSpend,
         uint256 gasSpend,
         address paymaster
@@ -162,8 +162,8 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         if (totalSpend > type(uint208).max) revert SpendValueOverflow();
 
         // check spend value does not exceed limit for period
-        uint256 rollingSpend = calculateRollingSpend(msg.sender, permissionHash, spendPeriodDuration);
-        if (totalSpend + rollingSpend > spendPeriodLimit) revert ExceededSpendingLimit();
+        uint256 rollingSpend = calculateRollingSpend(msg.sender, permissionHash, rollingPeriod);
+        if (totalSpend + rollingSpend > spendLimit) revert ExceededSpendingLimit();
 
         // add spend to state
         _permissionSpends[msg.sender][permissionHash].push(Spend(uint48(block.timestamp), uint208(totalSpend)));
@@ -175,10 +175,10 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     ///
     /// @param account The account to localize to
     /// @param permissionHash The unique permission to localize to
-    /// @param spendPeriodDuration Time in seconds to look back from now for current spend period
+    /// @param rollingPeriod Time in seconds to look back from now for current spend period
     ///
     /// @return rollingSpend Value of spend done by this permission in the past period
-    function calculateRollingSpend(address account, bytes32 permissionHash, uint256 spendPeriodDuration)
+    function calculateRollingSpend(address account, bytes32 permissionHash, uint256 rollingPeriod)
         public
         view
         returns (uint256 rollingSpend)
@@ -190,7 +190,7 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
             Spend memory spend = _permissionSpends[account][permissionHash][i - 1];
 
             // break loop if spend is before our spend period lower bound
-            if (spend.timestamp < block.timestamp - spendPeriodDuration) break;
+            if (spend.timestamp < block.timestamp - rollingPeriod) break;
 
             // increment rolling spend
             rollingSpend += spend.value;

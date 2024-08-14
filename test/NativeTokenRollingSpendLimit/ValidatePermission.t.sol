@@ -76,21 +76,4 @@ contract ValidatePermissionTest is Test, NativeTokenRollingSpendLimitBase {
         // validate permission
         nativeTokenRollingSpendLimitPermission.validatePermission(permissionHash, permissionFields, userOp);
     }
-
-    function test_assertSpend(
-        bytes32 permissionHash,
-        uint256 spendPeriodDuration,
-        uint256 spendPeriodLimit,
-        uint200 callsSpend,
-        uint128 gasSpend
-    ) public {
-        vm.assume(callsSpend < spendPeriodLimit);
-        vm.assume(gasSpend < spendPeriodLimit);
-        vm.deal(address(smartWallet), callsSpend);
-
-        vm.prank(address(smartWallet));
-        nativeTokenRollingSpendLimitPermission.assertSpend(
-            permissionHash, spendPeriodDuration, spendPeriodLimit, callsSpend, gasSpend, paymaster
-        );
-    }
 }

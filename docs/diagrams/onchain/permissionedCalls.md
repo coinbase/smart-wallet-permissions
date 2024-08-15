@@ -8,6 +8,7 @@ sequenceDiagram
     participant M as Permission Manager
     participant P as Permission Contract
     participant C as External Contract
+    participant ERC20 as ERC20
 
     E->>A: validateUserOp
     Note left of E: Validation phase
@@ -28,6 +29,10 @@ sequenceDiagram
     opt
         A->>P: approveRollingAllowances
         Note over A,P: one-time initialization of rolling allowances
+    end
+    loop
+        A->>ERC20: approve
+        Note over ERC20,A: send intended calldata wrapped with special selector
     end
     loop
         A->>C: permissionedCall

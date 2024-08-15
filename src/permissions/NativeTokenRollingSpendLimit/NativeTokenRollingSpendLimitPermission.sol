@@ -47,11 +47,17 @@ contract RollingAllowancePermission is IPermissionContract {
     /// @notice MagicSpend withdraw asset is not native token.
     error InvalidWithdrawAsset();
 
+    /// @notice ERC20 approval spender is not the allowed contract for the permission.
+    error InvalidApprovalSpender();
+
+    /// @notice ERC20 approval value is zero.
+    error ZeroApprovalValue();
+
+    /// @notice Call to approveRollingAllowances not made on self or with invalid data.
+    error InvalidApproveAllowancesCall();
+
     /// @notice Call to assertSpend not made on self or with invalid data.
     error InvalidAssertSpendCall();
-    
-    /// @notice Spend assertation call not made in last call.
-    error MustAssertERC20SpendsSecondLastCall();
 
     /// @notice Spend value exceeds max size of uint208
     error SpendValueOverflow();
@@ -60,7 +66,7 @@ contract RollingAllowancePermission is IPermissionContract {
     error ExceededSpendingLimit();
 
     /// @notice Register native token spend for a permission
-    event SpendRegistered(address indexed account, bytes32 indexed permissionHash, address token, uint256 value);
+    event SpendRegistered(address indexed account, bytes32 indexed permissionHash, address indexed token, uint256 value);
 
     /// @notice Approve a rolling allowance on native token or ERC20.
     event RollingAllowanceApproved(address indexed account, bytes32 indexed permissionHash, address indexed token, uint256 rollingAllowance, uint256 rollingPeriod);
@@ -109,8 +115,8 @@ contract RollingAllowancePermission is IPermissionContract {
 
         // loop over calls to validate native token spend and allowed contracts
         // start index at 1 to ignore first call, enforced by PermissionManager as validation call on itself
-        // end index at calls.length - 3 to ignore assertERC20Spends and assertSpends calls, enforced after loop as validation call on self
-        for (uint256 i = 1; i < calls.length - 2; i++) {
+        // end index at calls.length - 2 to ignore assertSpends call, enforced after loop as validation call on self
+        for (uint256 i = 1; i < calls.length - 1; i++) {
             ICoinbaseSmartWallet.Call memory call = calls[i];
             bytes4 selector = bytes4(call.data);
 
@@ -132,10 +138,10 @@ contract RollingAllowancePermission is IPermissionContract {
                 (address spender, uint256 value) = abi.decode(call.data, (address, uint256));
                 
                 // check spender is allowed contract
-                if (spender != allowedContract) revert();
+                if (spender != allowedContract) revert InvalidApprovalSpender();
 
                 // check nonzero approval
-                if (value == 0) revert();
+                if (value == 0) revert ZeroApprovalValue();
                 
                 // add approval to array
                 approvals[approvalCount] = ERC20Approval(call.target, value);
@@ -151,7 +157,7 @@ contract RollingAllowancePermission is IPermissionContract {
                     rollingPeriod
                 );
 
-                if (!_isExpectedSelfCall(call, approveRollingSpendData)) revert();
+                if (!_isExpectedSelfCall(call, approveRollingSpendData)) revert InvalidApproveAllowancesCall();
             } else {
                 revert UserOperationUtils.SelectorNotAllowed();
             }

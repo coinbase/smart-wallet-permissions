@@ -29,8 +29,8 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
     /// @notice MagicSpend withdraw asset is not native token.
     error InvalidWithdrawAsset();
 
-    /// @notice Spend assertation call not made in last call.
-    error MustAssertSpendLastCall();
+    /// @notice Call to assertSpend not made on self or with invalid data.
+    error InvalidAssertSpendCall();
 
     /// @notice Spend value exceeds max size of uint208
     error SpendValueOverflow();
@@ -118,7 +118,7 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         );
 
         // check that last call is assertSpend
-        if (_isExpectedSelfCall(calls[calls.length - 1], assertSpendData)) revert MustAssertSpendLastCall();
+        if (_isExpectedSelfCall(calls[calls.length - 1], assertSpendData)) revert InvalidAssertSpendCall();
     }
 
     /// @notice Register a spend of native token for a given permission.

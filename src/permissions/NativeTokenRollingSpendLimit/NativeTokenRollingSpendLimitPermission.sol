@@ -59,9 +59,6 @@ contract RollingAllowancePermission is IPermissionContract {
     /// @notice Rolling period is zero.
     error ZeroRollingPeriod();
 
-    /// @notice Rolling period is zero.
-    error RollingPeriodImmutable();
-
     /// @notice Non-zero allowance value leftover from calls.
     error LeftoverAllowance();
 
@@ -210,9 +207,6 @@ contract RollingAllowancePermission is IPermissionContract {
     function approveRollingAllowances(bytes32 permissionHash, RollingAllowance[] calldata rollingAllowances, uint256 rollingPeriod) external {
         // check rolling period is non-zero
         if (rollingPeriod == 0) revert ZeroRollingPeriod();
-
-        // check rolling period not set yet
-        if (_rollingPeriods[msg.sender][permissionHash] > 0) revert RollingPeriodImmutable();
         
         _rollingPeriods[msg.sender][permissionHash] = rollingPeriod;
 
@@ -245,7 +239,7 @@ contract RollingAllowancePermission is IPermissionContract {
         address paymaster
     ) external {
         uint256 rollingPeriod = _rollingPeriods[msg.sender][permissionHash];
-        if (rollingPeriod == 0) revert(); // not set
+        if (rollingPeriod == 0) revert ZeroRollingPeriod();
 
         uint256 totalNativeSpend = callsSpend;
         // add gas cost to total native spend if beared by the user

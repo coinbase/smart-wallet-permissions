@@ -56,6 +56,15 @@ contract RollingAllowancePermission is IPermissionContract {
     /// @notice Call to approveRollingAllowances not made on self or with invalid data.
     error InvalidApproveAllowancesCall();
 
+    /// @notice Rolling period is zero.
+    error ZeroRollingPeriod();
+
+    /// @notice Rolling period is zero.
+    error RollingPeriodImmutable();
+
+    /// @notice Non-zero allowance value leftover from calls.
+    error LeftoverAllowance();
+
     /// @notice Call to assertSpend not made on self or with invalid data.
     error InvalidAssertSpendCall();
 
@@ -65,20 +74,20 @@ contract RollingAllowancePermission is IPermissionContract {
     /// @notice Spend value exceeds permission's spending limit
     error ExceededSpendingLimit();
 
-    /// @notice Register native token spend for a permission
-    event SpendRegistered(address indexed account, bytes32 indexed permissionHash, address indexed token, uint256 value);
-
     /// @notice Approve a rolling allowance on native token or ERC20.
     event RollingAllowanceApproved(address indexed account, bytes32 indexed permissionHash, address indexed token, uint256 rollingAllowance, uint256 rollingPeriod);
 
-    /// @notice All native token spends per account per permission.
-    mapping(address account => mapping(bytes32 permissionHash => mapping(address token => Spend[] spends))) internal _spends;
+    /// @notice Register native token spend for a permission
+    event SpendRegistered(address indexed account, bytes32 indexed permissionHash, address indexed token, uint256 value);
 
     /// @notice Rolling period for a permission.
     mapping(address account => mapping(bytes32 permissionHash => uint256 rollingPeriod)) internal _rollingPeriods;
 
     /// @notice Rolling token allowances for a permission.
     mapping(address account => mapping(bytes32 permissionHash => mapping(address token => uint256 allowance))) internal _rollingAllowances;
+
+    /// @notice All native token spends per account per permission.
+    mapping(address account => mapping(bytes32 permissionHash => mapping(address token => Spend[] spends))) internal _spends;
 
     /// @notice PermissionManager this permission contract trusts for paymaster gas spend data.
     PermissionManager public immutable permissionManager;
@@ -145,19 +154,18 @@ contract RollingAllowancePermission is IPermissionContract {
                 
                 // add approval to array
                 approvals[approvalCount] = ERC20Approval(call.target, value);
-
-                // increment approval count
-                ++approvalCount;
+                approvalCount++;
             } else if (selector == RollingAllowancePermission.approveRollingAllowances.selector) {
                 // prepare expected call data for approveRollingAllowances
-                bytes memory approveRollingSpendData = abi.encodeWithSelector(
+                bytes memory approveRollingAllowancesData = abi.encodeWithSelector(
                     RollingAllowancePermission.approveRollingAllowances.selector,
                     permissionHash,
                     rollingAllowances,
                     rollingPeriod
                 );
 
-                if (!_isExpectedSelfCall(call, approveRollingSpendData)) revert InvalidApproveAllowancesCall();
+                // check that call is approveRollingSpend
+                if (!_isExpectedSelfCall(call, approveRollingAllowancesData)) revert InvalidApproveAllowancesCall();
             } else {
                 revert UserOperationUtils.SelectorNotAllowed();
             }
@@ -200,11 +208,15 @@ contract RollingAllowancePermission is IPermissionContract {
     /// @param rollingAllowances Tokens and allowances to apply on the rolling period.
     /// @param rollingPeriod Time in seconds to look back from now for current spend period.
     function approveRollingAllowances(bytes32 permissionHash, RollingAllowance[] calldata rollingAllowances, uint256 rollingPeriod) external {
-        if (rollingPeriod == 0) revert(); // >0
-        if (_rollingPeriods[msg.sender][permissionHash] > 0) revert(); // already set
+        // check rolling period is non-zero
+        if (rollingPeriod == 0) revert ZeroRollingPeriod();
+
+        // check rolling period not set yet
+        if (_rollingPeriods[msg.sender][permissionHash] > 0) revert RollingPeriodImmutable();
         
         _rollingPeriods[msg.sender][permissionHash] = rollingPeriod;
 
+        // store each rolling allowance value and emit event
         uint256 rollingAllowancesLen = rollingAllowances.length;
         for (uint256 i = 0; i < rollingAllowancesLen; i++) {
             RollingAllowance memory rollingAllowance = rollingAllowances[i];
@@ -245,22 +257,23 @@ contract RollingAllowancePermission is IPermissionContract {
         // assert native token spend
         _assertSpend(permissionHash, address(0), totalNativeSpend, rollingPeriod);
 
+        // check each approval is used and assert spend
         uint256 erc20ApprovalsLen = erc20Approvals.length;
         for (uint256 i = 0; i < erc20ApprovalsLen; i++) {
             ERC20Approval memory approval = erc20Approvals[i];
 
-            // require current allowance is now zero to verify allowance was spent in full
-            if (IERC20(approval.erc20).allowance(msg.sender, approvalSpender) > 0) revert();
+            // require current allowance is now zero to verify approval was spent in full
+            if (IERC20(approval.erc20).allowance(msg.sender, approvalSpender) > 0) revert LeftoverAllowance();
 
-            // assert erc20 spend
+            // assert ERC20 spend
             _assertSpend(permissionHash, approval.erc20, approval.value, rollingPeriod);
         }
     }
 
     /// @notice Calculate rolling spend for the period.
     ///
-    /// @param account The account to localize to.
-    /// @param permissionHash The unique permission to localize to.
+    /// @param account The account tied to the permission.
+    /// @param permissionHash Hash of the permission.
     /// @param rollingPeriod Time in seconds to look back from now for current spend period.
     ///
     /// @return rollingSpend Value of spend done by this permission in the past period.
@@ -269,11 +282,11 @@ contract RollingAllowancePermission is IPermissionContract {
         view
         returns (uint256 rollingSpend)
     {
-        uint256 spendsLen = _permissionSpends[account][permissionHash][token].length;
+        uint256 spendsLen = _spends[account][permissionHash][token].length;
 
         // loop backwards from most recent to oldest spends
         for (uint256 i = spendsLen; i > 0; i--) {
-            Spend memory spend = _permissionSpends[account][permissionHash][token][i - 1];
+            Spend memory spend = _spends[account][permissionHash][token][i - 1];
 
             // break loop if spend is before our spend period lower bound
             if (spend.timestamp < block.timestamp - rollingPeriod) break;
@@ -283,7 +296,7 @@ contract RollingAllowancePermission is IPermissionContract {
         }
     }
 
-    /// @notice Assert token spend on a rolling period.
+    /// @notice Assert native or ERC20 token spend on a rolling period.
     ///
     /// @param permissionHash Hash of the permission.
     /// @param token Address of the token being spent, address(0) for native token.
@@ -307,7 +320,7 @@ contract RollingAllowancePermission is IPermissionContract {
         if (totalSpend + rollingSpend > rollingAllowance) revert ExceededSpendingLimit();
 
         // add spend to state
-        _permissionSpends[msg.sender][permissionHash][token].push(Spend(uint48(block.timestamp), uint208(totalSpend)));
+        _spends[msg.sender][permissionHash][token].push(Spend(uint48(block.timestamp), uint208(totalSpend)));
 
         emit SpendRegistered(msg.sender, permissionHash, token, totalSpend);
     }

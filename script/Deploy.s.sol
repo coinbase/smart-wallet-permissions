@@ -6,7 +6,7 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
 import {Click} from "../src/examples/Click.sol";
-import {NativeTokenRollingSpendLimitPermission} from
+import {RollingAllowancePermission} from
     "../src/permissions/NativeTokenRollingSpendLimit/NativeTokenRollingSpendLimitPermission.sol";
 
 // forge script Deploy --account dev --rpc-url $BASE_SEPOLIA_RPC --verify --verifier-url $SEPOLIA_BASESCAN_API

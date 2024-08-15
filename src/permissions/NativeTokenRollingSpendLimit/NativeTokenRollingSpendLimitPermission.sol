@@ -118,7 +118,7 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         );
 
         // check that last call is assertSpend
-        if (_isExpectedSelfCall(calls[calls.length - 1], assertSpendData)) revert InvalidAssertSpendCall();
+        if (!_isExpectedSelfCall(calls[calls.length - 1], assertSpendData)) revert InvalidAssertSpendCall();
     }
 
     /// @notice Register a spend of native token for a given permission.
@@ -145,10 +145,10 @@ contract NativeTokenRollingSpendLimitPermission is IPermissionContract {
         // add gas cost if beared by the user
         if (paymaster == address(0) || permissionManager.shouldAddPaymasterGasToTotalSpend(paymaster)) {
             totalSpend += gasSpend;
-            // over-debits by ~3x actual gas if paymaster used
             // recall MagicSpend enforces withdraw to be native token when used as a paymaster
         }
 
+        // assert native token spend
         _assertSpend(permissionHash, totalSpend, spendLimit, rollingPeriod);
     }
 

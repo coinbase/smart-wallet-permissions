@@ -25,10 +25,14 @@ sequenceDiagram
     Note left of E: Execution phase
     A->>M: checkBeforeCalls
     Note over M: Execution phase checks: ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎  <br/> 1. manager not paused ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 2. permission contract enabled <br/> 3. cosigner signed userOp ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 4. permission not expired ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎
+    opt
+        A->>P: approveRollingAllowances
+        Note over A,P: one-time initialization of rolling allowances
+    end
     loop
         A->>C: permissionedCall
         Note over C,A: send intended calldata wrapped with special selector
     end
-    A->>P: assertSpend
-    Note over A,P: assert spend within rolling limit
+    A->>P: assertSpends
+    Note over A,P: assert spends within rolling allowances
 ```

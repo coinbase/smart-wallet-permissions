@@ -8,15 +8,13 @@ import { permissionManagerAbi } from "../abi/PermissionManager";
 type PrepareCheckBeforeCallsArgs = {
     permission: SmartWalletPermission
     paymaster: Address
-    userOpHash: Hex
-    userOpCosignature: Hex
+    cosigner: Address
 }
 
 export function prepareCheckBeforeCalls({
     permission,
     paymaster,
-    userOpHash,
-    userOpCosignature
+    cosigner
 }: PrepareCheckBeforeCallsArgs) {
     const checkBeforeCalls = {
         target: PermissionManager,
@@ -28,8 +26,7 @@ export function prepareCheckBeforeCalls({
                 permission.expiry,
                 permission.permissionContract,
                 paymaster,
-                userOpHash,
-                userOpCosignature
+                cosigner
             ],
         }),
     };

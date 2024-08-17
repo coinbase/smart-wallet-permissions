@@ -5,9 +5,9 @@ import {Script, console2} from "forge-std/Script.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
-import {NativeTokenRollingSpendLimitPermission} from
-    "../src/permissions/NativeTokenRollingSpendLimit/NativeTokenRollingSpendLimitPermission.sol";
 import {Click} from "../src/examples/Click.sol";
+import {PermissionCallableNativeTokenRollingAllowance} from
+    "../src/permissions/PermissionCallableNativeTokenRollingAllowance.sol";
 
 // forge script Deploy --account dev --rpc-url $BASE_SEPOLIA_RPC --verify --verifier-url $SEPOLIA_BASESCAN_API
 // --etherscan-api-key $BASESCAN_API_KEY --broadcast -vvvv
@@ -24,17 +24,17 @@ contract Deploy is Script {
     address public constant MANAGER = 0x384E8b4617886C7070ABd6037c4D5AbeC5B1d14d;
 
     PermissionManager permissionManager;
-    NativeTokenRollingSpendLimitPermission nativeTokenRollingSpendLimitPermission;
+    PermissionCallableNativeTokenRollingAllowance permissionContract;
 
     function run() public {
         vm.startBroadcast();
 
         // permissionManager = PermissionManager(MANAGER);
         deploy();
-        
-        // permissionManager.setPermissionContractEnabled(address(nativeTokenRollingSpendLimitPermission), true);
 
-        // permissionManager.setPaymasterEnabled(CDP_PAYMASTER, true);        
+        // permissionManager.setPermissionContractEnabled(address(permissionContract), true);
+
+        // permissionManager.setPaymasterEnabled(CDP_PAYMASTER, true);
 
         // Click click = new Click{salt: 0}(COSIGNER);
         // logAddress("Click", address(click));
@@ -42,15 +42,15 @@ contract Deploy is Script {
         vm.stopBroadcast();
     }
 
-    function deploy() internal returns (PermissionManager, NativeTokenRollingSpendLimitPermission) {
+    function deploy() internal {
         // permissionManager = new PermissionManager{salt: 0}(OWNER, COSIGNER);
         // logAddress("PermissionManager", address(permissionManager));
-        
-        // nativeTokenRollingSpendLimitPermission = new NativeTokenRollingSpendLimitPermission{salt: 0}(address(permissionManager));
-        // logAddress("NativeTokenRollingSpendLimitPermission", address(nativeTokenRollingSpendLimitPermission));
 
-        Click click = new Click{salt: 0}(OWNER);
-        logAddress("Click", address(click));
+        // permissionContract = new PermissionCallableNativeTokenRollingAllowance{salt: 0}(address(permissionManager));
+        // logAddress("PermissionCallableNativeTokenRollingAllowance", address(permissionContract));
+
+        // Click click = new Click{salt: 0}(OWNER);
+        // logAddress("Click", address(click));
     }
 
     function logAddress(string memory name, address addr) internal pure {

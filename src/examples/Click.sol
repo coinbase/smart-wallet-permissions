@@ -13,8 +13,10 @@ contract Click is Ownable, PermissionCallable, IOffchainAuthorization {
 
     constructor(address initialOwner) Ownable(initialOwner) {}
 
-    function click() public {
+    function click() public payable {
         emit Clicked(msg.sender);
+        // return value back to sender, used for testing native token spend
+        msg.sender.call{value: msg.value}("");
     }
 
     function supportsPermissionedCallSelector(bytes4 /*selector*/ ) public pure override returns (bool) {

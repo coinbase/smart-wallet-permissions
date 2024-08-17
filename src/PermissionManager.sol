@@ -4,6 +4,7 @@ pragma solidity 0.8.23;
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
+import {ECDSA} from "solady/utils/ECDSA.sol";
 
 import {IPermissionContract} from "./permissions/IPermissionContract.sol";
 import {Bytes} from "./utils/Bytes.sol";
@@ -157,7 +158,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         (
             UserOperation memory userOp,
             bytes memory userOpSignature, // signed by permission signer
-            bytes memory userOpCosignature, // signed by cosigner
+            bytes memory userOpCosignature, // signed by cosigner, assumed to be EOA
             Permission memory permission // approved by user
         ) = abi.decode(authData, (UserOperation, bytes, bytes, Permission));
         bytes32 permissionHash = hashPermission(permission);
@@ -192,6 +193,9 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         if (!SignatureChecker.isValidSignatureNow(userOpHash, userOpSignature, permission.signer)) {
             revert InvalidSignature();
         }
+        
+        // parse cosigner from cosignature
+        address userOpCosigner = ECDSA.recover(userOpHash, userOpCosignature);
 
         // check userOp.callData is `executeBatch`
         if (bytes4(userOp.callData) != ICoinbaseSmartWallet.executeBatch.selector) {
@@ -211,8 +215,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             permission.expiry,
             permission.permissionContract,
             address(bytes20(userOp.paymasterAndData)),
-            userOpHash,
-            userOpCosignature
+            userOpCosigner
         );
         if (keccak256(calls[0].data) != keccak256(checkBeforeCallsData)) {
             revert UserOperationUtils.InvalidUserOperationCallData();
@@ -244,14 +247,13 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///
     /// @param expiry Unix timestamp this permission is valid until.
     /// @param permissionContract External contract to verify specific permission logic.
-    /// @param userOpHash Hash of the user operation currently executing.
-    /// @param userOpCosignature Signature of userOpHash from a cosigner or pending cosigner.
+    /// @param paymaster Paymaster contract address.
+    /// @param userOpCosigner Address of recovered cosigner from cosignature in validation phase.
     function checkBeforeCalls(
         uint256 expiry,
         address permissionContract,
         address paymaster,
-        bytes32 userOpHash,
-        bytes calldata userOpCosignature
+        address userOpCosigner
     ) external view whenNotPaused {
         // check permission not expired
         if (expiry < block.timestamp) revert ExpiredPermission();
@@ -260,15 +262,10 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         if (!isPermissionContractEnabled[permissionContract]) revert DisabledPermissionContract();
 
         // check paymaster enabled
-        if (!isPaymasterEnabled[paymaster]) revert DisabledPaymaster();
+        if (paymaster != address(0) && !isPaymasterEnabled[paymaster]) revert DisabledPaymaster();
 
-        // check userOpCosignature from cosigner or pendingCosigner
-        if (
-            !(
-                SignatureChecker.isValidSignatureNow(userOpHash, userOpCosignature, abi.encode(cosigner))
-                    || (SignatureChecker.isValidSignatureNow(userOpHash, userOpCosignature, abi.encode(pendingCosigner)))
-            )
-        ) revert InvalidSignature();
+        // check userOpCosigner is cosigner or pendingCosigner
+        if (userOpCosigner != cosigner && userOpCosigner != pendingCosigner) revert InvalidSignature();
     }
 
     /// @notice Revoke a permission to disable its use indefinitely.

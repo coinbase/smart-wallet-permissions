@@ -1,4 +1,4 @@
-## Get Active Permissions
+## Get Permissions
 
 ```mermaid
 sequenceDiagram
@@ -9,8 +9,8 @@ sequenceDiagram
     end
     participant WS as Wallet Server
 
-    A->>SDK: wallet_getActivePermissions
-    SDK->>WS: wallet_getActivePermissions
+    A->>SDK: wallet_getPermissions
+    SDK->>WS: wallet_getPermissions
     WS-->>SDK: permissions with context
     SDK-->>A: permissions with context
 ```

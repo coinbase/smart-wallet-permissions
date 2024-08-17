@@ -52,10 +52,14 @@ Coinbase is actively contributing to [ERC-7715](https://eip.tools/eip/7715) whic
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as App
-    participant SDK as Provider
-    participant W as Wallet
-    participant U as User
+    box transparent App
+        participant A as App Interface
+        participant SDK as Wallet SDK
+    end
+    box transparent Wallet
+        participant W as Wallet Interface
+        participant U as User
+    end
 
     A->>SDK: wallet_grantPermissions
     SDK->>W: wallet_grantPermissions
@@ -71,25 +75,31 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as App
-    participant SDK as Provider
-    participant WS as Wallet Server
-    participant P as Paymaster
-    participant CS as Cosigner
-    participant B as Bundler
+    box transparent App
+        participant A as App Interface
+        participant SDK as Wallet SDK
+    end
+    box transparent Wallet
+        participant WS as Wallet Server
+        participant CS as Cosigner
+    end
+    box transparent External
+        participant P as Paymaster
+        participant B as Bundler
+    end
 
     A->>SDK: wallet_sendCalls
-    SDK->>WS: wallet_fillUserOp
+    SDK->>WS: wallet_prepareCalls
     WS->>P: pm_getPaymasterStubData
     P-->>WS: paymaster stub data
     WS->>P: pm_getPaymasterData
     P-->>WS: paymaster data
-    WS-->>SDK: filled userOp
+    WS-->>SDK: prepared calls with hash
     SDK->>SDK: sign
-    Note right of SDK: signing with CryptoKey P256
-    SDK->>WS: wallet_sendUserOpWithSignature
+    SDK->>WS: wallet_sendCalls
+    Note over SDK,WS: preSigned capability with signature
     WS->>CS: cosign userOp
-    CS->>CS: validate userOp + sign
+    CS->>CS: validate userOp and sign
     CS-->>WS: cosignature
     WS->>B: eth_sendUserOperation
     B-->>WS: userOpHash

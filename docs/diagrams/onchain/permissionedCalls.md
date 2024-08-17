@@ -16,19 +16,22 @@ sequenceDiagram
     M->>A: isValidSignature
     Note over M,A: check account approved permission
     A-->>M: EIP1271 magic value
-    Note over M: General permission checks: ‎ ‎ ‎  <br/> 1. permission not revoked ‎  ‎ ‎ ‎ ‎ <br/> 2. session key signed userOp ‎ <br/> 3. prepends checkBeforeCalls <br/> 4. no calls back on account ‎ ‎ ‎
+    Note over M: General permission checks: ‎ ‎ ‎  <br/> 1. permission not revoked ‎  ‎ ‎ ‎ ‎ <br/> 2. user approved permission  ‎ <br/> 3. session key signed userOp ‎ <br/> 4. prepends checkBeforeCalls <br/> 5. no calls back on account ‎ ‎ ‎
     M->>P: validatePermission
-    Note over P: Specific permission checks: ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 1. only calls allowed contracts ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 2. only calls special selector ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 3. appends assert call if spending ETH
+    Note over P: Specific permission checks: ‎ ‎ ‎ ‎ ‎ <br/> 1. only calls allowed contracts <br/> 2. only calls special selector ‎ ‎ ‎ <br/> 3. appends assertSpend call ‎ ‎ ‎ ‎
     M-->>A: EIP1271 magic value
     A-->>E: validation data
     E->>A: executeBatch
     Note left of E: Execution phase
     A->>M: checkBeforeCalls
-    Note over M: Execution phase checks: ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎  <br/> 1. manager not paused ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 2. permission contract enabled <br/> 3. cosigner signed userOp ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 4. permission not expired ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎
+    Note over M: Execution phase checks: ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎  <br/> 1. manager not paused ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 2. permission not expired ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 3. permission contract enabled <br/> 4. paymaster enabled  ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎<br/> 5. cosigner signed userOp ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎
     loop
         A->>C: permissionedCall
         Note over C,A: send intended calldata wrapped with special selector
     end
     A->>P: assertSpend
-    Note over A,P: assert spend within rolling limit
+    Note over A,P: assert spend within rolling allowancd
+    P->>M: shouldAddPaymasterGasToTotalSpend
+    Note over P,M: support MagicSpend paymaster sponsorship
+    M-->>P: bool addGasSpend
 ```

@@ -6,7 +6,6 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
-import {Click} from "../src/examples/Click.sol";
 import {PermissionCallableNativeTokenRollingAllowance} from
     "../src/permissions/PermissionCallableNativeTokenRollingAllowance.sol";
 

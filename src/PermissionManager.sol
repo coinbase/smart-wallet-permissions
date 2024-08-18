@@ -6,9 +6,9 @@ import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 
-import {IPermissionContract} from "./permissions/IPermissionContract.sol";
+import {ICoinbaseSmartWallet} from "./interfaces/ICoinbaseSmartWallet.sol";
+import {IPermissionContract} from "./interfaces/IPermissionContract.sol";
 import {Bytes} from "./utils/Bytes.sol";
-import {ICoinbaseSmartWallet} from "./utils/ICoinbaseSmartWallet.sol";
 import {SignatureChecker} from "./utils/SignatureChecker.sol";
 import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol";
 
@@ -193,7 +193,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         if (!SignatureChecker.isValidSignatureNow(userOpHash, userOpSignature, permission.signer)) {
             revert InvalidSignature();
         }
-        
+
         // parse cosigner from cosignature
         address userOpCosigner = ECDSA.recover(userOpHash, userOpCosignature);
 
@@ -249,12 +249,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @param permissionContract External contract to verify specific permission logic.
     /// @param paymaster Paymaster contract address.
     /// @param userOpCosigner Address of recovered cosigner from cosignature in validation phase.
-    function checkBeforeCalls(
-        uint256 expiry,
-        address permissionContract,
-        address paymaster,
-        address userOpCosigner
-    ) external view whenNotPaused {
+    function checkBeforeCalls(uint256 expiry, address permissionContract, address paymaster, address userOpCosigner)
+        external
+        view
+        whenNotPaused
+    {
         // check permission not expired
         if (expiry < block.timestamp) revert ExpiredPermission();
 

@@ -84,7 +84,7 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
 
         // prepare expected call data for assertSpend
         bytes memory assertSpendData = abi.encodeWithSelector(
-            NativeTokenRollingAllowance.assertSpend.selector,
+            PermissionCallableNativeTokenRollingAllowance.assertSpend.selector,
             permissionHash,
             spendLimit,
             rollingPeriod,

@@ -2,13 +2,12 @@
 pragma solidity 0.8.23;
 
 import {PermissionManager} from "../PermissionManager.sol";
-
-import {IPermissionCallable} from "../PermissionCallable/IPermissionCallable.sol";
-import {IPermissionContract} from "../permissions/IPermissionContract.sol";
-import {Bytes} from "../utils/Bytes.sol";
-import {ICoinbaseSmartWallet} from "../utils/ICoinbaseSmartWallet.sol";
-import {IMagicSpend} from "../utils/IMagicSpend.sol";
-import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
+import {ICoinbaseSmartWallet} from "../interfaces/ICoinbaseSmartWallet.sol";
+import {IMagicSpend} from "../interfaces/IMagicSpend.sol";
+import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
+import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
+import {Bytes} from "./Bytes.sol";
+import {UserOperation, UserOperationUtils} from "./UserOperationUtils.sol";
 
 /// @title NativeTokenRollingAllowance
 ///
@@ -42,39 +41,9 @@ contract NativeTokenRollingAllowance {
     /// @notice PermissionManager this permission contract trusts for paymaster gas spend data.
     PermissionManager public immutable permissionManager;
 
+    /// @param manager Contract address for PermissionManager.
     constructor(address manager) {
         permissionManager = PermissionManager(manager);
-    }
-
-    /// @notice Register a spend of native token for a given permission.
-    ///
-    /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS vector.
-    /// @dev State read on Manager for adding paymaster gas to total spend must happen in execution phase.
-    ///
-    /// @param permissionHash Hash of the permission.
-    /// @param spendLimit Value of native token that cannot be exceeded over the rolling period.
-    /// @param rollingPeriod Seconds duration for the rolling period.
-    /// @param callsSpend Value of native token spent in calls.
-    /// @param gasSpend Value of native token spent by gas.
-    /// @param paymaster Paymaster used by user operation.
-    function assertSpend(
-        bytes32 permissionHash,
-        uint256 spendLimit,
-        uint256 rollingPeriod,
-        uint256 callsSpend,
-        uint256 gasSpend,
-        address paymaster
-    ) external {
-        uint256 totalSpend = callsSpend;
-
-        // add gas cost if beared by the user
-        if (paymaster == address(0) || permissionManager.shouldAddPaymasterGasToTotalSpend(paymaster)) {
-            totalSpend += gasSpend;
-            // recall MagicSpend enforces withdraw to be native token when used as a paymaster
-        }
-
-        // assert native token spend
-        _assertSpend(permissionHash, totalSpend, spendLimit, rollingPeriod);
     }
 
     /// @notice Calculate rolling spend for the period.

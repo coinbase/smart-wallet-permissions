@@ -6,7 +6,7 @@ import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/Us
 
 /// @title UserOperationUtils
 ///
-/// @notice Utilities for user operations on Entrypoint V0.6
+/// @notice Utilities for user operations on Entrypoint V0.6.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 library UserOperationUtils {
@@ -18,13 +18,13 @@ library UserOperationUtils {
     /// @notice UserOperation sender does not match account.
     error InvalidUserOperationSender();
 
-    /// @notice Function selector not allowed.
-    error SelectorNotAllowed();
-
     /// @notice Call target not allowed.
     error TargetNotAllowed();
 
-    /// @notice Call arguments not allowed.
+    /// @notice Call function selector not allowed.
+    error SelectorNotAllowed();
+
+    /// @notice Call function arguments not allowed.
     error ArgumentsNotAllowed();
 
     /// @notice UserOperation callData is invalid.

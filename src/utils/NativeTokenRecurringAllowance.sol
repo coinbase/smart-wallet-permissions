@@ -30,7 +30,7 @@ abstract contract NativeTokenRecurringAllowance {
     mapping(address account => mapping(bytes32 permissionHash => RecurringCycle)) internal _recurringCycles;
 
     /// @notice Latest active cycle for the permission.
-    mapping(address account => mapping(bytes32 permissionHash => ActiveCycle)) internal _latestActiveCycles;
+    mapping(address account => mapping(bytes32 permissionHash => ActiveCycle)) internal _lastActiveCycles;
 
     /// @notice Spend value exceeds max size of uint208
     error SpendValueOverflow();
@@ -38,7 +38,7 @@ abstract contract NativeTokenRecurringAllowance {
     /// @notice Spend value exceeds permission's spending limit
     error ExceededRecurringAllowance();
 
-    /// @notice Recurring period duration must be greater than zero
+    /// @notice Recurring cycle duration must be greater than zero
     error ZeroRecurringCycleDuration();
 
     /// @notice Already initialized recurring allowance
@@ -63,7 +63,7 @@ abstract contract NativeTokenRecurringAllowance {
         uint48 recurringCycleDuration
     );
 
-    /// @notice Calculate rolling spend for the period.
+    /// @notice Get recurring allowance for a permission.
     ///
     /// @param account The account tied to the permission.
     /// @param permissionHash Hash of the permission.
@@ -81,7 +81,7 @@ abstract contract NativeTokenRecurringAllowance {
         return (recurringAllowance, recurringCycle.start, recurringCycle.duration);
     }
 
-    /// @notice Get the currently active cycle.
+    /// @notice Get the currently active cycle for a permission.
     ///
     /// @param account The account tied to the permission.
     /// @param permissionHash Hash of the permission.
@@ -94,16 +94,16 @@ abstract contract NativeTokenRecurringAllowance {
         returns (uint48 cycleStart, uint256 cycleSpend)
     {
         RecurringCycle memory recurringCycle = _recurringCycles[account][permissionHash];
-        ActiveCycle memory latestActiveCycle = _latestActiveCycles[account][permissionHash];
+        ActiveCycle memory lastActiveCycle = _lastActiveCycles[account][permissionHash];
         uint48 currentTimestamp = uint48(block.timestamp);
 
-        if (currentTimestamp < latestActiveCycle.start + recurringCycle.duration) {
-            // latest cycle is still active
-            return (latestActiveCycle.start, uint208(latestActiveCycle.spend));
+        if (currentTimestamp < lastActiveCycle.start + recurringCycle.duration) {
+            // last active cycle is still active
+            return (lastActiveCycle.start, uint208(lastActiveCycle.spend));
         } else {
-            // latest cycle is outdated
+            // last active cycle is outdated
 
-            // current period progress is remainder of time since first recurring period mod duration
+            // current cycle progress is remainder of time since first recurring cycle mod duration
             uint48 currentRecurringCycleProgress = (currentTimestamp - recurringCycle.start) % recurringCycle.duration;
 
             // cycle start is progress duration in the past and spend value is zero
@@ -111,7 +111,7 @@ abstract contract NativeTokenRecurringAllowance {
         }
     }
 
-    /// @notice Assert native token spend on a rolling period.
+    /// @notice Assert native token spend for a permission.
     ///
     /// @param account Address of the account asserting spend for.
     /// @param permissionHash Hash of the permission.
@@ -132,7 +132,7 @@ abstract contract NativeTokenRecurringAllowance {
 
         // save new data for latest cycle
         cycleSpend += spend;
-        _latestActiveCycles[account][permissionHash] = ActiveCycle(cycleStart, uint208(cycleSpend));
+        _lastActiveCycles[account][permissionHash] = ActiveCycle(cycleStart, uint208(cycleSpend));
 
         emit RecurringAllowanceUsed(account, permissionHash, cycleStart, spend);
     }
@@ -151,7 +151,7 @@ abstract contract NativeTokenRecurringAllowance {
         uint48 recurringCycleStart,
         uint48 recurringCycleDuration
     ) internal {
-        // check recurring period duration is non-zero
+        // check recurring cycle duration is non-zero
         if (recurringCycleDuration == 0) revert ZeroRecurringCycleDuration();
 
         // check permission has not already been initialized

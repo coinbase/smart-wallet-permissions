@@ -153,15 +153,11 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @param permissionFields Additional arguments for validation.
     function initializePermission(bytes32 permissionHash, bytes calldata permissionFields) external {
         // parse permission fields
-        (
-            uint256 recurringAllowance,
-            uint48 recurringPeriodStart,
-            uint48 recurringPeriodDuration,
-            address allowedContract
-        ) = abi.decode(permissionFields, (uint256, uint48, uint48, address));
+        (uint256 recurringAllowance, uint48 recurringCycleStart, uint48 recurringCycleDuration, address allowedContract)
+        = abi.decode(permissionFields, (uint256, uint48, uint48, address));
 
         _initializeNativeTokenRecurringAllowance(
-            msg.sender, permissionHash, recurringAllowance, recurringPeriodStart, recurringPeriodDuration
+            msg.sender, permissionHash, recurringAllowance, recurringCycleStart, recurringCycleDuration
         );
 
         _initializeAllowedContract(msg.sender, permissionHash, allowedContract);

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
-import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
+import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 
-/// @title UserOperationUtils
+/// @title UserOperationLib
 ///
 /// @notice Utilities for user operations on Entrypoint V0.6.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-library UserOperationUtils {
+library UserOperationLib {
     address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
     /// @notice UserOperation does not match provided hash.
@@ -30,9 +30,9 @@ library UserOperationUtils {
     /// @notice UserOperation callData is invalid.
     error InvalidUserOperationCallData();
 
-    /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas
+    /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas.
     ///
-    /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process
+    /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process.
     /// @dev Implementation forked from
     ///      https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.6/contracts/core/EntryPoint.sol#L325
     function getRequiredPrefund(UserOperation calldata userOp) internal pure returns (uint256 requiredPrefund) {
@@ -44,6 +44,11 @@ library UserOperationUtils {
         requiredPrefund = requiredGas * userOp.maxFeePerGas;
     }
 
+    /// @notice Get the userOpHash for a userOp.
+    ///
+    /// @dev Hardcoded to use EntryPoint v0.6.
+    ///
+    /// @param userOp User operation to hash.
     function getUserOpHash(UserOperation memory userOp) internal view returns (bytes32) {
         return IEntryPoint(ENTRY_POINT_V06).getUserOpHash(userOp);
     }

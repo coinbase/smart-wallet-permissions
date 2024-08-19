@@ -1,23 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
-
-import {PermissionManager} from "../PermissionManager.sol";
-import {ICoinbaseSmartWallet} from "../interfaces/ICoinbaseSmartWallet.sol";
-import {IMagicSpend} from "../interfaces/IMagicSpend.sol";
-import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
-import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
-import {Bytes} from "./Bytes.sol";
-import {UserOperation, UserOperationUtils} from "./UserOperationUtils.sol";
+pragma solidity ^0.8.23;
 
 /// @title NativeTokenRollingAllowance
 ///
-/// @notice Supports spending native token with rolling limits.
-/// @notice Only allow calls to a single allowed contract using IPermissionCallable.permissionedCall selector.
-///
-/// @dev Called by PermissionManager at end of its validation flow.
+/// @notice Allow spending native token with recurring allowance.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-contract NativeTokenRollingAllowance {
+abstract contract NativeTokenRollingAllowance {
     /// @notice Spend of native token at a specific time.
     struct Spend {
         /// @dev Unix timestamp of the spend.
@@ -37,14 +26,6 @@ contract NativeTokenRollingAllowance {
 
     /// @notice All native token spends per account per permission.
     mapping(address account => mapping(bytes32 permissionHash => Spend[] spends)) internal _spends;
-
-    /// @notice PermissionManager this permission contract trusts for paymaster gas spend data.
-    PermissionManager public immutable permissionManager;
-
-    /// @param manager Contract address for PermissionManager.
-    constructor(address manager) {
-        permissionManager = PermissionManager(manager);
-    }
 
     /// @notice Calculate rolling spend for the period.
     ///

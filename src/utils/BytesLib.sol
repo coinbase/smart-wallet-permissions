@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-/// @title Bytes
+/// @title BytesLib
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-library Bytes {
+library BytesLib {
     /// @notice Slice call arguments from encoded calldata
     ///
     /// @dev ~7% increase of gas usage relative to calldata slicing

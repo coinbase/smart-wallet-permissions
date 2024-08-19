@@ -6,16 +6,18 @@ import {ICoinbaseSmartWallet} from "../interfaces/ICoinbaseSmartWallet.sol";
 import {IMagicSpend} from "../interfaces/IMagicSpend.sol";
 import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
-import {Bytes} from "../utils/Bytes.sol";
+import {BytesLib} from "../utils/BytesLib.sol";
 import {NativeTokenRollingAllowance} from "../utils/NativeTokenRollingAllowance.sol";
-import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
+import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 
 /// @title PermissionCallableNativeTokenRollingAllowance
 ///
-/// @notice Supports spending native token with rolling limits.
-/// @notice Only allow calls to a single allowed contract using IPermissionCallable.permissionedCall selector.
+/// @notice Only allow custom external calls with IPermissionCallable.permissionedCall selector.
+/// @notice Only allow custom external calls to a single allowed contract.
+/// @notice Allow spending native token with recurring allowance.
+/// @notice Allow withdrawing native token from MagicSpend both as paymaster and non-paymaster flows.
 ///
-/// @dev Called by PermissionManager at end of its validation flow.
+/// @dev Requires appending assertSpend call on every use.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, NativeTokenRollingAllowance {
@@ -25,8 +27,13 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
     /// @notice Call to assertSpend not made on self or with invalid data.
     error InvalidAssertSpendCall();
 
+    /// @notice PermissionManager this permission contract trusts for paymaster gas spend data.
+    PermissionManager public immutable permissionManager;
+
     /// @param manager Contract address for PermissionManager.
-    constructor(address manager) NativeTokenRollingAllowance(manager) {}
+    constructor(address manager) {
+        permissionManager = PermissionManager(manager);
+    }
 
     /// @notice Validate the permission to execute a userOp.
     ///
@@ -62,12 +69,12 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
 
             if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
-                if (call.target != allowedContract) revert UserOperationUtils.TargetNotAllowed();
+                if (call.target != allowedContract) revert UserOperationLib.TargetNotAllowed();
                 // assume PermissionManager already prevents account as target
             } else if (selector == IMagicSpend.withdraw.selector) {
                 // parse MagicSpend withdraw request
                 IMagicSpend.WithdrawRequest memory withdraw =
-                    abi.decode(Bytes.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
+                    abi.decode(BytesLib.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
 
                 // check withdraw is native token
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
@@ -75,7 +82,7 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
             } else if (selector == IMagicSpend.withdrawGasExcess.selector) {
                 // ok
             } else {
-                revert UserOperationUtils.SelectorNotAllowed();
+                revert UserOperationLib.SelectorNotAllowed();
             }
 
             // accumulate spend value
@@ -90,18 +97,14 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
             rollingPeriod,
             callsSpend,
             // gasSpend is prefund required by entrypoint (ignores refund for unused gas)
-            UserOperationUtils.getRequiredPrefund(userOp),
+            UserOperationLib.getRequiredPrefund(userOp),
             // paymaster data is empty or first 20 bytes are contract address
             userOp.paymasterAndData.length == 0 ? address(0) : address(bytes20(userOp.paymasterAndData[:20]))
         );
 
-        // check that last call is assertSpend
-        if (
-            (
-                calls[callsLen - 1].target != address(this)
-                    || keccak256(calls[callsLen - 1].data) != keccak256(assertSpendData)
-            )
-        ) {
+        // check that last call is this.assertSpend
+        ICoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
+        if ((lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(assertSpendData))) {
             revert InvalidAssertSpendCall();
         }
     }

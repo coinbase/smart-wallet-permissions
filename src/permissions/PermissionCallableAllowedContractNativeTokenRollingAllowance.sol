@@ -10,7 +10,7 @@ import {BytesLib} from "../utils/BytesLib.sol";
 import {NativeTokenRollingAllowance} from "../utils/NativeTokenRollingAllowance.sol";
 import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 
-/// @title PermissionCallableNativeTokenRollingAllowance
+/// @title PermissionCallableAllowedContractNativeTokenRollingAllowance
 ///
 /// @notice Only allow custom external calls with IPermissionCallable.permissionedCall selector.
 /// @notice Only allow custom external calls to a single allowed contract.
@@ -20,7 +20,10 @@ import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 /// @dev Requires appending assertSpend call on every use.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, NativeTokenRollingAllowance {
+contract PermissionCallableAllowedContractNativeTokenRollingAllowance is
+    IPermissionContract,
+    NativeTokenRollingAllowance
+{
     /// @notice MagicSpend withdraw asset is not native token.
     error InvalidWithdrawAsset();
 
@@ -91,7 +94,7 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
 
         // prepare expected call data for assertSpend
         bytes memory assertSpendData = abi.encodeWithSelector(
-            PermissionCallableNativeTokenRollingAllowance.assertSpend.selector,
+            PermissionCallableAllowedContractNativeTokenRollingAllowance.assertSpend.selector,
             permissionHash,
             spendLimit,
             rollingPeriod,
@@ -102,9 +105,9 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
             userOp.paymasterAndData.length == 0 ? address(0) : address(bytes20(userOp.paymasterAndData[:20]))
         );
 
-        // check that last call is this.assertSpend
+        // check last call is valid this.assertSpend
         ICoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
-        if ((lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(assertSpendData))) {
+        if (lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(assertSpendData)) {
             revert InvalidAssertSpendCall();
         }
     }
@@ -137,6 +140,6 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
         }
 
         // assert native token spend
-        _assertSpend(permissionHash, totalSpend, spendLimit, rollingPeriod);
+        _assertNativeTokenSpend(permissionHash, totalSpend, spendLimit, rollingPeriod);
     }
 }

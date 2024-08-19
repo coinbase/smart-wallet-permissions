@@ -6,8 +6,8 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {Click} from "../docs/examples/Click.sol";
 import {PermissionManager} from "../src/PermissionManager.sol";
-import {PermissionCallableNativeTokenRollingAllowance} from
-    "../src/permissions/PermissionCallableNativeTokenRollingAllowance.sol";
+import {PermissionCallableAllowedContractNativeTokenRollingAllowance as PermissionContract} from
+    "../src/permissions/PermissionCallableAllowedContractNativeTokenRollingAllowance.sol";
 
 // forge script Deploy --account dev --rpc-url $BASE_SEPOLIA_RPC --verify --verifier-url $SEPOLIA_BASESCAN_API
 // --etherscan-api-key $BASESCAN_API_KEY --broadcast -vvvv
@@ -24,7 +24,7 @@ contract Deploy is Script {
     address public constant MANAGER = 0x384E8b4617886C7070ABd6037c4D5AbeC5B1d14d;
 
     PermissionManager permissionManager;
-    PermissionCallableNativeTokenRollingAllowance permissionContract;
+    PermissionContract permissionContract;
 
     function run() public {
         vm.startBroadcast();
@@ -46,8 +46,8 @@ contract Deploy is Script {
         // permissionManager = new PermissionManager{salt: 0}(OWNER, COSIGNER);
         // logAddress("PermissionManager", address(permissionManager));
 
-        // permissionContract = new PermissionCallableNativeTokenRollingAllowance{salt: 0}(address(permissionManager));
-        // logAddress("PermissionCallableNativeTokenRollingAllowance", address(permissionContract));
+        // permissionContract = new PermissionContract{salt: 0}(address(permissionManager));
+        // logAddress("PermissionCallableAllowedContractNativeTokenRollingAllowance", address(permissionContract));
 
         // Click click = new Click{salt: 0}(OWNER);
         // logAddress("Click", address(click));

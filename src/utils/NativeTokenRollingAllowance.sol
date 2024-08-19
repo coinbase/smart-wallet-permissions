@@ -58,9 +58,12 @@ abstract contract NativeTokenRollingAllowance {
     /// @param permissionHash Hash of the permission.
     /// @param totalSpend Amount of native token being spent.
     /// @param rollingPeriod Amount of time in seconds to lookback for rolling spend calculation.
-    function _assertSpend(bytes32 permissionHash, uint256 totalSpend, uint256 spendLimit, uint256 rollingPeriod)
-        internal
-    {
+    function _assertNativeTokenSpend(
+        bytes32 permissionHash,
+        uint256 totalSpend,
+        uint256 spendLimit,
+        uint256 rollingPeriod
+    ) internal {
         // early return if no value spent
         if (totalSpend == 0) return;
 

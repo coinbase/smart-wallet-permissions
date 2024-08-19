@@ -3,6 +3,8 @@ pragma solidity ^0.8.23;
 
 /// @title NativeTokenRecurringAllowance
 ///
+/// @dev Recurring cycle durations must be greater than zero.
+///
 /// @notice Supports spending native token with recurring limits.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
@@ -32,17 +34,23 @@ abstract contract NativeTokenRecurringAllowance {
     /// @notice Latest active cycle for the permission.
     mapping(address account => mapping(bytes32 permissionHash => ActiveCycle)) internal _lastActiveCycles;
 
-    /// @notice Spend value exceeds max size of uint208
+    /// @notice Spend value exceeds max size of uint208.
     error SpendValueOverflow();
 
-    /// @notice Spend value exceeds permission's spending limit
+    /// @notice Spend value exceeds permission's spending limit.
     error ExceededRecurringAllowance();
 
-    /// @notice Recurring cycle duration must be greater than zero
+    /// @notice Recurring cycle duration must be greater than zero.
     error ZeroRecurringCycleDuration();
 
-    /// @notice Already initialized recurring allowance
+    /// @notice Already initialized recurring allowance.
     error InitializedRecurringAllowance();
+
+    /// @notice Recurring cycle has not started yet.
+    error BeforeRecurringCycleStart();
+
+    /// @notice Recurring allowance has not been initialized.
+    error UninitializedRecurringAllowance();
 
     /// @notice Register native token spend for a recurring allowance cycle.
     ///
@@ -97,7 +105,11 @@ abstract contract NativeTokenRecurringAllowance {
         ActiveCycle memory lastActiveCycle = _lastActiveCycles[account][permissionHash];
         uint48 currentTimestamp = uint48(block.timestamp);
 
-        if (currentTimestamp < lastActiveCycle.start + recurringCycle.duration) {
+        if (recurringCycle.duration == 0) {
+            revert UninitializedRecurringAllowance();
+        } else if (currentTimestamp < recurringCycle.start) {
+            revert BeforeRecurringCycleStart();
+        } else if (currentTimestamp < lastActiveCycle.start + recurringCycle.duration) {
             // last active cycle is still active
             return (lastActiveCycle.start, uint208(lastActiveCycle.spend));
         } else {
@@ -120,6 +132,7 @@ abstract contract NativeTokenRecurringAllowance {
         // early return if no value spent
         if (spend == 0) return;
 
+        // get active cycle state, reverts if before recurring cycle start
         (uint48 cycleStart, uint256 cycleSpend) = getActiveCycle(account, permissionHash);
 
         // check spend value does not exceed max value
@@ -143,7 +156,7 @@ abstract contract NativeTokenRecurringAllowance {
     /// @param permissionHash Hash of the permission.
     /// @param recurringAllowance Spendable allowance on a recurring basis (wei).
     /// @param recurringCycleStart Start of the first recurring cycle (unix seconds).
-    /// @param recurringCycleDuration Duration of the recurring cycles (unix seconds).
+    /// @param recurringCycleDuration Duration of the recurring cycles (unix seconds), must be greater than zero.
     function _initializeNativeTokenRecurringAllowance(
         address account,
         bytes32 permissionHash,

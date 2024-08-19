@@ -25,13 +25,17 @@ sequenceDiagram
     Note left of E: Execution phase
     A->>M: checkBeforeCalls
     Note over M: Execution phase checks: ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎  <br/> 1. manager not paused ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 2. permission not expired ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 3. permission contract enabled <br/> 4. paymaster enabled  ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎<br/> 5. cosigner signed userOp ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎
+    opt
+        A->>P: initializePermission
+        Note over A,P: one-time initialization of permission fields
+    end
     loop
         A->>C: permissionedCall
         Note over C,A: send intended calldata wrapped with special selector
     end
     A->>P: assertSpend
-    Note over A,P: assert spend within rolling allowancd
+    Note over A,P: assert spend within recurring allowance
     P->>M: shouldAddPaymasterGasToTotalSpend
-    Note over P,M: support MagicSpend paymaster sponsorship
     M-->>P: bool addGasSpend
+    Note over P: add gas to total spend
 ```

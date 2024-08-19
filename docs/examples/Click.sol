@@ -5,8 +5,8 @@ import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
-import {PermissionCallable} from "../../src/PermissionCallable.sol";
 import {IOffchainAuthorization} from "../../src/interfaces/IOffchainAuthorization.sol";
+import {PermissionCallable} from "../../src/utils/PermissionCallable.sol";
 
 contract Click is Ownable, PermissionCallable, IOffchainAuthorization {
     event Clicked(address indexed account);

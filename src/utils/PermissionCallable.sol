@@ -2,9 +2,8 @@
 pragma solidity ^0.8.23;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
-import {Multicall} from "openzeppelin-contracts/contracts/utils/Multicall.sol";
 
-import {IPermissionCallable} from "./interfaces/IPermissionCallable.sol";
+import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 
 /// @title PermissionCallable
 ///

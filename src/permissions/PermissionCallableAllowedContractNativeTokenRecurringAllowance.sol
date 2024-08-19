@@ -144,7 +144,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         }
 
         // assert native token spend
-        _assertSpend(msg.sender, permissionHash, totalSpend);
+        _assertNativeTokenSpend(msg.sender, permissionHash, totalSpend);
     }
 
     /// @notice Initialize the permission fields.
@@ -160,7 +160,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
             address allowedContract
         ) = abi.decode(permissionFields, (uint256, uint48, uint48, address));
 
-        _initializeRecurringAllowance(
+        _initializeNativeTokenRecurringAllowance(
             msg.sender, permissionHash, recurringAllowance, recurringPeriodStart, recurringPeriodDuration
         );
 

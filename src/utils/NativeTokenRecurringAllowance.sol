@@ -26,10 +26,10 @@ abstract contract NativeTokenRecurringAllowance {
     /// @notice Recurring allowance for the permission.
     mapping(address account => mapping(bytes32 permissionHash => uint256)) internal _recurringAllowances;
 
-    /// @notice Recurring period parameters for the permission.
+    /// @notice Recurring cycle parameters for the permission.
     mapping(address account => mapping(bytes32 permissionHash => RecurringCycle)) internal _recurringCycles;
 
-    /// @notice Amount of native token spent in the current cycle for the permission.
+    /// @notice Latest active cycle for the permission.
     mapping(address account => mapping(bytes32 permissionHash => ActiveCycle)) internal _latestActiveCycles;
 
     /// @notice Spend value exceeds max size of uint208
@@ -44,12 +44,15 @@ abstract contract NativeTokenRecurringAllowance {
     /// @notice Already initialized recurring allowance
     error InitializedRecurringAllowance();
 
-    /// @notice Register native token spend for a permission
+    /// @notice Register native token spend for a recurring allowance cycle.
     ///
     /// @param account Account that spent native token via a permission.
     /// @param permissionHash Hash of the permission.
-    /// @param value Amount of native token in wei spent.
-    event SpendRegistered(address indexed account, bytes32 indexed permissionHash, uint256 value);
+    /// @param cycleStart Start time of the cycle this spend was used on (unix seconds).
+    /// @param spendValue Amount of native token spent (wei).
+    event RecurringAllowanceUsed(
+        address indexed account, bytes32 indexed permissionHash, uint48 cycleStart, uint256 spendValue
+    );
 
     /// @notice Register native token spend for a permission
     event RecurringAllowanceInitialized(
@@ -78,14 +81,14 @@ abstract contract NativeTokenRecurringAllowance {
         return (recurringAllowance, recurringCycle.start, recurringCycle.duration);
     }
 
-    /// @notice Calculate rolling spend for the period.
+    /// @notice Get the currently active cycle.
     ///
     /// @param account The account tied to the permission.
     /// @param permissionHash Hash of the permission.
     ///
     /// @return cycleStart Start time of the current cycle (unix seconds).
     /// @return cycleSpend Value spent in the current cycle (wei).
-    function getActiveRecurringCycle(address account, bytes32 permissionHash)
+    function getActiveCycle(address account, bytes32 permissionHash)
         public
         view
         returns (uint48 cycleStart, uint256 cycleSpend)
@@ -103,7 +106,7 @@ abstract contract NativeTokenRecurringAllowance {
             // current period progress is remainder of time since first recurring period mod duration
             uint48 currentRecurringCycleProgress = (currentTimestamp - recurringCycle.start) % recurringCycle.duration;
 
-            // cycle start is now - progress with zero spend value
+            // cycle start is progress duration in the past and spend value is zero
             return (currentTimestamp - currentRecurringCycleProgress, 0);
         }
     }
@@ -113,11 +116,11 @@ abstract contract NativeTokenRecurringAllowance {
     /// @param account Address of the account asserting spend for.
     /// @param permissionHash Hash of the permission.
     /// @param spend Amount of native token being spent.
-    function _assertSpend(address account, bytes32 permissionHash, uint256 spend) internal {
+    function _assertNativeTokenSpend(address account, bytes32 permissionHash, uint256 spend) internal {
         // early return if no value spent
         if (spend == 0) return;
 
-        (uint48 cycleStart, uint256 cycleSpend) = getActiveRecurringCycle(account, permissionHash);
+        (uint48 cycleStart, uint256 cycleSpend) = getActiveCycle(account, permissionHash);
 
         // check spend value does not exceed max value
         if (spend + cycleSpend > type(uint208).max) revert SpendValueOverflow();
@@ -131,7 +134,7 @@ abstract contract NativeTokenRecurringAllowance {
         cycleSpend += spend;
         _latestActiveCycles[account][permissionHash] = ActiveCycle(cycleStart, uint208(cycleSpend));
 
-        emit SpendRegistered(account, permissionHash, spend);
+        emit RecurringAllowanceUsed(account, permissionHash, cycleStart, spend);
     }
 
     /// @notice Initialize the native token recurring allowance for a permission.
@@ -141,7 +144,7 @@ abstract contract NativeTokenRecurringAllowance {
     /// @param recurringAllowance Spendable allowance on a recurring basis (wei).
     /// @param recurringCycleStart Start of the first recurring cycle (unix seconds).
     /// @param recurringCycleDuration Duration of the recurring cycles (unix seconds).
-    function _initializeRecurringAllowance(
+    function _initializeNativeTokenRecurringAllowance(
         address account,
         bytes32 permissionHash,
         uint256 recurringAllowance,

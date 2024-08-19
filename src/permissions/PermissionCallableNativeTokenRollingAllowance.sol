@@ -6,9 +6,9 @@ import {ICoinbaseSmartWallet} from "../interfaces/ICoinbaseSmartWallet.sol";
 import {IMagicSpend} from "../interfaces/IMagicSpend.sol";
 import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
-import {Bytes} from "../utils/Bytes.sol";
+import {BytesLib} from "../utils/BytesLib.sol";
 import {NativeTokenRollingAllowance} from "../utils/NativeTokenRollingAllowance.sol";
-import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol";
+import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 
 /// @title PermissionCallableNativeTokenRollingAllowance
 ///
@@ -69,12 +69,12 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
 
             if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
-                if (call.target != allowedContract) revert UserOperationUtils.TargetNotAllowed();
+                if (call.target != allowedContract) revert UserOperationLib.TargetNotAllowed();
                 // assume PermissionManager already prevents account as target
             } else if (selector == IMagicSpend.withdraw.selector) {
                 // parse MagicSpend withdraw request
                 IMagicSpend.WithdrawRequest memory withdraw =
-                    abi.decode(Bytes.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
+                    abi.decode(BytesLib.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
 
                 // check withdraw is native token
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
@@ -82,7 +82,7 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
             } else if (selector == IMagicSpend.withdrawGasExcess.selector) {
                 // ok
             } else {
-                revert UserOperationUtils.SelectorNotAllowed();
+                revert UserOperationLib.SelectorNotAllowed();
             }
 
             // accumulate spend value
@@ -97,7 +97,7 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
             rollingPeriod,
             callsSpend,
             // gasSpend is prefund required by entrypoint (ignores refund for unused gas)
-            UserOperationUtils.getRequiredPrefund(userOp),
+            UserOperationLib.getRequiredPrefund(userOp),
             // paymaster data is empty or first 20 bytes are contract address
             userOp.paymasterAndData.length == 0 ? address(0) : address(bytes20(userOp.paymasterAndData[:20]))
         );

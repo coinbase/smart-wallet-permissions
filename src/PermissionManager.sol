@@ -8,9 +8,9 @@ import {ECDSA} from "solady/utils/ECDSA.sol";
 
 import {ICoinbaseSmartWallet} from "./interfaces/ICoinbaseSmartWallet.sol";
 import {IPermissionContract} from "./interfaces/IPermissionContract.sol";
-import {Bytes} from "./utils/Bytes.sol";
-import {SignatureChecker} from "./utils/SignatureChecker.sol";
-import {UserOperation, UserOperationUtils} from "./utils/UserOperationUtils.sol";
+import {BytesLib} from "./utils/BytesLib.sol";
+import {P256SignatureCheckerLib} from "./utils/P256SignatureCheckerLib.sol";
+import {UserOperation, UserOperationLib} from "./utils/UserOperationLib.sol";
 
 /// @title PermissionManager
 ///
@@ -164,11 +164,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         bytes32 permissionHash = hashPermission(permission);
 
         // check userOperation sender matches account;
-        if (userOp.sender != permission.account) revert UserOperationUtils.InvalidUserOperationSender();
+        if (userOp.sender != permission.account) revert UserOperationLib.InvalidUserOperationSender();
 
         // check userOp matches userOpHash
-        if (UserOperationUtils.getUserOpHash(userOp) != userOpHash) {
-            revert UserOperationUtils.InvalidUserOperationHash();
+        if (UserOperationLib.getUserOpHash(userOp) != userOpHash) {
+            revert UserOperationLib.InvalidUserOperationHash();
         }
 
         // check permission not revoked
@@ -190,7 +190,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         }
 
         // check permission signer signed userOpHash
-        if (!SignatureChecker.isValidSignatureNow(userOpHash, userOpSignature, permission.signer)) {
+        if (!P256SignatureCheckerLib.isValidSignatureNow(userOpHash, userOpSignature, permission.signer)) {
             revert InvalidSignature();
         }
 
@@ -199,15 +199,15 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // check userOp.callData is `executeBatch`
         if (bytes4(userOp.callData) != ICoinbaseSmartWallet.executeBatch.selector) {
-            revert UserOperationUtils.SelectorNotAllowed();
+            revert UserOperationLib.SelectorNotAllowed();
         }
 
         // decode userOp calldata as `executeBatch` args (call array)
         ICoinbaseSmartWallet.Call[] memory calls =
-            abi.decode(Bytes.sliceCallArgs(userOp.callData), (ICoinbaseSmartWallet.Call[]));
+            abi.decode(BytesLib.sliceCallArgs(userOp.callData), (ICoinbaseSmartWallet.Call[]));
 
         // check first call target is PermissionManager
-        if (calls[0].target != address(this)) revert UserOperationUtils.TargetNotAllowed();
+        if (calls[0].target != address(this)) revert UserOperationLib.TargetNotAllowed();
 
         // check first call data is `checkBeforeCalls` with proper arguments
         bytes memory checkBeforeCallsData = abi.encodeWithSelector(
@@ -218,13 +218,13 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             userOpCosigner
         );
         if (keccak256(calls[0].data) != keccak256(checkBeforeCallsData)) {
-            revert UserOperationUtils.InvalidUserOperationCallData();
+            revert UserOperationLib.InvalidUserOperationCallData();
         }
 
         // check calls batch has no self-calls
         uint256 callsLen = calls.length;
         for (uint256 i = 1; i < callsLen; i++) {
-            if (calls[i].target == permission.account) revert UserOperationUtils.TargetNotAllowed();
+            if (calls[i].target == permission.account) revert UserOperationLib.TargetNotAllowed();
         }
 
         // validate permission-specific logic

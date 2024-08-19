@@ -4,16 +4,16 @@ pragma solidity ^0.8.18;
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
-/// @title SignatureChecker
+/// @title P256SignatureCheckerLib
 ///
-/// @notice Verify signatures for EOAs, smart contracts, and passkeys.
+/// @notice Verify signatures for ethereum addresses (EOAs, smart contracts) and secp256r1 keys (passkeys, cryptokeys).
 /// @notice Forked from official implementation in Coinbase Smart Wallet.
 ///
 /// @dev Wraps SignatureCheckerLib and WebAuthn.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
-library SignatureChecker {
+library P256SignatureCheckerLib {
     /// @notice Thrown when a provided signer is neither 64 bytes long (for public key)
     ///         nor a ABI encoded address.
     ///
@@ -54,7 +54,7 @@ library SignatureChecker {
             return SignatureCheckerLib.isValidSignatureNow(signer, hash, signature);
         }
 
-        // signer is a passkey
+        // signer is a secp256r1 key using WebAuthn
         if (signerBytes.length == 64) {
             (uint256 x, uint256 y) = abi.decode(signerBytes, (uint256, uint256));
 

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
-import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
+import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 
-/// @title UserOperationUtils
+/// @title UserOperationLib
 ///
 /// @notice Utilities for user operations on Entrypoint V0.6.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-library UserOperationUtils {
+library UserOperationLib {
     address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
     /// @notice UserOperation does not match provided hash.

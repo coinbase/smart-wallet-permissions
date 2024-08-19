@@ -11,17 +11,17 @@ pragma solidity ^0.8.23;
 abstract contract NativeTokenRecurringAllowance {
     /// @notice Recurring cycle parameters.
     struct RecurringCycle {
-        /// @dev start time of the first cycle (unix seconds)
+        /// @dev Start time of the first recurring cycle (unix seconds).
         uint48 start;
-        /// @dev period of the cycle (seconds)
+        /// @dev Period of each recurring cycle (seconds).
         uint48 duration;
     }
 
     /// @notice Active cycle parameters.
     struct ActiveCycle {
-        /// @dev start time of the last updated cycle (unix seconds)
+        /// @dev Start time of the active cycle (unix seconds).
         uint48 start;
-        /// @dev accumulated spend amount for latest cycle
+        /// @dev Accumulated spend amount for active cycle.
         uint208 spend;
     }
 
@@ -94,12 +94,11 @@ abstract contract NativeTokenRecurringAllowance {
     /// @param account The account tied to the permission.
     /// @param permissionHash Hash of the permission.
     ///
-    /// @return cycleStart Start time of the current cycle (unix seconds).
-    /// @return cycleSpend Value spent in the current cycle (wei).
+    /// @return activeCycle Currently active cycle data.
     function getActiveCycle(address account, bytes32 permissionHash)
         public
         view
-        returns (uint48 cycleStart, uint256 cycleSpend)
+        returns (ActiveCycle memory activeCycle)
     {
         RecurringCycle memory recurringCycle = _recurringCycles[account][permissionHash];
         ActiveCycle memory lastActiveCycle = _lastActiveCycles[account][permissionHash];
@@ -111,7 +110,7 @@ abstract contract NativeTokenRecurringAllowance {
             revert BeforeRecurringCycleStart();
         } else if (currentTimestamp < lastActiveCycle.start + recurringCycle.duration) {
             // last active cycle is still active
-            return (lastActiveCycle.start, uint208(lastActiveCycle.spend));
+            return lastActiveCycle;
         } else {
             // last active cycle is outdated
 
@@ -119,7 +118,7 @@ abstract contract NativeTokenRecurringAllowance {
             uint48 currentRecurringCycleProgress = (currentTimestamp - recurringCycle.start) % recurringCycle.duration;
 
             // cycle start is progress duration in the past and spend value is zero
-            return (currentTimestamp - currentRecurringCycleProgress, 0);
+            return ActiveCycle(currentTimestamp - currentRecurringCycleProgress, 0);
         }
     }
 
@@ -133,21 +132,21 @@ abstract contract NativeTokenRecurringAllowance {
         if (spend == 0) return;
 
         // get active cycle state, reverts if before recurring cycle start
-        (uint48 cycleStart, uint256 cycleSpend) = getActiveCycle(account, permissionHash);
+        ActiveCycle memory activeCycle = getActiveCycle(account, permissionHash);
 
         // check spend value does not exceed max value
-        if (spend + cycleSpend > type(uint208).max) revert SpendValueOverflow();
+        if (spend + activeCycle.spend > type(uint208).max) revert SpendValueOverflow();
 
         // check spend value does not exceed rolling allowance
-        if (spend + cycleSpend > _recurringAllowances[account][permissionHash]) {
+        if (spend + activeCycle.spend > _recurringAllowances[account][permissionHash]) {
             revert ExceededRecurringAllowance();
         }
 
-        // save new data for latest cycle
-        cycleSpend += spend;
-        _lastActiveCycles[account][permissionHash] = ActiveCycle(cycleStart, uint208(cycleSpend));
+        // save new data for last active cycle
+        activeCycle.spend += uint208(spend);
+        _lastActiveCycles[account][permissionHash] = activeCycle;
 
-        emit RecurringAllowanceUsed(account, permissionHash, cycleStart, spend);
+        emit RecurringAllowanceUsed(account, permissionHash, activeCycle.start, spend);
     }
 
     /// @notice Initialize the native token recurring allowance for a permission.

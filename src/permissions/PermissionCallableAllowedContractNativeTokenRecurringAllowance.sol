@@ -27,6 +27,18 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     AllowedContract,
     NativeTokenRecurringAllowance
 {
+    /// @notice Fields for this permission contract.
+    struct PermissionFields {
+        /// @dev Recurring native token allowance value (wei).
+        uint256 recurringAllowance;
+        /// @dev Start time of the first recurring cycle (unix seconds).
+        uint48 recurringCycleStart;
+        /// @dev Period of each recurring cycle (seconds).
+        uint48 recurringCycleDuration;
+        /// @dev Single contract allowed to make custom external calls to.
+        address allowedContract;
+    }
+
     /// @notice MagicSpend withdraw asset is not native token.
     error InvalidWithdrawAsset();
 
@@ -58,8 +70,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         external
         view
     {
-        // parse permission fields
-        (,,, address allowedContract) = abi.decode(permissionFields, (uint256, uint48, uint48, address));
+        (PermissionFields memory fields) = abi.decode(permissionFields, (PermissionFields));
 
         // parse user operation call data as `executeBatch` arguments (call array)
         ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
@@ -77,7 +88,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
             if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
-                if (call.target != allowedContract) revert UserOperationLib.TargetNotAllowed();
+                if (call.target != fields.allowedContract) revert UserOperationLib.TargetNotAllowed();
                 // assume PermissionManager already prevents account as target
             } else if (selector == IPermissionContract.initializePermission.selector) {
                 // prepare initializePermission data
@@ -152,14 +163,16 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @param permissionHash Hash of the permission.
     /// @param permissionFields Additional arguments for validation.
     function initializePermission(bytes32 permissionHash, bytes calldata permissionFields) external {
-        // parse permission fields
-        (uint256 recurringAllowance, uint48 recurringCycleStart, uint48 recurringCycleDuration, address allowedContract)
-        = abi.decode(permissionFields, (uint256, uint48, uint48, address));
+        (PermissionFields memory fields) = abi.decode(permissionFields, (PermissionFields));
 
         _initializeNativeTokenRecurringAllowance(
-            msg.sender, permissionHash, recurringAllowance, recurringCycleStart, recurringCycleDuration
+            msg.sender,
+            permissionHash,
+            fields.recurringAllowance,
+            fields.recurringCycleStart,
+            fields.recurringCycleDuration
         );
 
-        _initializeAllowedContract(msg.sender, permissionHash, allowedContract);
+        _initializeAllowedContract(msg.sender, permissionHash, fields.allowedContract);
     }
 }

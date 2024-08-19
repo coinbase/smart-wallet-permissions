@@ -38,14 +38,6 @@ contract NativeTokenRollingAllowance {
     /// @notice All native token spends per account per permission.
     mapping(address account => mapping(bytes32 permissionHash => Spend[] spends)) internal _spends;
 
-    /// @notice PermissionManager this permission contract trusts for paymaster gas spend data.
-    PermissionManager public immutable permissionManager;
-
-    /// @param manager Contract address for PermissionManager.
-    constructor(address manager) {
-        permissionManager = PermissionManager(manager);
-    }
-
     /// @notice Calculate rolling spend for the period.
     ///
     /// @param account The account tied to the permission.

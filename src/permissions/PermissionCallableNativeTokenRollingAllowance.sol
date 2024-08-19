@@ -12,10 +12,12 @@ import {UserOperation, UserOperationUtils} from "../utils/UserOperationUtils.sol
 
 /// @title PermissionCallableNativeTokenRollingAllowance
 ///
-/// @notice Supports spending native token with rolling limits.
-/// @notice Only allow calls to a single allowed contract using IPermissionCallable.permissionedCall selector.
+/// @notice Only allow custom external calls with IPermissionCallable.permissionedCall selector.
+/// @notice Only allow custom external calls to a single allowed contract.
+/// @notice Allow spending native token with recurring allowance.
+/// @notice Allow withdrawing native token from MagicSpend both as paymaster and non-paymaster flows.
 ///
-/// @dev Called by PermissionManager at end of its validation flow.
+/// @dev Requires appending assertSpend call on every use.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, NativeTokenRollingAllowance {
@@ -25,8 +27,13 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
     /// @notice Call to assertSpend not made on self or with invalid data.
     error InvalidAssertSpendCall();
 
+    /// @notice PermissionManager this permission contract trusts for paymaster gas spend data.
+    PermissionManager public immutable permissionManager;
+
     /// @param manager Contract address for PermissionManager.
-    constructor(address manager) NativeTokenRollingAllowance(manager) {}
+    constructor(address manager) {
+        permissionManager = PermissionManager(manager);
+    }
 
     /// @notice Validate the permission to execute a userOp.
     ///
@@ -95,13 +102,9 @@ contract PermissionCallableNativeTokenRollingAllowance is IPermissionContract, N
             userOp.paymasterAndData.length == 0 ? address(0) : address(bytes20(userOp.paymasterAndData[:20]))
         );
 
-        // check that last call is assertSpend
-        if (
-            (
-                calls[callsLen - 1].target != address(this)
-                    || keccak256(calls[callsLen - 1].data) != keccak256(assertSpendData)
-            )
-        ) {
+        // check that last call is this.assertSpend
+        ICoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
+        if ((lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(assertSpendData))) {
             revert InvalidAssertSpendCall();
         }
     }

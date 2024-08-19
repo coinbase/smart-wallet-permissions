@@ -30,9 +30,9 @@ library UserOperationUtils {
     /// @notice UserOperation callData is invalid.
     error InvalidUserOperationCallData();
 
-    /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas
+    /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas.
     ///
-    /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process
+    /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process.
     /// @dev Implementation forked from
     ///      https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.6/contracts/core/EntryPoint.sol#L325
     function getRequiredPrefund(UserOperation calldata userOp) internal pure returns (uint256 requiredPrefund) {
@@ -44,6 +44,11 @@ library UserOperationUtils {
         requiredPrefund = requiredGas * userOp.maxFeePerGas;
     }
 
+    /// @notice Get the userOpHash for a userOp.
+    ///
+    /// @dev Hardcoded to use EntryPoint v0.6.
+    ///
+    /// @param userOp User operation to hash.
     function getUserOpHash(UserOperation memory userOp) internal view returns (bytes32) {
         return IEntryPoint(ENTRY_POINT_V06).getUserOpHash(userOp);
     }

@@ -6,8 +6,8 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
-import {PermissionCallableAllowedContractNativeTokenRollingAllowance as PermissionContract} from
-    "../src/permissions/PermissionCallableAllowedContractNativeTokenRollingAllowance.sol";
+import {PermissionCallableAllowedContractNativeTokenRecurringAllowance as PermissionContract} from
+    "../src/permissions/PermissionCallableAllowedContractNativeTokenRecurringAllowance.sol";
 
 // forge script Debug --broadcast -vvvv
 contract Debug is Script {
@@ -64,7 +64,7 @@ contract Debug is Script {
         // logAddress("PermissionManager", address(permissionManager));
 
         // permissionContract = new PermissionContract{salt: 0}(address(permissionManager));
-        // logAddress("PermissionCallableAllowedContractNativeTokenRollingAllowance", address(permissionContract));
+        // logAddress("PermissionCallableAllowedContractNativeTokenRecurringAllowance", address(permissionContract));
     }
 
     function logAddress(string memory name, address addr) internal pure {

@@ -6,26 +6,32 @@ import {ICoinbaseSmartWallet} from "../interfaces/ICoinbaseSmartWallet.sol";
 import {IMagicSpend} from "../interfaces/IMagicSpend.sol";
 import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
+import {AllowedContract} from "../utils/AllowedContract.sol";
 import {BytesLib} from "../utils/BytesLib.sol";
 import {NativeTokenRollingAllowance} from "../utils/NativeTokenRollingAllowance.sol";
 import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 
-/// @title PermissionCallableAllowedContractNativeTokenRollingAllowance
+/// @title PermissionCallableAllowedContractNativeTokenRecurringAllowance
 ///
 /// @notice Only allow custom external calls with IPermissionCallable.permissionedCall selector.
 /// @notice Only allow custom external calls to a single allowed contract.
 /// @notice Allow spending native token with recurring allowance.
 /// @notice Allow withdrawing native token from MagicSpend both as paymaster and non-paymaster flows.
 ///
+/// @dev Requires prepending initializePermission call on first use.
 /// @dev Requires appending assertSpend call on every use.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-contract PermissionCallableAllowedContractNativeTokenRollingAllowance is
+contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     IPermissionContract,
-    NativeTokenRollingAllowance
+    AllowedContract,
+    NativeTokenRecurringAllowance
 {
     /// @notice MagicSpend withdraw asset is not native token.
     error InvalidWithdrawAsset();
+
+    /// @notice Call to initializePermission not made with correct target, value, or data.
+    error InvalidInitializePermissionCall();
 
     /// @notice Call to assertSpend not made on self or with invalid data.
     error InvalidAssertSpendCall();
@@ -53,8 +59,7 @@ contract PermissionCallableAllowedContractNativeTokenRollingAllowance is
         view
     {
         // parse permission fields
-        (uint256 spendLimit, uint256 rollingPeriod, address allowedContract) =
-            abi.decode(permissionFields, (uint256, uint256, address));
+        (,,, address allowedContract) = abi.decode(permissionFields, (uint256, uint48, uint48, address));
 
         // parse user operation call data as `executeBatch` arguments (call array)
         ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
@@ -84,6 +89,16 @@ contract PermissionCallableAllowedContractNativeTokenRollingAllowance is
                 // do not need to accrue callsSpend because withdrawn value will be spent in other calls
             } else if (selector == IMagicSpend.withdrawGasExcess.selector) {
                 // ok
+            } else if (selector == IPermissionContract.initializePermission.selector) {
+                // prepare initializePermission data
+                bytes memory initializePermissionData = abi.encodeWithSelector(
+                    IPermissionContract.initializePermission.selector, permissionHash, permissionFields
+                );
+
+                // check call is valid initializePermission
+                if (!_isExpectedCall(call, address(this), 0, initializePermissionData)) {
+                    revert InvalidInitializePermissionCall();
+                }
             } else {
                 revert UserOperationLib.SelectorNotAllowed();
             }
@@ -94,10 +109,8 @@ contract PermissionCallableAllowedContractNativeTokenRollingAllowance is
 
         // prepare expected call data for assertSpend
         bytes memory assertSpendData = abi.encodeWithSelector(
-            PermissionCallableAllowedContractNativeTokenRollingAllowance.assertSpend.selector,
+            PermissionCallableAllowedContractNativeTokenRecurringAllowance.assertSpend.selector,
             permissionHash,
-            spendLimit,
-            rollingPeriod,
             callsSpend,
             // gasSpend is prefund required by entrypoint (ignores refund for unused gas)
             UserOperationLib.getRequiredPrefund(userOp),
@@ -118,19 +131,10 @@ contract PermissionCallableAllowedContractNativeTokenRollingAllowance is
     /// @dev State read on Manager for adding paymaster gas to total spend must happen in execution phase.
     ///
     /// @param permissionHash Hash of the permission.
-    /// @param spendLimit Value of native token that cannot be exceeded over the rolling period.
-    /// @param rollingPeriod Seconds duration for the rolling period.
     /// @param callsSpend Value of native token spent in calls.
     /// @param gasSpend Value of native token spent by gas.
     /// @param paymaster Paymaster used by user operation.
-    function assertSpend(
-        bytes32 permissionHash,
-        uint256 spendLimit,
-        uint256 rollingPeriod,
-        uint256 callsSpend,
-        uint256 gasSpend,
-        address paymaster
-    ) external {
+    function assertSpend(bytes32 permissionHash, uint256 callsSpend, uint256 gasSpend, address paymaster) external {
         uint256 totalSpend = callsSpend;
 
         // add gas cost if beared by the user
@@ -140,6 +144,22 @@ contract PermissionCallableAllowedContractNativeTokenRollingAllowance is
         }
 
         // assert native token spend
-        _assertNativeTokenSpend(permissionHash, totalSpend, spendLimit, rollingPeriod);
+        _assertSpend(msg.sender, permissionHash, totalSpend);
+    }
+
+    function initializePermission(bytes32 permissionHash, bytes calldata permissionFields) external {
+        // parse permission fields
+        (
+            uint256 recurringAllowance,
+            uint48 recurringPeriodStart,
+            uint48 recurringPeriodDuration,
+            address allowedContract
+        ) = abi.decode(permissionFields, (uint256, uint48, uint48, address));
+
+        _initializeRecurringAllowance(
+            msg.sender, permissionHash, recurringAllowance, recurringPeriodStart, recurringPeriodDuration
+        );
+
+        _initializeAllowedContract(msg.sender, permissionHash, allowedContract);
     }
 }

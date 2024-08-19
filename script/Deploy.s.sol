@@ -6,8 +6,8 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {Click} from "../docs/examples/Click.sol";
 import {PermissionManager} from "../src/PermissionManager.sol";
-import {PermissionCallableAllowedContractNativeTokenRollingAllowance as PermissionContract} from
-    "../src/permissions/PermissionCallableAllowedContractNativeTokenRollingAllowance.sol";
+import {PermissionCallableAllowedContractNativeTokenRecurringAllowance as PermissionContract} from
+    "../src/permissions/PermissionCallableAllowedContractNativeTokenRecurringAllowance.sol";
 
 // forge script Deploy --account dev --rpc-url $BASE_SEPOLIA_RPC --verify --verifier-url $SEPOLIA_BASESCAN_API
 // --etherscan-api-key $BASESCAN_API_KEY --broadcast -vvvv
@@ -47,7 +47,7 @@ contract Deploy is Script {
         // logAddress("PermissionManager", address(permissionManager));
 
         // permissionContract = new PermissionContract{salt: 0}(address(permissionManager));
-        // logAddress("PermissionCallableAllowedContractNativeTokenRollingAllowance", address(permissionContract));
+        // logAddress("PermissionCallableAllowedContractNativeTokenRecurringAllowance", address(permissionContract));
 
         // Click click = new Click{salt: 0}(OWNER);
         // logAddress("Click", address(click));

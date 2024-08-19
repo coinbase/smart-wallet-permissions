@@ -8,7 +8,7 @@ import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
 import {AllowedContract} from "../utils/AllowedContract.sol";
 import {BytesLib} from "../utils/BytesLib.sol";
-import {NativeTokenRollingAllowance} from "../utils/NativeTokenRollingAllowance.sol";
+import {NativeTokenRecurringAllowance} from "../utils/NativeTokenRecurringAllowance.sol";
 import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 
 /// @title PermissionCallableAllowedContractNativeTokenRecurringAllowance
@@ -79,6 +79,16 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
                 // check call target is the allowed contract
                 if (call.target != allowedContract) revert UserOperationLib.TargetNotAllowed();
                 // assume PermissionManager already prevents account as target
+            } else if (selector == IPermissionContract.initializePermission.selector) {
+                // prepare initializePermission data
+                bytes memory initializePermissionData = abi.encodeWithSelector(
+                    IPermissionContract.initializePermission.selector, permissionHash, permissionFields
+                );
+
+                // check call is valid this.initializePermission
+                if (call.target != address(this) || keccak256(call.data) != keccak256(initializePermissionData)) {
+                    revert InvalidInitializePermissionCall();
+                }
             } else if (selector == IMagicSpend.withdraw.selector) {
                 // parse MagicSpend withdraw request
                 IMagicSpend.WithdrawRequest memory withdraw =
@@ -89,16 +99,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
                 // do not need to accrue callsSpend because withdrawn value will be spent in other calls
             } else if (selector == IMagicSpend.withdrawGasExcess.selector) {
                 // ok
-            } else if (selector == IPermissionContract.initializePermission.selector) {
-                // prepare initializePermission data
-                bytes memory initializePermissionData = abi.encodeWithSelector(
-                    IPermissionContract.initializePermission.selector, permissionHash, permissionFields
-                );
-
-                // check call is valid initializePermission
-                if (!_isExpectedCall(call, address(this), 0, initializePermissionData)) {
-                    revert InvalidInitializePermissionCall();
-                }
             } else {
                 revert UserOperationLib.SelectorNotAllowed();
             }
@@ -147,6 +147,10 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         _assertSpend(msg.sender, permissionHash, totalSpend);
     }
 
+    /// @notice Initialize the permission fields.
+    ///
+    /// @param permissionHash Hash of the permission.
+    /// @param permissionFields Additional arguments for validation.
     function initializePermission(bytes32 permissionHash, bytes calldata permissionFields) external {
         // parse permission fields
         (

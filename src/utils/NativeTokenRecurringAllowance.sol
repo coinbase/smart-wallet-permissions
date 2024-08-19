@@ -1,34 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {PermissionManager} from "../PermissionManager.sol";
-import {ICoinbaseSmartWallet} from "../interfaces/ICoinbaseSmartWallet.sol";
-import {IMagicSpend} from "../interfaces/IMagicSpend.sol";
-import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
-import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
-import {Bytes} from "./Bytes.sol";
-import {UserOperation, UserOperationUtils} from "./UserOperationUtils.sol";
-
 /// @title NativeTokenRecurringAllowance
 ///
 /// @notice Supports spending native token with recurring limits.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 abstract contract NativeTokenRecurringAllowance {
-    /// @notice Recurring period time parameters.
-    struct RecurringPeriod {
+    /// @notice Recurring cycle parameters.
+    struct RecurringCycle {
         /// @dev start time of the first cycle (unix seconds)
         uint48 start;
         /// @dev period of the cycle (seconds)
         uint48 duration;
     }
 
-    struct AllowanceCycle {
+    /// @notice Active cycle parameters.
+    struct ActiveCycle {
         /// @dev start time of the last updated cycle (unix seconds)
         uint48 start;
         /// @dev accumulated spend amount for latest cycle
         uint208 spend;
     }
+
+    /// @notice Recurring allowance for the permission.
+    mapping(address account => mapping(bytes32 permissionHash => uint256)) internal _recurringAllowances;
+
+    /// @notice Recurring period parameters for the permission.
+    mapping(address account => mapping(bytes32 permissionHash => RecurringCycle)) internal _recurringCycles;
+
+    /// @notice Amount of native token spent in the current cycle for the permission.
+    mapping(address account => mapping(bytes32 permissionHash => ActiveCycle)) internal _latestActiveCycles;
 
     /// @notice Spend value exceeds max size of uint208
     error SpendValueOverflow();
@@ -37,59 +39,72 @@ abstract contract NativeTokenRecurringAllowance {
     error ExceededRecurringAllowance();
 
     /// @notice Recurring period duration must be greater than zero
-    error ZeroRecurringPeriodDuration();
+    error ZeroRecurringCycleDuration();
 
     /// @notice Already initialized recurring allowance
     error InitializedRecurringAllowance();
 
     /// @notice Register native token spend for a permission
+    ///
+    /// @param account Account that spent native token via a permission.
+    /// @param permissionHash Hash of the permission.
+    /// @param value Amount of native token in wei spent.
     event SpendRegistered(address indexed account, bytes32 indexed permissionHash, uint256 value);
 
     /// @notice Register native token spend for a permission
-    event RecurringAllowanceUpdated(
+    event RecurringAllowanceInitialized(
         address indexed account,
         bytes32 indexed permissionHash,
         uint256 recurringAllowance,
-        uint48 recurringPeriodStart,
-        uint48 recurringPeriodDuration
+        uint48 recurringCycleStart,
+        uint48 recurringCycleDuration
     );
-
-    /// @notice Recurring allowance for the permission.
-    mapping(address account => mapping(bytes32 permissionHash => uint256)) internal _recurringAllowances;
-
-    /// @notice Recurring period parameters for the permission.
-    mapping(address account => mapping(bytes32 permissionHash => RecurringPeriod)) internal _recurringPeriods;
-
-    /// @notice Amount of native token spent in the current cycle for the permission.
-    mapping(address account => mapping(bytes32 permissionHash => AllowanceCycle)) internal _latestAllowanceCycles;
 
     /// @notice Calculate rolling spend for the period.
     ///
     /// @param account The account tied to the permission.
     /// @param permissionHash Hash of the permission.
     ///
-    /// @return rollingSpend Value of spend done by this permission in the past period.
-    function getCurrentAllowanceCycle(address account, bytes32 permissionHash)
+    /// @return recurringAllowance Spendable allowance on a recurring basis (wei).
+    /// @return recurringCycleStart Start of the first recurring cycle (unix seconds).
+    /// @return recurringCycleDuration Duration of the recurring cycles (seconds).
+    function getRecurringAllowance(address account, bytes32 permissionHash)
         public
         view
-        returns (AllowanceCycle memory)
+        returns (uint256 recurringAllowance, uint48 recurringCycleStart, uint48 recurringCycleDuration)
     {
-        RecurringPeriod memory recurringPeriod = _recurringPeriods[account][permissionHash];
-        AllowanceCycle memory latestAllowanceCycle = _latestAllowanceCycles[account][permissionHash];
+        RecurringCycle memory recurringCycle = _recurringCycles[account][permissionHash];
+        recurringAllowance = _recurringAllowances[account][permissionHash];
+        return (recurringAllowance, recurringCycle.start, recurringCycle.duration);
+    }
+
+    /// @notice Calculate rolling spend for the period.
+    ///
+    /// @param account The account tied to the permission.
+    /// @param permissionHash Hash of the permission.
+    ///
+    /// @return cycleStart Start time of the current cycle (unix seconds).
+    /// @return cycleSpend Value spent in the current cycle (wei).
+    function getActiveRecurringCycle(address account, bytes32 permissionHash)
+        public
+        view
+        returns (uint48 cycleStart, uint256 cycleSpend)
+    {
+        RecurringCycle memory recurringCycle = _recurringCycles[account][permissionHash];
+        ActiveCycle memory latestActiveCycle = _latestActiveCycles[account][permissionHash];
         uint48 currentTimestamp = uint48(block.timestamp);
 
-        if (currentTimestamp < latestAllowanceCycle.start + recurringPeriod.duration) {
-            // latest cycle is still current
-            return latestAllowanceCycle;
+        if (currentTimestamp < latestActiveCycle.start + recurringCycle.duration) {
+            // latest cycle is still active
+            return (latestActiveCycle.start, uint208(latestActiveCycle.spend));
         } else {
             // latest cycle is outdated
 
             // current period progress is remainder of time since first recurring period mod duration
-            uint48 currentRecurringPeriodProgress =
-                (currentTimestamp - recurringPeriod.start) % recurringPeriod.duration;
+            uint48 currentRecurringCycleProgress = (currentTimestamp - recurringCycle.start) % recurringCycle.duration;
 
             // cycle start is now - progress with zero spend value
-            return AllowanceCycle(currentTimestamp - currentRecurringPeriodProgress, 0);
+            return (currentTimestamp - currentRecurringCycleProgress, 0);
         }
     }
 
@@ -102,42 +117,49 @@ abstract contract NativeTokenRecurringAllowance {
         // early return if no value spent
         if (spend == 0) return;
 
-        AllowanceCycle memory allowanceCycle = getCurrentAllowanceCycle(account, permissionHash);
+        (uint48 cycleStart, uint256 cycleSpend) = getActiveRecurringCycle(account, permissionHash);
 
         // check spend value does not exceed max value
-        if (spend + uint256(allowanceCycle.spend) > type(uint208).max) revert SpendValueOverflow();
+        if (spend + cycleSpend > type(uint208).max) revert SpendValueOverflow();
 
         // check spend value does not exceed rolling allowance
-        if (uint208(spend) + allowanceCycle.spend > _recurringAllowances[account][permissionHash]) {
+        if (spend + cycleSpend > _recurringAllowances[account][permissionHash]) {
             revert ExceededRecurringAllowance();
         }
 
         // save new data for latest cycle
-        allowanceCycle.spend += uint208(spend);
-        _latestAllowanceCycles[account][permissionHash] = allowanceCycle;
+        cycleSpend += spend;
+        _latestActiveCycles[account][permissionHash] = ActiveCycle(cycleStart, uint208(cycleSpend));
 
         emit SpendRegistered(account, permissionHash, spend);
     }
 
+    /// @notice Initialize the native token recurring allowance for a permission.
+    ///
+    /// @param account Account allowed to make external calls.
+    /// @param permissionHash Hash of the permission.
+    /// @param recurringAllowance Spendable allowance on a recurring basis (wei).
+    /// @param recurringCycleStart Start of the first recurring cycle (unix seconds).
+    /// @param recurringCycleDuration Duration of the recurring cycles (unix seconds).
     function _initializeRecurringAllowance(
         address account,
         bytes32 permissionHash,
         uint256 recurringAllowance,
-        uint48 recurringPeriodStart,
-        uint48 recurringPeriodDuration
+        uint48 recurringCycleStart,
+        uint48 recurringCycleDuration
     ) internal {
         // check recurring period duration is non-zero
-        if (recurringPeriodDuration == 0) revert ZeroRecurringPeriodDuration();
+        if (recurringCycleDuration == 0) revert ZeroRecurringCycleDuration();
 
         // check permission has not already been initialized
-        if (_recurringPeriods[account][permissionHash].duration > 0) revert InitializedRecurringAllowance();
+        if (_recurringCycles[account][permissionHash].duration > 0) revert InitializedRecurringAllowance();
 
         // initialize state
         _recurringAllowances[account][permissionHash] = recurringAllowance;
-        _recurringPeriods[account][permissionHash] = RecurringPeriod(recurringPeriodStart, recurringPeriodDuration);
+        _recurringCycles[account][permissionHash] = RecurringCycle(recurringCycleStart, recurringCycleDuration);
 
-        emit RecurringAllowanceUpdated(
-            account, permissionHash, recurringAllowance, recurringPeriodStart, recurringPeriodDuration
+        emit RecurringAllowanceInitialized(
+            account, permissionHash, recurringAllowance, recurringCycleStart, recurringCycleDuration
         );
     }
 }

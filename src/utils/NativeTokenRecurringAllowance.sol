@@ -26,7 +26,7 @@ abstract contract NativeTokenRecurringAllowance {
     }
 
     /// @notice Packed recurring allowance values (start, period) for the permission.
-    mapping(address account => mapping(bytes32 permissionHash => uint256)) internal _packedRecurringAllowances;
+    mapping(address account => mapping(bytes32 permissionHash => uint256)) internal _packedRecurringAllowanceValues;
 
     /// @notice Latest active cycle for the permission.
     mapping(address account => mapping(bytes32 permissionHash => ActiveCycle)) internal _lastActiveCycles;
@@ -64,19 +64,19 @@ abstract contract NativeTokenRecurringAllowance {
 
     /// @notice Get the currently active cycle for a permission.
     ///
-    /// @dev Reverts if no last active cycle found i.e. this permission has never spent native token.
+    /// @dev Reverts if recurring allowance has not started.
     ///
     /// @param account The account tied to the permission.
     /// @param permissionHash Hash of the permission.
     ///
-    /// @return activeCycle Last active cycle start and spend (struct).
+    /// @return activeCycle Currently active cycle start and spend (struct).
     function getActiveCycle(address account, bytes32 permissionHash)
         public
         view
         returns (ActiveCycle memory activeCycle)
     {
-        uint256 packedValues = _packedRecurringAllowances[account][permissionHash];
-        (uint48 start, uint48 period) = _unpackRecurringAllowanceTimes(packedValues);
+        uint256 packedValues = _packedRecurringAllowanceValues[account][permissionHash];
+        (uint48 start, uint48 period) = _unpackRecurringAllowanceValues(packedValues);
         return _getActiveCycle(account, permissionHash, start, period);
     }
 
@@ -103,17 +103,16 @@ abstract contract NativeTokenRecurringAllowance {
         // early return if no value spent
         if (spend == 0) return;
 
-        uint256 packedValues = _packedRecurringAllowances[account][permissionHash];
-
-        // initialize recurring allowance parameters if not already, or check if parameters match initialization
+        // initialize recurring allowance if not already, or check if parameters match previous initialization
+        uint256 packedValues = _packedRecurringAllowanceValues[account][permissionHash];
         if (packedValues == 0) {
             // initialize recurring allowance
-            _packedRecurringAllowances[account][permissionHash] =
+            _packedRecurringAllowanceValues[account][permissionHash] =
                 uint256((recurringAllowance.start) + (uint256(recurringAllowance.period) << 48));
             emit RecurringAllowanceInitialized(account, permissionHash, recurringAllowance);
         } else {
             // check recurring allowance parameters match initialized start and period
-            (uint48 start, uint48 period) = _unpackRecurringAllowanceTimes(packedValues);
+            (uint48 start, uint48 period) = _unpackRecurringAllowanceValues(packedValues);
             if (start != recurringAllowance.start && period != recurringAllowance.period) {
                 revert InvalidRecurringAllowance();
             }
@@ -126,10 +125,10 @@ abstract contract NativeTokenRecurringAllowance {
         // check spend value does not exceed max value
         if (spend + activeCycle.spend > type(uint208).max) revert SpendValueOverflow();
 
-        // check spend value does not exceed rolling allowance
+        // check spend value does not exceed recurring allowance
         if (spend + activeCycle.spend > recurringAllowance.allowance) revert ExceededRecurringAllowance();
 
-        // save new data for last active cycle
+        // save new accrued spend for active cycle
         activeCycle.spend += uint208(spend);
         _lastActiveCycles[account][permissionHash] = activeCycle;
 
@@ -153,14 +152,14 @@ abstract contract NativeTokenRecurringAllowance {
         uint48 recurringAllowanceStart,
         uint48 recurringAllowancePeriod
     ) private view returns (ActiveCycle memory) {
-        ActiveCycle memory lastActiveCycle = _lastActiveCycles[account][permissionHash];
-        uint48 currentTimestamp = uint48(block.timestamp);
-
         // check recurring allowance has started
+        uint48 currentTimestamp = uint48(block.timestamp);
         if (currentTimestamp < recurringAllowanceStart) {
             revert BeforeRecurringAllowanceStart();
         }
 
+        // return last cycle if still active, otherwise compute new active cycle start time with no spend
+        ActiveCycle memory lastActiveCycle = _lastActiveCycles[account][permissionHash];
         if (lastActiveCycle.start > 0 && currentTimestamp < lastActiveCycle.start + recurringAllowancePeriod) {
             // last active cycle is still active
             return lastActiveCycle;
@@ -181,7 +180,7 @@ abstract contract NativeTokenRecurringAllowance {
     ///
     /// @return start Start time of the first recurring cycle (unix seconds).
     /// @return period Time duration for resetting spend on a recurring basis (seconds).
-    function _unpackRecurringAllowanceTimes(uint256 packedValues) private pure returns (uint48 start, uint48 period) {
+    function _unpackRecurringAllowanceValues(uint256 packedValues) private pure returns (uint48 start, uint48 period) {
         (start, period) = (uint48(packedValues), uint48(packedValues >> 48));
     }
 }

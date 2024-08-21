@@ -35,9 +35,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @notice MagicSpend withdraw asset is not native token.
     error InvalidWithdrawAsset();
 
-    /// @notice Call to initializePermission not made with correct target, value, or data.
-    error InvalidInitializePermissionCall();
-
     /// @notice Call to assertSpend not made on self or with invalid data.
     error InvalidAssertSpendCall();
 
@@ -126,6 +123,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @dev State read on Manager for adding paymaster gas to total spend must happen in execution phase.
     ///
     /// @param permissionHash Hash of the permission.
+    /// @param recurringAllowance Allowed spend per recurring cycle (struct).
     /// @param callsSpend Value of native token spent in calls.
     /// @param gasSpend Value of native token spent by gas.
     /// @param paymaster Paymaster used by user operation.

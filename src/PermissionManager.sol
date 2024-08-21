@@ -32,8 +32,8 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         bytes signer;
         /// @dev External contract to verify specific permission logic.
         address permissionContract;
-        /// @dev Additional arguments sent to permissionContract for validation.
-        bytes permissionFields;
+        /// @dev Permission-specific values sent to permissionContract for validation.
+        bytes permissionValues;
         /// @dev Manager contract that verifies permissions for replay protection across potential future managers.
         address verifyingContract;
         /// @dev Optional signature from account owner proving a permission is approved.
@@ -229,7 +229,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // validate permission-specific logic
         IPermissionContract(permission.permissionContract).validatePermission(
-            permissionHash, permission.permissionFields, userOp
+            permissionHash, permission.permissionValues, userOp
         );
 
         // return back to account to complete owner signature verification of userOpHash
@@ -298,7 +298,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // initialize permission via external call to permission contract
         IPermissionContract(permission.permissionContract).initializePermission(
-            permission.account, permissionHash, permission.permissionFields
+            permission.account, permissionHash, permission.permissionValues
         );
 
         emit PermissionApproved(permission.account, permissionHash);
@@ -331,7 +331,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
                 permission.expiry,
                 keccak256(permission.signer),
                 permission.permissionContract,
-                keccak256(permission.permissionFields),
+                keccak256(permission.permissionValues),
                 address(this) // verifyingContract
             )
         );

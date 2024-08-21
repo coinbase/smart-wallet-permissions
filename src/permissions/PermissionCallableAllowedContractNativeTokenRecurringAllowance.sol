@@ -24,8 +24,8 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     IPermissionContract,
     NativeTokenRecurringAllowance
 {
-    /// @notice Fields for this permission contract.
-    struct PermissionFields {
+    /// @notice Permission-specific values for this permission contract.
+    struct PermissionValues {
         /// @dev Recurring native token allowance value (struct).
         RecurringAllowance recurringAllowance;
         /// @dev Single contract allowed to make custom external calls to.
@@ -57,13 +57,13 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @dev Rolling native token spend accounting overestimates spend via gas when a paymaster is not used.
     ///
     /// @param permissionHash Hash of the permission.
-    /// @param permissionFields Additional arguments for validation.
+    /// @param permissionValues Permission-specific values for this permission contract.
     /// @param userOp User operation to validate permission for.
-    function validatePermission(bytes32 permissionHash, bytes calldata permissionFields, UserOperation calldata userOp)
+    function validatePermission(bytes32 permissionHash, bytes calldata permissionValues, UserOperation calldata userOp)
         external
         view
     {
-        (PermissionFields memory fields) = abi.decode(permissionFields, (PermissionFields));
+        (PermissionValues memory values) = abi.decode(permissionValues, (PermissionValues));
 
         // parse user operation call data as `executeBatch` arguments (call array)
         ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
@@ -81,7 +81,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
             if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
-                if (call.target != fields.allowedContract) revert UserOperationLib.TargetNotAllowed();
+                if (call.target != values.allowedContract) revert UserOperationLib.TargetNotAllowed();
                 // assume PermissionManager already prevents account as target
             } else if (selector == IMagicSpend.withdraw.selector) {
                 // parse MagicSpend withdraw request
@@ -119,20 +119,20 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         }
     }
 
-    /// @notice Initialize the permission fields.
+    /// @notice Initialize the permission values.
     ///
     /// @dev Called by permission manager on approval transaction.
     ///
     /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
-    /// @param permissionFields Additional arguments for validation.
-    function initializePermission(address account, bytes32 permissionHash, bytes calldata permissionFields) external {
-        (PermissionFields memory fields) = abi.decode(permissionFields, (PermissionFields));
+    /// @param permissionValues Permission-specific values for this permission contract.
+    function initializePermission(address account, bytes32 permissionHash, bytes calldata permissionValues) external {
+        (PermissionValues memory values) = abi.decode(permissionValues, (PermissionValues));
 
         // check sender is permission manager
         if (msg.sender != address(permissionManager)) revert InvalidInitializePermissionSender();
 
-        _initializeRecurringAllowance(account, permissionHash, fields.recurringAllowance);
+        _initializeRecurringAllowance(account, permissionHash, values.recurringAllowance);
     }
 
     /// @notice Register a spend of native token for a given permission.

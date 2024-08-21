@@ -15,10 +15,4 @@ interface IPermissionContract {
     function validatePermission(bytes32 permissionHash, bytes calldata permissionFields, UserOperation calldata userOp)
         external
         view;
-
-    /// @notice Initialize the permission fields.
-    ///
-    /// @param permissionHash Hash of the permission.
-    /// @param permissionFields Additional arguments for validation.
-    function initializePermission(bytes32 permissionHash, bytes calldata permissionFields) external;
 }

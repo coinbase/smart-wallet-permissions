@@ -6,7 +6,6 @@ import {ICoinbaseSmartWallet} from "../interfaces/ICoinbaseSmartWallet.sol";
 import {IMagicSpend} from "../interfaces/IMagicSpend.sol";
 import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
-import {AllowedContract} from "../utils/AllowedContract.sol";
 import {BytesLib} from "../utils/BytesLib.sol";
 import {NativeTokenRecurringAllowance} from "../utils/NativeTokenRecurringAllowance.sol";
 import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
@@ -18,23 +17,17 @@ import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 /// @notice Allow spending native token with recurring allowance.
 /// @notice Allow withdrawing native token from MagicSpend both as paymaster and non-paymaster flows.
 ///
-/// @dev Requires prepending initializePermission call on first use.
 /// @dev Requires appending assertSpend call on every use.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     IPermissionContract,
-    AllowedContract,
     NativeTokenRecurringAllowance
 {
     /// @notice Fields for this permission contract.
     struct PermissionFields {
-        /// @dev Recurring native token allowance value (wei).
-        uint256 recurringAllowance;
-        /// @dev Start time of the first recurring cycle (unix seconds).
-        uint48 recurringCycleStart;
-        /// @dev Period of each recurring cycle (seconds).
-        uint48 recurringCycleDuration;
+        /// @dev Recurring native token allowance value (struct).
+        RecurringAllowance recurringAllowance;
         /// @dev Single contract allowed to make custom external calls to.
         address allowedContract;
     }
@@ -90,16 +83,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
                 // check call target is the allowed contract
                 if (call.target != fields.allowedContract) revert UserOperationLib.TargetNotAllowed();
                 // assume PermissionManager already prevents account as target
-            } else if (selector == IPermissionContract.initializePermission.selector) {
-                // prepare initializePermission data
-                bytes memory initializePermissionData = abi.encodeWithSelector(
-                    IPermissionContract.initializePermission.selector, permissionHash, permissionFields
-                );
-
-                // check call is valid this.initializePermission
-                if (call.target != address(this) || keccak256(call.data) != keccak256(initializePermissionData)) {
-                    revert InvalidInitializePermissionCall();
-                }
             } else if (selector == IMagicSpend.withdraw.selector) {
                 // parse MagicSpend withdraw request
                 IMagicSpend.WithdrawRequest memory withdraw =
@@ -122,6 +105,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         bytes memory assertSpendData = abi.encodeWithSelector(
             PermissionCallableAllowedContractNativeTokenRecurringAllowance.assertSpend.selector,
             permissionHash,
+            fields.recurringAllowance,
             callsSpend,
             // gasSpend is prefund required by entrypoint (ignores refund for unused gas)
             UserOperationLib.getRequiredPrefund(userOp),
@@ -145,7 +129,13 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @param callsSpend Value of native token spent in calls.
     /// @param gasSpend Value of native token spent by gas.
     /// @param paymaster Paymaster used by user operation.
-    function assertSpend(bytes32 permissionHash, uint256 callsSpend, uint256 gasSpend, address paymaster) external {
+    function assertSpend(
+        bytes32 permissionHash,
+        RecurringAllowance calldata recurringAllowance,
+        uint256 callsSpend,
+        uint256 gasSpend,
+        address paymaster
+    ) external {
         uint256 totalSpend = callsSpend;
 
         // add gas cost if beared by the user
@@ -155,24 +145,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         }
 
         // assert native token spend
-        _assertNativeTokenSpend(msg.sender, permissionHash, totalSpend);
-    }
-
-    /// @notice Initialize the permission fields.
-    ///
-    /// @param permissionHash Hash of the permission.
-    /// @param permissionFields Additional arguments for validation.
-    function initializePermission(bytes32 permissionHash, bytes calldata permissionFields) external {
-        (PermissionFields memory fields) = abi.decode(permissionFields, (PermissionFields));
-
-        _initializeNativeTokenRecurringAllowance(
-            msg.sender,
-            permissionHash,
-            fields.recurringAllowance,
-            fields.recurringCycleStart,
-            fields.recurringCycleDuration
-        );
-
-        _initializeAllowedContract(msg.sender, permissionHash, fields.allowedContract);
+        _assertNativeTokenSpend(msg.sender, permissionHash, recurringAllowance, totalSpend);
     }
 }

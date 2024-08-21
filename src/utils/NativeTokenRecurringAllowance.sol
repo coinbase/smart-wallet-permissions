@@ -45,7 +45,7 @@ abstract contract NativeTokenRecurringAllowance {
 
     /// @notice Register native token spend for a permission
     ///
-    /// @param account The account tied to the permission.
+    /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
     /// @param recurringAllowance Allowed spend per recurring cycle (struct).
     event RecurringAllowanceInitialized(
@@ -66,7 +66,7 @@ abstract contract NativeTokenRecurringAllowance {
     ///
     /// @dev Reverts if recurring allowance has not started.
     ///
-    /// @param account The account tied to the permission.
+    /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
     ///
     /// @return activeCycle Currently active cycle start and spend (struct).
@@ -80,6 +80,33 @@ abstract contract NativeTokenRecurringAllowance {
         return _getActiveCycle(account, permissionHash, start, period);
     }
 
+    /// @notice Initialize the native token recurring allowance for a permission.
+    ///
+    /// @dev Reverts if recurring allowance is already initialized with different parameters than provided.
+    ///
+    /// @param account Account of the permission.
+    /// @param permissionHash Hash of the permission.
+    /// @param recurringAllowance Allowed spend per recurring cycle (struct).
+    function _initializeRecurringAllowance(
+        address account,
+        bytes32 permissionHash,
+        RecurringAllowance memory recurringAllowance
+    ) internal {
+        uint256 packedValues = _packedRecurringAllowanceValues[account][permissionHash];
+        if (packedValues == 0) {
+            // initialize recurring allowance
+            _packedRecurringAllowanceValues[account][permissionHash] =
+                uint256((recurringAllowance.start) + (uint256(recurringAllowance.period) << 48));
+            emit RecurringAllowanceInitialized(account, permissionHash, recurringAllowance);
+        } else {
+            // check recurring allowance parameters match initialized start and period
+            (uint48 start, uint48 period) = _unpackRecurringAllowanceValues(packedValues);
+            if (start != recurringAllowance.start || period != recurringAllowance.period) {
+                revert InvalidRecurringAllowance();
+            }
+        }
+    }
+
     /// @notice Assert native token spend for a permission.
     ///
     /// @dev Initializes state for recurring allowance start and period for first time use.
@@ -90,11 +117,11 @@ abstract contract NativeTokenRecurringAllowance {
     ///      With no incentive to grief, little time window to do so, and requiring a user to sign to enable the grief,
     ///      this attack is not of concern.
     ///
-    /// @param account Address of the account asserting spend for.
+    /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
     /// @param recurringAllowance Allowed spend per recurring cycle (struct).
     /// @param spend Amount of native token being spent.
-    function _assertNativeTokenSpend(
+    function _assertSpend(
         address account,
         bytes32 permissionHash,
         RecurringAllowance memory recurringAllowance,
@@ -104,19 +131,7 @@ abstract contract NativeTokenRecurringAllowance {
         if (spend == 0) return;
 
         // initialize recurring allowance if not already, or check if parameters match previous initialization
-        uint256 packedValues = _packedRecurringAllowanceValues[account][permissionHash];
-        if (packedValues == 0) {
-            // initialize recurring allowance
-            _packedRecurringAllowanceValues[account][permissionHash] =
-                uint256((recurringAllowance.start) + (uint256(recurringAllowance.period) << 48));
-            emit RecurringAllowanceInitialized(account, permissionHash, recurringAllowance);
-        } else {
-            // check recurring allowance parameters match initialized start and period
-            (uint48 start, uint48 period) = _unpackRecurringAllowanceValues(packedValues);
-            if (start != recurringAllowance.start && period != recurringAllowance.period) {
-                revert InvalidRecurringAllowance();
-            }
-        }
+        _initializeRecurringAllowance(account, permissionHash, recurringAllowance);
 
         // get active cycle start and spend
         ActiveCycle memory activeCycle =
@@ -140,7 +155,7 @@ abstract contract NativeTokenRecurringAllowance {
     /// @dev Reverts if recurring allowance has not started.
     /// @dev Cycle boundaries are fixed intervals of recurringAllowance.start + n * recurringAllowance.period
     ///
-    /// @param account The account tied to the permission.
+    /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
     /// @param recurringAllowanceStart Start time of the recurring allowance's first cycle (unix seconds).
     /// @param recurringAllowancePeriod Time duration for resetting spend on a recurring basis (seconds).
@@ -164,7 +179,7 @@ abstract contract NativeTokenRecurringAllowance {
             // last active cycle is still active
             return lastActiveCycle;
         } else {
-            // last active cycle is outdated
+            // last active cycle is outdated, determine current cycle
 
             // current cycle progress is remainder of time since first recurring cycle mod reset period
             uint48 currentCycleProgress = (currentTimestamp - recurringAllowanceStart) % recurringAllowancePeriod;

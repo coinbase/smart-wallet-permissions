@@ -305,13 +305,17 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         // check permission contract enabled
         if (!isPermissionContractEnabled[permission.permissionContract]) revert DisabledPermissionContract();
 
-        // check permission not revoked
-        if (isPermissionRevoked[permissionHash][permission.account]) revert RevokedPermission();
-
-        // check permission not approved
-        if (isPermissionApproved[permissionHash][permission.account]) revert ApprovedPermission();
+        // early return if permission is already approved
+        if (isPermissionApproved[permissionHash][permission.account]) {
+            return;
+        }
 
         isPermissionApproved[permissionHash][permission.account] = true;
+
+        // initialize permission on permission contract
+        IPermissionContract(permission.permissionContract).initializePermission(
+            permission.account, permissionHash, permission.permissionFields
+        );
 
         emit PermissionApproved(permission.account, permissionHash);
     }

@@ -32,6 +32,9 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         address allowedContract;
     }
 
+    /// @notice Sender for intializePermission was not account or permission manager.
+    error InvalidInitializePermissionSender();
+
     /// @notice MagicSpend withdraw asset is not native token.
     error InvalidWithdrawAsset();
 
@@ -117,6 +120,24 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         }
     }
 
+    /// @notice Initialize the permission fields.
+    ///
+    /// @dev Called by permission manager on approval transaction.
+    ///
+    /// @param account Account of the permission.
+    /// @param permissionHash Hash of the permission.
+    /// @param permissionFields Additional arguments for validation.
+    function initializePermission(address account, bytes32 permissionHash, bytes calldata permissionFields) external {
+        (PermissionFields memory fields) = abi.decode(permissionFields, (PermissionFields));
+
+        // check sender is account or permission manager
+        if (msg.sender != account && msg.sender != address(permissionManager)) {
+            revert InvalidInitializePermissionSender();
+        }
+
+        _initializeRecurringAllowance(account, permissionHash, fields.recurringAllowance);
+    }
+
     /// @notice Register a spend of native token for a given permission.
     ///
     /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS vector.
@@ -143,6 +164,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         }
 
         // assert native token spend
-        _assertNativeTokenSpend(msg.sender, permissionHash, recurringAllowance, totalSpend);
+        _assertSpend(msg.sender, permissionHash, recurringAllowance, totalSpend);
     }
 }

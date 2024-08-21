@@ -4,9 +4,9 @@ pragma solidity 0.8.23;
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
+import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 
-import {ICoinbaseSmartWallet} from "./interfaces/ICoinbaseSmartWallet.sol";
 import {IPermissionContract} from "./interfaces/IPermissionContract.sol";
 import {BytesLib} from "./utils/BytesLib.sol";
 import {P256SignatureCheckerLib} from "./utils/P256SignatureCheckerLib.sol";
@@ -206,11 +206,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         address userOpCosigner = ECDSA.recover(userOpHash, data.userOpCosignature);
 
         // check userOp.callData is `executeBatch`
-        if (bytes4(data.userOp.callData) != ICoinbaseSmartWallet.executeBatch.selector) {
+        if (bytes4(data.userOp.callData) != CoinbaseSmartWallet.executeBatch.selector) {
             revert UserOperationLib.SelectorNotAllowed();
         }
-        ICoinbaseSmartWallet.Call[] memory calls =
-            abi.decode(BytesLib.sliceCallArgs(data.userOp.callData), (ICoinbaseSmartWallet.Call[]));
+        CoinbaseSmartWallet.Call[] memory calls =
+            abi.decode(BytesLib.sliceCallArgs(data.userOp.callData), (CoinbaseSmartWallet.Call[]));
 
         // prepare beforeCalls data
         bytes memory beforeCallsData = abi.encodeWithSelector(

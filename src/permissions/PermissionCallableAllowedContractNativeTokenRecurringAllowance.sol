@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
+import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
+
 import {PermissionManager} from "../PermissionManager.sol";
-import {ICoinbaseSmartWallet} from "../interfaces/ICoinbaseSmartWallet.sol";
 import {IMagicSpend} from "../interfaces/IMagicSpend.sol";
 import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
@@ -73,7 +74,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         (PermissionValues memory values) = abi.decode(permissionValues, (PermissionValues));
 
         // parse user operation call data as `executeBatch` arguments (call array)
-        ICoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (ICoinbaseSmartWallet.Call[]));
+        CoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (CoinbaseSmartWallet.Call[]));
         uint256 callsLen = calls.length;
 
         // initialize loop accumulators
@@ -83,7 +84,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         // start index at 1 to ignore beforeCalls call, enforced by PermissionManager as self-call
         // end index at callsLen - 2 to ignore useRecurringAllowance call, enforced after loop as self-call
         for (uint256 i = 1; i < callsLen - 1; i++) {
-            ICoinbaseSmartWallet.Call memory call = calls[i];
+            CoinbaseSmartWallet.Call memory call = calls[i];
             bytes4 selector = bytes4(call.data);
 
             if (selector == IPermissionCallable.permissionedCall.selector) {
@@ -125,7 +126,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         );
 
         // check last call is valid this.useRecurringAllowance
-        ICoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
+        CoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
         if (lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(useRecurringAllowanceData)) {
             revert InvalidUseRecurringAllowanceCall();
         }

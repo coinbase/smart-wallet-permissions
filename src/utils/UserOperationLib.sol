@@ -59,6 +59,6 @@ library UserOperationLib {
     ///
     /// @return paymaster Address of contract or address(0) if no paymaster used.
     function getPaymaster(bytes memory paymasterAndData) internal pure returns (address paymaster) {
-        return userOp.paymasterAndData.length == 0 ? address(0) : address(bytes20(userOp.paymasterAndData[:20]));
+        return paymasterAndData.length == 0 ? address(0) : address(bytes20(paymasterAndData));
     }
 }

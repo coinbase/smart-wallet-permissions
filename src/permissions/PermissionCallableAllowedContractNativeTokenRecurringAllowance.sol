@@ -47,7 +47,10 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @notice MagicSpend singleton.
     address public immutable magicSpend;
 
-    /// @param manager Contract address for PermissionManager.
+    /// @notice Constructor.
+    ///
+    /// @param permissionManager_ Contract address for PermissionManager.
+    /// @param magicSpend_ Contract address for MagicSpend.
     constructor(address permissionManager_, address magicSpend_) {
         permissionManager = permissionManager_;
         magicSpend = magicSpend_;
@@ -107,7 +110,8 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
         // add gas cost if beared by the user
         uint256 totalSpend = callsSpend;
-        if (paymaster == address(0) || paym) {
+        address paymaster = UserOperationLib.getPaymaster(userOp.paymasterAndData);
+        if (paymaster == address(0) || paymaster == magicSpend) {
             // gas spend is prefund required by entrypoint (ignores refund for unused gas)
             totalSpend += UserOperationLib.getRequiredPrefund(userOp);
             // recall MagicSpend enforces withdraw to be native token when used as a paymaster

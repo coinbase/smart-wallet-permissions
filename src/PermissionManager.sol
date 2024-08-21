@@ -19,6 +19,18 @@ import {UserOperation, UserOperationLib} from "./utils/UserOperationLib.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 contract PermissionManager is IERC1271, Ownable, Pausable {
+    /// @notice Authentication data for signature validation over user operation hashes.
+    struct AuthData {
+        /// @dev User operation (v0.6) to validate for.
+        UserOperation userOp;
+        /// @dev Signature over user operation from permission signer.
+        bytes userOpSignature;
+        /// @dev Cosignature over user operation from cosigner.
+        bytes userOpCosignature;
+        /// @dev Permission details, approved by user i.e. smart wallet
+        Permission permission;
+    }
+
     /// @notice A time-bound permission over an account given to an external signer.
     struct Permission {
         /// @dev Smart wallet address this permission is valid for.
@@ -40,6 +52,35 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         bytes approval;
     }
 
+    /// @dev bytes4(keccak256("isValidSignature(bytes32,bytes)"))
+    bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
+
+    /// @notice Second-factor signer owned by Coinbase, required to have approval for each userOp.
+    address public cosigner;
+
+    /// @notice Pending cosigner for a two-step rotation to limit failed userOps during rotation.
+    address public pendingCosigner;
+
+    /// @notice Track if permission contracts are enabled.
+    ///
+    /// @dev Storage not keyable by account, can only be accessed in execution phase.
+    mapping(address permissionContract => bool enabled) public isPermissionContractEnabled;
+
+    /// @notice Track if paymasters are enabled.
+    ///
+    /// @dev Storage not keyable by account, can only be accessed in execution phase.
+    mapping(address paymaster => bool enabled) public isPaymasterEnabled;
+
+    /// @notice Track if permissions are approved by accounts via transactions.
+    ///
+    /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
+    mapping(bytes32 permissionHash => mapping(address account => bool approved)) public isPermissionApproved;
+
+    /// @notice Track if permissions are revoked by accounts.
+    ///
+    /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
+    mapping(bytes32 permissionHash => mapping(address account => bool revoked)) public isPermissionRevoked;
+
     /// @notice Permission is revoked.
     error RevokedPermission();
 
@@ -49,8 +90,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice PermissionApproval is invalid
     error InvalidPermissionApproval();
 
-    /// @notice Signature from permission signer does not match hash.
+    /// @notice Invalid signature.
     error InvalidSignature();
+
+    /// @notice Invalid beforeCalls call.
+    error InvalidBeforeCallsCall();
 
     /// @notice Permission contract not enabled.
     error DisabledPermissionContract();
@@ -107,36 +151,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @param newCosigner Address of the new cosigner.
     event CosignerRotated(address indexed oldCosigner, address indexed newCosigner);
 
-    /// @notice Track if permissions are revoked by accounts.
+    /// @notice Constructor.
     ///
-    /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
-    mapping(bytes32 permissionHash => mapping(address account => bool revoked)) public isPermissionRevoked;
-
-    /// @notice Track if permissions are approved by accounts via transactions.
-    ///
-    /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
-    mapping(bytes32 permissionHash => mapping(address account => bool approved)) public isPermissionApproved;
-
-    /// @notice Track if permission contracts are enabled.
-    ///
-    /// @dev Storage not keyable by account, can only be accessed in execution phase.
-    mapping(address permissionContract => bool enabled) public isPermissionContractEnabled;
-
-    /// @notice Track if paymasters are enabled.
-    ///
-    /// @dev Storage not keyable by account, can only be accessed in execution phase.
-    mapping(address paymaster => bool enabled) public isPaymasterEnabled;
-
-    /// @notice Second-factor signer owned by Coinbase, required to have approval for each userOp.
-    address public cosigner;
-
-    /// @notice Pending cosigner for a two-step rotation to limit failed userOps during rotation.
-    address public pendingCosigner;
-
-    /// @dev bytes4(keccak256("isValidSignature(bytes32,bytes)"))
-    bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
-
-    constructor(address owner, address cosigner_) Ownable(owner) Pausable() {
+    /// @param owner_ Owner responsible for managing security controls.
+    /// @param cosigner_ EOA responsible for cosigning user operations for abuse mitigation.
+    constructor(address owner_, address cosigner_) Ownable(owner_) Pausable() {
         cosigner = cosigner_;
         emit CosignerRotated(address(0), cosigner_);
     }
@@ -149,35 +168,29 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @param userOpHash Hash of user operation signed by permission signer.
     /// @param authData Variable data for validating permissioned user operation.
     function isValidSignature(bytes32 userOpHash, bytes calldata authData) external view returns (bytes4 result) {
-        // assume specific encoding of authData
-        (
-            UserOperation memory userOp,
-            bytes memory userOpSignature, // signed by permission signer
-            bytes memory userOpCosignature, // signed by cosigner, assumed to be EOA
-            Permission memory permission // approved by user
-        ) = abi.decode(authData, (UserOperation, bytes, bytes, Permission));
-        bytes32 permissionHash = hashPermission(permission);
+        (AuthData memory data) = abi.decode(authData, (AuthData));
+        bytes32 permissionHash = hashPermission(data.permission);
 
         // check userOperation sender matches account;
-        if (userOp.sender != permission.account) revert UserOperationLib.InvalidUserOperationSender();
+        if (data.userOp.sender != data.permission.account) revert UserOperationLib.InvalidUserOperationSender();
 
         // check userOp matches userOpHash
-        if (UserOperationLib.getUserOpHash(userOp) != userOpHash) {
+        if (UserOperationLib.getUserOpHash(data.userOp) != userOpHash) {
             revert UserOperationLib.InvalidUserOperationHash();
         }
 
         // check permission not revoked
-        if (isPermissionRevoked[permissionHash][permission.account]) {
+        if (isPermissionRevoked[permissionHash][data.permission.account]) {
             revert RevokedPermission();
         }
 
-        if (permission.approval.length == 0) {
+        if (data.permission.approval.length == 0) {
             // check permission is approved via storage
-            if (!isPermissionApproved[permissionHash][permission.account]) revert InvalidPermissionApproval();
+            if (!isPermissionApproved[permissionHash][data.permission.account]) revert InvalidPermissionApproval();
         } else {
             // check permission is approved via signature
             if (
-                IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+                IERC1271(data.permission.account).isValidSignature(permissionHash, data.permission.approval)
                     != EIP1271_MAGIC_VALUE
             ) {
                 revert InvalidPermissionApproval();
@@ -185,46 +198,43 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         }
 
         // check permission signer signed userOpHash
-        if (!P256SignatureCheckerLib.isValidSignatureNow(userOpHash, userOpSignature, permission.signer)) {
+        if (!P256SignatureCheckerLib.isValidSignatureNow(userOpHash, data.userOpSignature, data.permission.signer)) {
             revert InvalidSignature();
         }
 
         // parse cosigner from cosignature
-        address userOpCosigner = ECDSA.recover(userOpHash, userOpCosignature);
+        address userOpCosigner = ECDSA.recover(userOpHash, data.userOpCosignature);
 
         // check userOp.callData is `executeBatch`
-        if (bytes4(userOp.callData) != ICoinbaseSmartWallet.executeBatch.selector) {
+        if (bytes4(data.userOp.callData) != ICoinbaseSmartWallet.executeBatch.selector) {
             revert UserOperationLib.SelectorNotAllowed();
         }
-
-        // decode userOp calldata as `executeBatch` args (call array)
         ICoinbaseSmartWallet.Call[] memory calls =
-            abi.decode(BytesLib.sliceCallArgs(userOp.callData), (ICoinbaseSmartWallet.Call[]));
+            abi.decode(BytesLib.sliceCallArgs(data.userOp.callData), (ICoinbaseSmartWallet.Call[]));
 
-        // check first call target is PermissionManager
-        if (calls[0].target != address(this)) revert UserOperationLib.TargetNotAllowed();
-
-        // check first call is valid self.beforeCalls
+        // prepare beforeCalls data
         bytes memory beforeCallsData = abi.encodeWithSelector(
             PermissionManager.beforeCalls.selector,
-            permission.expiry,
-            permission.permissionContract,
-            address(bytes20(userOp.paymasterAndData)),
+            data.permission.expiry,
+            data.permission.permissionContract,
+            address(bytes20(data.userOp.paymasterAndData)),
             userOpCosigner
         );
-        if (keccak256(calls[0].data) != keccak256(beforeCallsData)) {
-            revert UserOperationLib.InvalidUserOperationCallData();
+
+        // check first call is valid self.beforeCalls
+        if (calls[0].target != address(this) || keccak256(calls[0].data) != keccak256(beforeCallsData)) {
+            revert InvalidBeforeCallsCall();
         }
 
         // check calls batch has no self-calls
         uint256 callsLen = calls.length;
         for (uint256 i = 1; i < callsLen; i++) {
-            if (calls[i].target == permission.account) revert UserOperationLib.TargetNotAllowed();
+            if (calls[i].target == data.permission.account) revert UserOperationLib.TargetNotAllowed();
         }
 
         // validate permission-specific logic
-        IPermissionContract(permission.permissionContract).validatePermission(
-            permissionHash, permission.permissionValues, userOp
+        IPermissionContract(data.permission.permissionContract).validatePermission(
+            permissionHash, data.permission.permissionValues, data.userOp
         );
 
         // return back to account to complete owner signature verification of userOpHash

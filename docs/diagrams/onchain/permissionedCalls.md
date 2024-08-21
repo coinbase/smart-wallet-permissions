@@ -18,7 +18,7 @@ sequenceDiagram
     A-->>M: EIP1271 magic value
     Note over M: General permission checks: ‎ ‎ ‎  <br/> 1. permission not revoked ‎  ‎ ‎ ‎ ‎ <br/> 2. user approved permission  ‎ <br/> 3. session key signed userOp ‎ <br/> 4. prepends checkBeforeCalls <br/> 5. no calls back on account ‎ ‎ ‎
     M->>P: validatePermission
-    Note over P: Specific permission checks: ‎ ‎ ‎ ‎ ‎ <br/> 1. only calls allowed contracts <br/> 2. only calls special selector ‎ ‎ ‎ <br/> 3. appends assertSpend call ‎ ‎ ‎ ‎
+    Note over P: Specific permission checks: ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 1. only calls allowed contracts ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 2. only calls special selector ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ <br/> 3. appends useRecurringAllowance call
     M-->>A: EIP1271 magic value
     A-->>E: validation data
     E->>A: executeBatch
@@ -29,8 +29,8 @@ sequenceDiagram
         A->>C: permissionedCall
         Note over C,A: send intended calldata wrapped with special selector
     end
-    A->>P: assertSpend
-    Note over A,P: assert spend within recurring allowance
+    A->>P: useRecurringAllowance
+    Note over P: assert spend within recurring allowance
     P->>M: shouldAddPaymasterGasToTotalSpend
     M-->>P: bool addGasSpend
     Note over P: add gas to total spend

@@ -62,7 +62,7 @@ abstract contract NativeTokenRecurringAllowance {
         address indexed account, bytes32 indexed permissionHash, uint48 cycleStart, uint256 spend
     );
 
-    /// @notice Get the currently active cycle for a permission.
+    /// @notice Get the usage data for the currently active recurring cycle.
     ///
     /// @dev Reverts if recurring allowance has not started.
     ///
@@ -70,7 +70,7 @@ abstract contract NativeTokenRecurringAllowance {
     /// @param permissionHash Hash of the permission.
     ///
     /// @return activeCycle Currently active cycle start and spend (struct).
-    function getActiveCycle(address account, bytes32 permissionHash)
+    function getRecurringAllowanceUsage(address account, bytes32 permissionHash)
         public
         view
         returns (ActiveCycle memory activeCycle)
@@ -83,6 +83,12 @@ abstract contract NativeTokenRecurringAllowance {
     /// @notice Initialize the native token recurring allowance for a permission.
     ///
     /// @dev Reverts if recurring allowance is already initialized with different parameters than provided.
+    ///      Malicious assertSpend calls may attempt to reset the active cycle's spend by manipulating
+    ///      the recurring allowance start and period values, but this will revert because we compare against
+    ///      initialized state. A potential griefing attack is to phish a user to assertSpend with improper
+    ///      recurring allowance params, which would then just brick the permissionHash from working in happy path.
+    ///      With no incentive to grief, little time window to do so, and requiring a user to sign to enable the grief,
+    ///      this attack is not of concern.
     ///
     /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
@@ -107,21 +113,15 @@ abstract contract NativeTokenRecurringAllowance {
         }
     }
 
-    /// @notice Assert native token spend for a permission.
+    /// @notice Use recurring allowance and register spend for active cycle.
     ///
     /// @dev Initializes state for recurring allowance start and period for first time use.
-    ///      Malicious assertSpend calls may attempt to reset the active cycle's spend by manipulating
-    ///      the recurring allowance start and period values, but this will revert because we compare against
-    ///      initialized state. A potential griefing attack is to phish a user to assertSpend with improper
-    ///      recurring allowance params, which would then just brick the permissionHash from working in happy path.
-    ///      With no incentive to grief, little time window to do so, and requiring a user to sign to enable the grief,
-    ///      this attack is not of concern.
     ///
     /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
     /// @param recurringAllowance Allowed spend per recurring cycle (struct).
     /// @param spend Amount of native token being spent.
-    function _assertSpend(
+    function _useRecurringAllowance(
         address account,
         bytes32 permissionHash,
         RecurringAllowance memory recurringAllowance,

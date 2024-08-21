@@ -103,7 +103,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
         // prepare expected call data for assertSpend
         bytes memory assertSpendData = abi.encodeWithSelector(
-            PermissionCallableAllowedContractNativeTokenRecurringAllowance.assertSpend.selector,
+            PermissionCallableAllowedContractNativeTokenRecurringAllowance.useRecurringAllowance.selector,
             permissionHash,
             fields.recurringAllowance,
             callsSpend,
@@ -148,7 +148,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @param callsSpend Value of native token spent in calls.
     /// @param gasSpend Value of native token spent by gas.
     /// @param paymaster Paymaster used by user operation.
-    function assertSpend(
+    function useRecurringAllowance(
         bytes32 permissionHash,
         RecurringAllowance calldata recurringAllowance,
         uint256 callsSpend,
@@ -164,6 +164,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         }
 
         // assert native token spend
-        _assertSpend(msg.sender, permissionHash, recurringAllowance, totalSpend);
+        _useRecurringAllowance(msg.sender, permissionHash, recurringAllowance, totalSpend);
     }
 }

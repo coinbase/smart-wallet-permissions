@@ -38,7 +38,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         /// @dev Chain this permision is valid for.
         uint256 chainId;
         /// @dev Unix timestamp this permission is valid until.
-        uint40 expiry;
+        uint48 expiry;
         /// @dev Non-account entity given permission to sign user operations.
         /// @dev Supports Ethereum addresses (EOA, smart contract) and P256 public keys (passkey, cryptokey).
         bytes signer;
@@ -215,8 +215,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         // prepare beforeCalls data
         bytes memory beforeCallsData = abi.encodeWithSelector(
             PermissionManager.beforeCalls.selector,
-            data.permission.expiry,
-            data.permission.permissionContract,
+            data.permission,
             address(bytes20(data.userOp.paymasterAndData)),
             userOpCosigner
         );

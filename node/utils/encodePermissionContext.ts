@@ -10,6 +10,6 @@ export function encodePermissionContext(
         { name: "permissionManagerOwnerIndex", type: "uint256" },
         permissionStruct,
       ],
-      [permissionManagerOwnerIndex, permission as never]
+      [permissionManagerOwnerIndex, permission]
     );
   }

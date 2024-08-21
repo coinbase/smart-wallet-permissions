@@ -105,7 +105,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         bytes memory assertSpendData = abi.encodeWithSelector(
             PermissionCallableAllowedContractNativeTokenRecurringAllowance.useRecurringAllowance.selector,
             permissionHash,
-            fields.recurringAllowance,
             callsSpend,
             // gasSpend is prefund required by entrypoint (ignores refund for unused gas)
             UserOperationLib.getRequiredPrefund(userOp),
@@ -130,10 +129,8 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     function initializePermission(address account, bytes32 permissionHash, bytes calldata permissionFields) external {
         (PermissionFields memory fields) = abi.decode(permissionFields, (PermissionFields));
 
-        // check sender is account or permission manager
-        if (msg.sender != account && msg.sender != address(permissionManager)) {
-            revert InvalidInitializePermissionSender();
-        }
+        // check sender is permission manager
+        if (msg.sender != address(permissionManager)) revert InvalidInitializePermissionSender();
 
         _initializeRecurringAllowance(account, permissionHash, fields.recurringAllowance);
     }
@@ -144,17 +141,12 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @dev State read on Manager for adding paymaster gas to total spend must happen in execution phase.
     ///
     /// @param permissionHash Hash of the permission.
-    /// @param recurringAllowance Allowed spend per recurring cycle (struct).
     /// @param callsSpend Value of native token spent in calls.
     /// @param gasSpend Value of native token spent by gas.
     /// @param paymaster Paymaster used by user operation.
-    function useRecurringAllowance(
-        bytes32 permissionHash,
-        RecurringAllowance calldata recurringAllowance,
-        uint256 callsSpend,
-        uint256 gasSpend,
-        address paymaster
-    ) external {
+    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend, uint256 gasSpend, address paymaster)
+        external
+    {
         uint256 totalSpend = callsSpend;
 
         // add gas cost if beared by the user
@@ -164,6 +156,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         }
 
         // assert native token spend
-        _useRecurringAllowance(msg.sender, permissionHash, recurringAllowance, totalSpend);
+        _useRecurringAllowance(msg.sender, permissionHash, totalSpend);
     }
 }

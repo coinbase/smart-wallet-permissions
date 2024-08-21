@@ -28,7 +28,6 @@ contract Debug is Script {
         vm.startBroadcast();
 
         // debugCosignature(userOpHash, userOpCosignature);
-        debugCheckBeforeCalls();
 
         vm.stopBroadcast();
     }
@@ -39,24 +38,6 @@ contract Debug is Script {
             hex"d72c4bebbf8f8df9e05b5a8454c9a2c80f1391b6ba6f8692828e7b93baeedda87e5ec5229ace02083b44827764ace31fe6b393dcb84da0e257ca58f528683aa81b";
         address userOpCosigner = ECDSA.recover(userOpHash, userOpCosignature);
         logAddress("userOpCosigner", userOpCosigner);
-    }
-
-    function debugCheckBeforeCalls() public {
-        console2.logBytes4(PermissionManager.checkBeforeCalls.selector);
-
-        bytes memory paymasterAndData =
-            hex"f5d253b62543c6ef526309d497f619cef95ad4300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000021fed48ac2839c982021c62247eb69ed9f03162c2712413b69a83fd031381d4f529e0d042b9cf0467dfa22b41c3dfd8354d412d63473ca1f962662d58c6520641c";
-        address paymaster = address(bytes20(paymasterAndData));
-        logAddress("paymaster", paymaster);
-
-        bytes memory checkBeforeCallsData = abi.encodeWithSelector(
-            PermissionManager.checkBeforeCalls.selector,
-            17218875770,
-            0x77514b0AA9e8C6F1892F8D107894155C40315edd,
-            paymaster,
-            0xAda9897F517018cc51831B9691F0e94b50df50B8
-        );
-        console2.logBytes32(keccak256(checkBeforeCallsData));
     }
 
     function deploy() internal {

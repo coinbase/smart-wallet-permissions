@@ -17,7 +17,7 @@ import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 /// @notice Allow spending native token with recurring allowance.
 /// @notice Allow withdrawing native token from MagicSpend both as paymaster and non-paymaster flows.
 ///
-/// @dev Requires appending assertSpend call on every use.
+/// @dev Requires appending useRecurringAllowance call on every use.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
@@ -38,20 +38,24 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @notice MagicSpend withdraw asset is not native token.
     error InvalidWithdrawAsset();
 
-    /// @notice Call to assertSpend not made on self or with invalid data.
-    error InvalidAssertSpendCall();
+    /// @notice Call to useRecurringAllowance not made on self or with invalid data.
+    error InvalidUseRecurringAllowanceCall();
 
-    /// @notice PermissionManager this permission contract trusts for paymaster gas spend data.
-    PermissionManager public immutable permissionManager;
+    /// @notice PermissionManager singleton.
+    address public immutable permissionManager;
+
+    /// @notice MagicSpend singleton.
+    address public immutable magicSpend;
 
     /// @param manager Contract address for PermissionManager.
-    constructor(address manager) {
-        permissionManager = PermissionManager(manager);
+    constructor(address permissionManager_, address magicSpend_) {
+        permissionManager = permissionManager_;
+        magicSpend = magicSpend_;
     }
 
     /// @notice Validate the permission to execute a userOp.
     ///
-    /// @dev Offchain userOp construction should append assertSpend call to calls array if spending value.
+    /// @dev Offchain userOp construction should append useRecurringAllowance call to calls array if spending value.
     /// @dev Rolling native token spend accounting does not protect against re-entrancy where an external call could
     ///      trigger an authorized call back to the account to spend more ETH.
     /// @dev Rolling native token spend accounting overestimates spend via gas when a paymaster is not used.
@@ -73,8 +77,8 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         uint256 callsSpend = 0;
 
         // loop over calls to validate native token spend and allowed contracts
-        // start index at 1 to ignore first call, enforced by PermissionManager as validation call on itself
-        // end index at callsLen - 2 to ignore assertSpend call, enforced after loop as validation call on self
+        // start index at 1 to ignore beforeCalls call, enforced by PermissionManager as self-call
+        // end index at callsLen - 2 to ignore useRecurringAllowance call, enforced after loop as self-call
         for (uint256 i = 1; i < callsLen - 1; i++) {
             ICoinbaseSmartWallet.Call memory call = calls[i];
             bytes4 selector = bytes4(call.data);
@@ -101,21 +105,25 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
             callsSpend += call.value;
         }
 
-        // prepare expected call data for assertSpend
-        bytes memory assertSpendData = abi.encodeWithSelector(
+        // add gas cost if beared by the user
+        uint256 totalSpend = callsSpend;
+        if (paymaster == address(0) || paym) {
+            // gas spend is prefund required by entrypoint (ignores refund for unused gas)
+            totalSpend += UserOperationLib.getRequiredPrefund(userOp);
+            // recall MagicSpend enforces withdraw to be native token when used as a paymaster
+        }
+
+        // prepare expected call data for useRecurringAllowance
+        bytes memory useRecurringAllowanceData = abi.encodeWithSelector(
             PermissionCallableAllowedContractNativeTokenRecurringAllowance.useRecurringAllowance.selector,
             permissionHash,
-            callsSpend,
-            // gasSpend is prefund required by entrypoint (ignores refund for unused gas)
-            UserOperationLib.getRequiredPrefund(userOp),
-            // paymaster data is empty or first 20 bytes are contract address
-            userOp.paymasterAndData.length == 0 ? address(0) : address(bytes20(userOp.paymasterAndData[:20]))
+            totalSpend
         );
 
-        // check last call is valid this.assertSpend
+        // check last call is valid this.useRecurringAllowance
         ICoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
-        if (lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(assertSpendData)) {
-            revert InvalidAssertSpendCall();
+        if (lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(useRecurringAllowanceData)) {
+            revert InvalidUseRecurringAllowanceCall();
         }
     }
 
@@ -141,21 +149,8 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @dev State read on Manager for adding paymaster gas to total spend must happen in execution phase.
     ///
     /// @param permissionHash Hash of the permission.
-    /// @param callsSpend Value of native token spent in calls.
-    /// @param gasSpend Value of native token spent by gas.
-    /// @param paymaster Paymaster used by user operation.
-    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend, uint256 gasSpend, address paymaster)
-        external
-    {
-        uint256 totalSpend = callsSpend;
-
-        // add gas cost if beared by the user
-        if (paymaster == address(0) || permissionManager.shouldAddPaymasterGasToTotalSpend(paymaster)) {
-            totalSpend += gasSpend;
-            // recall MagicSpend enforces withdraw to be native token when used as a paymaster
-        }
-
-        // assert native token spend
-        _useRecurringAllowance(msg.sender, permissionHash, totalSpend);
+    /// @param spend Value of native token spent on calls and gas.
+    function useRecurringAllowance(bytes32 permissionHash, uint256 spend) external {
+        _useRecurringAllowance(msg.sender, permissionHash, spend);
     }
 }

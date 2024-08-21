@@ -9,7 +9,7 @@ pragma solidity ^0.8.23;
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 abstract contract NativeTokenRecurringAllowance {
-    /// @notice Recurring cycle parameters.
+    /// @notice Recurring allowance parameters.
     struct RecurringAllowance {
         /// @dev Start time of the recurring allowance's first cycle (unix seconds).
         uint48 start;
@@ -19,7 +19,7 @@ abstract contract NativeTokenRecurringAllowance {
         uint160 allowance;
     }
 
-    /// @notice Active cycle parameters.
+    /// @notice Cycle parameters and spend usage.
     struct CycleUsage {
         /// @dev Start time of the cycle (unix seconds).
         uint48 start;

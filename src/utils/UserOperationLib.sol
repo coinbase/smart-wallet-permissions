@@ -52,4 +52,13 @@ library UserOperationLib {
     function getUserOpHash(UserOperation memory userOp) internal view returns (bytes32) {
         return IEntryPoint(ENTRY_POINT_V06).getUserOpHash(userOp);
     }
+
+    /// @notice Get paymaster address from paymasterAndData
+    ///
+    /// @param paymasterAndData Field from user operation for paymaster contract and data.
+    ///
+    /// @return paymaster Address of contract or address(0) if no paymaster used.
+    function getPaymaster(bytes memory paymasterAndData) internal pure returns (address paymaster) {
+        return userOp.paymasterAndData.length == 0 ? address(0) : address(bytes20(userOp.paymasterAndData[:20]));
+    }
 }

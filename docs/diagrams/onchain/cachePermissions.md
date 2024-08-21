@@ -7,7 +7,9 @@ sequenceDiagram
     autonumber
     participant E as External
     participant M as Permission Manager
+    participant P as Permission Contract
 
     E->>M: approvePermission
-    Note over E,M: struct permission
+    Note over E,M: permission struct
+    M->>P: initializePermission
 ```

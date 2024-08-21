@@ -209,15 +209,15 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         // check first call target is PermissionManager
         if (calls[0].target != address(this)) revert UserOperationLib.TargetNotAllowed();
 
-        // check first call data is `checkBeforeCalls` with proper arguments
-        bytes memory checkBeforeCallsData = abi.encodeWithSelector(
-            PermissionManager.checkBeforeCalls.selector,
+        // check first call is valid self.beforeCalls
+        bytes memory beforeCallsData = abi.encodeWithSelector(
+            PermissionManager.beforeCalls.selector,
             permission.expiry,
             permission.permissionContract,
             address(bytes20(userOp.paymasterAndData)),
             userOpCosigner
         );
-        if (keccak256(calls[0].data) != keccak256(checkBeforeCallsData)) {
+        if (keccak256(calls[0].data) != keccak256(beforeCallsData)) {
             revert UserOperationLib.InvalidUserOperationCallData();
         }
 
@@ -245,26 +245,63 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///      * Enabled paymaster state
     ///      * Cosigner and pendingCosigner state
     ///
-    /// @param expiry Unix timestamp this permission is valid until.
-    /// @param permissionContract External contract to verify specific permission logic.
+    /// @param permission Details of the permission.
     /// @param paymaster Paymaster contract address.
     /// @param userOpCosigner Address of recovered cosigner from cosignature in validation phase.
-    function checkBeforeCalls(uint256 expiry, address permissionContract, address paymaster, address userOpCosigner)
+    function beforeCalls(Permission calldata permission, address paymaster, address userOpCosigner)
         external
-        view
         whenNotPaused
     {
         // check permission not expired
-        if (expiry < block.timestamp) revert ExpiredPermission();
+        if (permission.expiry < block.timestamp) revert ExpiredPermission();
 
         // check permission contract enabled
-        if (!isPermissionContractEnabled[permissionContract]) revert DisabledPermissionContract();
+        if (!isPermissionContractEnabled[permission.permissionContract]) revert DisabledPermissionContract();
 
         // check paymaster enabled
         if (paymaster != address(0) && !isPaymasterEnabled[paymaster]) revert DisabledPaymaster();
 
         // check userOpCosigner is cosigner or pendingCosigner
         if (userOpCosigner != cosigner && userOpCosigner != pendingCosigner) revert InvalidSignature();
+
+        // approve permission to cache storage for cheaper execution on future use
+        approvePermission(permission);
+    }
+
+    /// @notice Approve a permission to enable its use in user operations.
+    ///
+    /// @dev Entire Permission struct taken as argument for indexers to cache relevant data.
+    /// @dev Permissions can also be validated just-in-time via approval signatures instead of approval storage.
+    /// @dev This can be called by anyone after an approval signature has been used for gas optimization.
+    ///
+    /// @param permission Details of the permission.
+    function approvePermission(Permission calldata permission) public {
+        bytes32 permissionHash = hashPermission(permission);
+
+        // check sender is permission account or approval signature is valid for permission account
+        if (
+            !(
+                msg.sender == permission.account
+                    || EIP1271_MAGIC_VALUE
+                        == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+            )
+        ) {
+            revert InvalidPermissionApproval();
+        }
+
+        // early return if permission is already approved
+        if (isPermissionApproved[permissionHash][permission.account]) {
+            return;
+        }
+
+        isPermissionApproved[permissionHash][permission.account] = true;
+
+        // initialize permission via external call to permission contract
+        IPermissionContract(permission.permissionContract).initializePermission(
+            permission.account, permissionHash, permission.permissionFields
+        );
+
+        emit PermissionApproved(permission.account, permissionHash);
     }
 
     /// @notice Revoke a permission to disable its use indefinitely.
@@ -279,41 +316,6 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         isPermissionRevoked[permissionHash][msg.sender] = true;
 
         emit PermissionRevoked(msg.sender, permissionHash);
-    }
-
-    /// @notice Approve a permission to enable its use in user operations.
-    ///
-    /// @dev Entire Permission struct taken as argument for indexers to cache relevant data.
-    /// @dev Permissions can also be validated just-in-time via approval signatures instead of approval storage.
-    /// @dev This can be called by anyone after an approval signature has been used for gas optimization.
-    ///
-    /// @param permission Details of the permission.
-    function approvePermission(Permission calldata permission) external {
-        bytes32 permissionHash = hashPermission(permission);
-
-        // check sender is permission account or approval signature is valid for permission account
-        if (
-            !(
-                msg.sender == permission.account
-                    || EIP1271_MAGIC_VALUE
-                        == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
-            )
-        ) {
-            revert InvalidPermissionApproval();
-        }
-
-        // check permission contract enabled
-        if (!isPermissionContractEnabled[permission.permissionContract]) revert DisabledPermissionContract();
-
-        // check permission not revoked
-        if (isPermissionRevoked[permissionHash][permission.account]) revert RevokedPermission();
-
-        // check permission not approved
-        if (isPermissionApproved[permissionHash][permission.account]) revert ApprovedPermission();
-
-        isPermissionApproved[permissionHash][permission.account] = true;
-
-        emit PermissionApproved(permission.account, permissionHash);
     }
 
     /// @notice Hash a Permission struct for signing.

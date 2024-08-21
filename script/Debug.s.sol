@@ -6,8 +6,8 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
-import {PermissionCallableAllowedContractNativeTokenRollingAllowance as PermissionContract} from
-    "../src/permissions/PermissionCallableAllowedContractNativeTokenRollingAllowance.sol";
+import {PermissionCallableAllowedContractNativeTokenRecurringAllowance as PermissionContract} from
+    "../src/permissions/PermissionCallableAllowedContractNativeTokenRecurringAllowance.sol";
 
 // forge script Debug --broadcast -vvvv
 contract Debug is Script {
@@ -28,7 +28,6 @@ contract Debug is Script {
         vm.startBroadcast();
 
         // debugCosignature(userOpHash, userOpCosignature);
-        debugCheckBeforeCalls();
 
         vm.stopBroadcast();
     }
@@ -41,30 +40,12 @@ contract Debug is Script {
         logAddress("userOpCosigner", userOpCosigner);
     }
 
-    function debugCheckBeforeCalls() public {
-        console2.logBytes4(PermissionManager.checkBeforeCalls.selector);
-
-        bytes memory paymasterAndData =
-            hex"f5d253b62543c6ef526309d497f619cef95ad4300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000021fed48ac2839c982021c62247eb69ed9f03162c2712413b69a83fd031381d4f529e0d042b9cf0467dfa22b41c3dfd8354d412d63473ca1f962662d58c6520641c";
-        address paymaster = address(bytes20(paymasterAndData));
-        logAddress("paymaster", paymaster);
-
-        bytes memory checkBeforeCallsData = abi.encodeWithSelector(
-            PermissionManager.checkBeforeCalls.selector,
-            17218875770,
-            0x77514b0AA9e8C6F1892F8D107894155C40315edd,
-            paymaster,
-            0xAda9897F517018cc51831B9691F0e94b50df50B8
-        );
-        console2.logBytes32(keccak256(checkBeforeCallsData));
-    }
-
     function deploy() internal {
         // permissionManager = new PermissionManager{salt: 0}(OWNER, COSIGNER);
         // logAddress("PermissionManager", address(permissionManager));
 
         // permissionContract = new PermissionContract{salt: 0}(address(permissionManager));
-        // logAddress("PermissionCallableAllowedContractNativeTokenRollingAllowance", address(permissionContract));
+        // logAddress("PermissionCallableAllowedContractNativeTokenRecurringAllowance", address(permissionContract));
     }
 
     function logAddress(string memory name, address addr) internal pure {

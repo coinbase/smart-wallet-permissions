@@ -1,13 +1,23 @@
-import { Hex, encodeAbiParameters, keccak256, parseAbiParameter } from "viem";
+import { Hex, encodeAbiParameters, keccak256 } from "viem";
 import { SmartWalletPermission } from "../types";
 
-const hashablePermissionStruct = parseAbiParameter([
-  "HashablePermission hashablePermission",
-  "struct HashablePermission { address account; uint256 chainId; uint40 expiry; bytes32 signerHash; address permissionContract; bytes32 permissionFieldsHash; address verifyingContract; }",
-]);
+export const hashablePermissionStruct = {
+  name: "hashablePermission",
+  type: "tuple",
+  internalType: "struct HashablePermission",
+  components: [
+    { name: "account", type: "address", internalType: "address" },
+    { name: "chainId", type: "uint256", internalType: "uint256" },
+    { name: "expiry", type: "uint48", internalType: "uint48" },
+    { name: "signerHash", type: "bytes32", internalType: "bytes32" },
+    { name: "permissionContract", type: "address", internalType: "address" },
+    { name: "permissionValuesHash", type: "bytes32", internalType: "bytes32" },
+    { name: "verifyingContract", type: "address", internalType: "address" },
+  ],
+} as const;
 
 export function hashPermission(permission: SmartWalletPermission): Hex {
-  const { signer, permissionFields, approval, ...hashablePermission } =
+  const { signer, permissionValues, approval, ...hashablePermission } =
     permission;
   return keccak256(
     encodeAbiParameters(
@@ -16,7 +26,7 @@ export function hashPermission(permission: SmartWalletPermission): Hex {
         {
           ...hashablePermission,
           signerHash: keccak256(signer),
-          permissionFieldsHash: keccak256(permissionFields),
+          permissionValuesHash: keccak256(permissionValues),
         } as never,
       ],
     ),

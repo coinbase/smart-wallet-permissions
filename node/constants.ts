@@ -1,2 +1,6 @@
-export const PermissionManager = "0x55b6d23b07357dc3b60f1a44c8a591f6067ce48f";
-export const NativeTokenRollingSpendLimitPermission = "0x245e88921605b20338456529956a30b795636a55";
+import { Address } from "viem";
+
+export const PermissionManager = 
+  "0x98549c7A6513c20b66FacAd469b3d94a3B7B6992" as Address;
+export const PermissionCallableAllowedContractNativeTokenRecurringAllowance =
+  "0x08f955BC6665250c8Ad546Ba225b2352bC6Cd1d5" as Address;

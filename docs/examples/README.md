@@ -1,8 +1,6 @@
-> These examples are just for illustrative purposes. They should be ignored for auditing and other official security review.
-
 ## Get started
 
-> **Note**: These contracts are unaudited and are only recommended for testing purposes. Use at your own risk.
+> **Note**: These contracts are unaudited, use at your own risk.
 
 ### 0. Integrate Coinbase Smart Wallet into your app.
 
@@ -11,7 +9,7 @@ The [smartwallet.dev](https://www.smartwallet.dev/why) docs are recommended.
 ### 1. Add support for permissioned user operations to call your smart contract.
 
 ```solidity
-import {PermissionCallable} from "smart-wallet-permissions/src/permissions/PermissionCallable/PermissionCallable.sol";
+import {PermissionCallable} from "smart-wallet-permissions/src/utils/PermissionCallable.sol";
 
 contract Contract is PermissionCallable {
     // define which function selectors are callable by permissioned userOps

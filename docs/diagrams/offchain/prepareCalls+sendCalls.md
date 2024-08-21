@@ -16,6 +16,7 @@ sequenceDiagram
     end
 
     A->>WS: wallet_prepareCalls
+    Note over A,WS: permissions capability with context
     WS->>P: pm_getPaymasterStubData
     P-->>WS: paymaster stub data
     WS->>P: pm_getPaymasterData

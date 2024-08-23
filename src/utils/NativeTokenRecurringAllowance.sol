@@ -26,7 +26,7 @@ abstract contract NativeTokenRecurringAllowance {
         /// @dev End time of the cycle (unix seconds).
         uint48 end;
         /// @dev Accumulated spend amount for cycle.
-        uint160 totalSpend;
+        uint160 spend;
     }
 
     /// @notice Packed recurring allowance values (start, period) for the permission.
@@ -39,13 +39,20 @@ abstract contract NativeTokenRecurringAllowance {
     error ZeroRecurringAllowance();
 
     /// @notice Recurring cycle has not started yet.
-    error BeforeRecurringAllowanceStart();
+    ///
+    /// @param start Start time of the recurring allowance (unix seconds).
+    error BeforeRecurringAllowanceStart(uint48 start);
 
     /// @notice Spend value exceeds max size of uint160.
-    error SpendValueOverflow();
+    ///
+    /// @param spend Spend value that triggered overflow.
+    error SpendValueOverflow(uint256 spend);
 
     /// @notice Spend value exceeds permission's spending limit.
-    error ExceededRecurringAllowance();
+    ///
+    /// @param spend Spend value that exceeded allowance.
+    /// @param allowance Allowance value that was exceeded.
+    error ExceededRecurringAllowance(uint256 spend, uint256 allowance);
 
     /// @notice Register native token spend for a permission
     ///
@@ -60,12 +67,8 @@ abstract contract NativeTokenRecurringAllowance {
     ///
     /// @param account Account that spent native token via a permission.
     /// @param permissionHash Hash of the permission.
-    /// @param cycleStart Start time of the cycle this spend was used on (unix seconds).
-    /// @param cycleEnd End time of the cycle this spend was used on (unix seconds).
-    /// @param spend Amount of native token spent (wei).
-    event RecurringAllowanceUsed(
-        address indexed account, bytes32 indexed permissionHash, uint48 cycleStart, uint48 cycleEnd, uint256 spend
-    );
+    /// @param newUsage Start and end of the current cycle with new spend usage (struct).
+    event RecurringAllowanceUsed(address indexed account, bytes32 indexed permissionHash, CycleUsage newUsage);
 
     /// @notice Get recurring allowance values.
     ///
@@ -137,17 +140,23 @@ abstract contract NativeTokenRecurringAllowance {
         // get active cycle start and spend, check if recurring allowance has started
         CycleUsage memory currentCycle = _getCurrentCycleUsage(account, permissionHash, recurringAllowance);
 
+        uint256 totalSpend = spend + currentCycle.spend;
+
         // check spend value does not exceed max value
-        if (spend + currentCycle.totalSpend > type(uint160).max) revert SpendValueOverflow();
+        if (totalSpend > type(uint160).max) revert SpendValueOverflow(totalSpend);
 
         // check spend value does not exceed recurring allowance
-        if (spend + currentCycle.totalSpend > recurringAllowance.allowance) revert ExceededRecurringAllowance();
+        if (totalSpend > recurringAllowance.allowance) {
+            revert ExceededRecurringAllowance(totalSpend, recurringAllowance.allowance);
+        }
 
         // save new accrued spend for active cycle
-        currentCycle.totalSpend += uint160(spend);
+        currentCycle.spend = uint160(totalSpend);
         _lastCycleUsages[account][permissionHash] = currentCycle;
 
-        emit RecurringAllowanceUsed(account, permissionHash, currentCycle.start, currentCycle.end, spend);
+        emit RecurringAllowanceUsed(
+            account, permissionHash, CycleUsage(currentCycle.start, currentCycle.end, uint160(spend))
+        );
     }
 
     /// @notice Get current cycle usage.
@@ -168,7 +177,7 @@ abstract contract NativeTokenRecurringAllowance {
         // check recurring allowance has started
         uint48 currentTimestamp = uint48(block.timestamp);
         if (currentTimestamp < recurringAllowance.start) {
-            revert BeforeRecurringAllowanceStart();
+            revert BeforeRecurringAllowanceStart(recurringAllowance.start);
         }
 
         // return last cycle if still active, otherwise compute new active cycle start time with no spend
@@ -188,15 +197,5 @@ abstract contract NativeTokenRecurringAllowance {
                 0 // no tracked spends yet
             );
         }
-    }
-
-    /// @notice Unpack storage for recurring allowance start and period.
-    ///
-    /// @param packedValues Stored value for packed start and period values.
-    ///
-    /// @return start Start time of the first recurring cycle (unix seconds).
-    /// @return period Time duration for resetting spend on a recurring basis (seconds).
-    function _unpackRecurringAllowanceValues(uint256 packedValues) private pure returns (uint48 start, uint48 period) {
-        (start, period) = (uint48(packedValues), uint48(packedValues >> 48));
     }
 }

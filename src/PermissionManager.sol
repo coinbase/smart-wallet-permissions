@@ -82,10 +82,9 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     mapping(bytes32 permissionHash => mapping(address account => bool revoked)) public isPermissionRevoked;
 
     /// @notice Permission is revoked.
-    error RevokedPermission();
-
-    /// @notice Permission is approved.
-    error ApprovedPermission();
+    ///
+    /// @param permissionHash Hash of the permission.
+    error RevokedPermission(bytes32 permissionHash);
 
     /// @notice PermissionApproval is invalid
     error InvalidPermissionApproval();
@@ -96,17 +95,28 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Invalid beforeCalls call.
     error InvalidBeforeCallsCall();
 
+    /// @notice Permission has expired.
+    ///
+    /// @param expiry Timestamp for when the permission expired (unix seconds).
+    error ExpiredPermission(uint48 expiry);
+
     /// @notice Permission contract not enabled.
-    error DisabledPermissionContract();
+    ///
+    /// @param permissionContract The contract resposible for checking permission logic.
+    error DisabledPermissionContract(address permissionContract);
 
     /// @notice Paymaster contract not enabled.
-    error DisabledPaymaster();
+    ///
+    /// @param paymaster ERC-4337 paymaster contract.
+    error DisabledPaymaster(address paymaster);
 
-    /// @notice Permission has expired.
-    error ExpiredPermission();
+    /// @notice Invalid cosigner.
+    ///
+    /// @param cosigner Address of the cosigner.
+    error InvalidCosigner(address cosigner);
 
     /// @notice Tried to rotate cosigner without a pending one set.
-    error MissingPendingCosigner();
+    error NoPendingCosigner();
 
     /// @notice Permission contract setting updated.
     ///
@@ -119,12 +129,6 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @param paymaster ERC-4337 paymaster contract.
     /// @param enabled The new setting allowing/preventing use.
     event PaymasterUpdated(address indexed paymaster, bool enabled);
-
-    /// @notice Paymaster gas spend setting updated.
-    ///
-    /// @param paymaster The paymaster contract, potentially spending user assets.
-    /// @param addGasSpend The new setting to add gas spend or not.
-    event PaymasterGasSpendUpdated(address indexed paymaster, bool addGasSpend);
 
     /// @notice Permission was revoked prematurely by account.
     ///
@@ -156,6 +160,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @param owner_ Owner responsible for managing security controls.
     /// @param cosigner_ EOA responsible for cosigning user operations for abuse mitigation.
     constructor(address owner_, address cosigner_) Ownable(owner_) Pausable() {
+        if (cosigner_ == address(0)) revert InvalidCosigner(cosigner_);
         cosigner = cosigner_;
         emit CosignerRotated(address(0), cosigner_);
     }
@@ -172,17 +177,17 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         bytes32 permissionHash = hashPermission(data.permission);
 
         // check userOperation sender matches account;
-        if (data.userOp.sender != data.permission.account) revert UserOperationLib.InvalidUserOperationSender();
+        if (data.userOp.sender != data.permission.account) {
+            revert UserOperationLib.InvalidUserOperationSender(data.userOp.sender);
+        }
 
         // check userOp matches userOpHash
         if (UserOperationLib.getUserOpHash(data.userOp) != userOpHash) {
-            revert UserOperationLib.InvalidUserOperationHash();
+            revert UserOperationLib.InvalidUserOperationHash(UserOperationLib.getUserOpHash(data.userOp));
         }
 
         // check permission not revoked
-        if (isPermissionRevoked[permissionHash][data.permission.account]) {
-            revert RevokedPermission();
-        }
+        if (isPermissionRevoked[permissionHash][data.permission.account]) revert RevokedPermission(permissionHash);
 
         // check permission approved
         if (!isPermissionApproved(data.permission)) revert InvalidPermissionApproval();
@@ -197,8 +202,9 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // check userOp.callData is `executeBatch`
         if (bytes4(data.userOp.callData) != CoinbaseSmartWallet.executeBatch.selector) {
-            revert UserOperationLib.SelectorNotAllowed();
+            revert UserOperationLib.SelectorNotAllowed(bytes4(data.userOp.callData));
         }
+
         CoinbaseSmartWallet.Call[] memory calls =
             abi.decode(BytesLib.trimSelector(data.userOp.callData), (CoinbaseSmartWallet.Call[]));
 
@@ -206,7 +212,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         bytes memory beforeCallsData = abi.encodeWithSelector(
             PermissionManager.beforeCalls.selector,
             data.permission,
-            address(bytes20(data.userOp.paymasterAndData)),
+            UserOperationLib.getPaymaster(data.userOp.paymasterAndData),
             userOpCosigner
         );
 
@@ -218,7 +224,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         // check calls batch has no self-calls
         uint256 callsLen = calls.length;
         for (uint256 i = 1; i < callsLen; i++) {
-            if (calls[i].target == data.permission.account) revert UserOperationLib.TargetNotAllowed();
+            if (calls[i].target == data.permission.account) revert UserOperationLib.TargetNotAllowed(calls[i].target);
         }
 
         // validate permission-specific logic
@@ -267,16 +273,18 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         whenNotPaused
     {
         // check permission not expired
-        if (permission.expiry < block.timestamp) revert ExpiredPermission();
+        if (permission.expiry < block.timestamp) revert ExpiredPermission(permission.expiry);
 
         // check permission contract enabled
-        if (!isPermissionContractEnabled[permission.permissionContract]) revert DisabledPermissionContract();
+        if (!isPermissionContractEnabled[permission.permissionContract]) {
+            revert DisabledPermissionContract(permission.permissionContract);
+        }
 
         // check paymaster enabled
-        if (paymaster != address(0) && !isPaymasterEnabled[paymaster]) revert DisabledPaymaster();
+        if (paymaster != address(0) && !isPaymasterEnabled[paymaster]) revert DisabledPaymaster(paymaster);
 
         // check userOpCosigner is cosigner or pendingCosigner
-        if (userOpCosigner != cosigner && userOpCosigner != pendingCosigner) revert InvalidSignature();
+        if (userOpCosigner != cosigner && userOpCosigner != pendingCosigner) revert InvalidCosigner(userOpCosigner);
 
         // approve permission to cache storage for cheaper execution on future use
         approvePermission(permission);
@@ -324,11 +332,12 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///
     /// @param permissionHash hash of the permission to revoke
     function revokePermission(bytes32 permissionHash) external {
+        // early return if permission is already revoked
         if (isPermissionRevoked[permissionHash][msg.sender]) {
-            revert RevokedPermission();
+            return;
         }
-        isPermissionRevoked[permissionHash][msg.sender] = true;
 
+        isPermissionRevoked[permissionHash][msg.sender] = true;
         emit PermissionRevoked(msg.sender, permissionHash);
     }
 
@@ -379,7 +388,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
     /// @notice Rotate cosigners.
     function rotateCosigner() external onlyOwner {
-        if (pendingCosigner == address(0)) revert MissingPendingCosigner();
+        if (pendingCosigner == address(0)) revert NoPendingCosigner();
         emit CosignerRotated(cosigner, pendingCosigner);
         cosigner = pendingCosigner;
         pendingCosigner = address(0);

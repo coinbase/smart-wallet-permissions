@@ -25,16 +25,13 @@ library P256SignatureCheckerLib {
     /// @param signer The invalid signer.
     error InvalidEthereumAddressSigner(bytes signer);
 
-    /// @notice Verify signatures over multiple signer types for EOA, smart contract, and passkey.
+    /// @notice Verify signatures for Ethereum addresses or P256 public keys.
     ///
     /// @param hash Arbitrary data to sign over.
     /// @param signature Data to verify signer's intent over the `hash`.
-    /// @param signerBytes The signer's public key, either type `address` for EOA+SCA or `(bytes32, bytes32)` for
-    /// passkey.
-    ///
-    /// @dev temporarily made this a public function for easier testing
+    /// @param signerBytes The signer, type `address` or `(bytes32, bytes32)`
     function isValidSignatureNow(bytes32 hash, bytes memory signature, bytes memory signerBytes)
-        public
+        internal
         view
         returns (bool)
     {

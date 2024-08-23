@@ -33,11 +33,13 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         address allowedContract;
     }
 
-    /// @notice Sender for intializePermission was not account or permission manager.
+    /// @notice Sender for intializePermission was not permission manager.
     error InvalidInitializePermissionSender();
 
     /// @notice MagicSpend withdraw asset is not native token.
-    error InvalidWithdrawAsset();
+    ///
+    /// @param asset Address of asset for MagicSpend withdraw request.
+    error InvalidWithdrawAsset(address asset);
 
     /// @notice Call to useRecurringAllowance not made on self or with invalid data.
     error InvalidUseRecurringAllowanceCall();
@@ -89,20 +91,24 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
             if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
-                if (call.target != values.allowedContract) revert UserOperationLib.TargetNotAllowed();
+                if (call.target != values.allowedContract) revert UserOperationLib.TargetNotAllowed(call.target);
                 // assume PermissionManager already prevents account as target
             } else if (selector == IMagicSpend.withdraw.selector) {
+                // check call target is MagicSpend
+                if (call.target != magicSpend) revert UserOperationLib.TargetNotAllowed(call.target);
+
                 // parse MagicSpend withdraw request
                 IMagicSpend.WithdrawRequest memory withdraw =
                     abi.decode(BytesLib.trimSelector(calls[i].data), (IMagicSpend.WithdrawRequest));
 
                 // check withdraw is native token
-                if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
+                if (withdraw.asset != address(0)) revert InvalidWithdrawAsset(withdraw.asset);
                 // do not need to accrue callsSpend because withdrawn value will be spent in other calls
             } else if (selector == IMagicSpend.withdrawGasExcess.selector) {
-                // ok
+                // check call target is MagicSpend
+                if (call.target != magicSpend) revert UserOperationLib.TargetNotAllowed(call.target);
             } else {
-                revert UserOperationLib.SelectorNotAllowed();
+                revert UserOperationLib.SelectorNotAllowed(selector);
             }
 
             // accumulate spend value
@@ -136,7 +142,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         (PermissionValues memory values) = abi.decode(permissionValues, (PermissionValues));
 
         // check sender is permission manager
-        if (msg.sender != address(permissionManager)) revert InvalidInitializePermissionSender();
+        if (msg.sender != permissionManager) revert InvalidInitializePermissionSender();
 
         _initializeRecurringAllowance(account, permissionHash, values.recurringAllowance);
     }

@@ -308,6 +308,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     function approvePermission(Permission calldata permission) public {
         bytes32 permissionHash = hashPermission(permission);
 
+        // early return if permission is already approved
+        if (_isPermissionApproved[permissionHash][permission.account]) {
+            return;
+        }
+
         // check sender is permission account or approval signature is valid for permission account
         if (
             !(
@@ -317,11 +322,6 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             )
         ) {
             revert InvalidPermissionApproval();
-        }
-
-        // early return if permission is already approved
-        if (_isPermissionApproved[permissionHash][permission.account]) {
-            return;
         }
 
         _isPermissionApproved[permissionHash][permission.account] = true;

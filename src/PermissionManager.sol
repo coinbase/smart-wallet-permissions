@@ -165,12 +165,10 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     constructor(address newOwner, address newCosigner) Pausable() {
         // check owner non-zero
         if (newOwner == address(0)) revert NewOwnerIsZeroAddress();
-
         _initializeOwner(newOwner);
 
         // check cosigner non-zero
         if (newCosigner == address(0)) revert PendingCosignerIsZeroAddress();
-
         cosigner = newCosigner;
         emit CosignerRotated(address(0), newCosigner);
     }

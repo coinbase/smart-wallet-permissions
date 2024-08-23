@@ -210,7 +210,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             revert UserOperationLib.SelectorNotAllowed();
         }
         CoinbaseSmartWallet.Call[] memory calls =
-            abi.decode(BytesLib.sliceCallArgs(data.userOp.callData), (CoinbaseSmartWallet.Call[]));
+            abi.decode(BytesLib.trimSelector(data.userOp.callData), (CoinbaseSmartWallet.Call[]));
 
         // prepare beforeCalls data
         bytes memory beforeCallsData = abi.encodeWithSelector(
@@ -221,7 +221,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         );
 
         // check first call is valid self.beforeCalls
-        if (calls[0].target != address(this) || keccak256(calls[0].data) != keccak256(beforeCallsData)) {
+        if (calls[0].target != address(this) || BytesLib.eq(calls[0].data, beforeCallsData)) {
             revert InvalidBeforeCallsCall();
         }
 

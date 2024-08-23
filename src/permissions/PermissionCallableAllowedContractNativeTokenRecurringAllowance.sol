@@ -94,7 +94,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
             } else if (selector == IMagicSpend.withdraw.selector) {
                 // parse MagicSpend withdraw request
                 IMagicSpend.WithdrawRequest memory withdraw =
-                    abi.decode(BytesLib.sliceCallArgs(calls[i].data), (IMagicSpend.WithdrawRequest));
+                    abi.decode(BytesLib.trimSelector(calls[i].data), (IMagicSpend.WithdrawRequest));
 
                 // check withdraw is native token
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset();
@@ -127,7 +127,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
         // check last call is valid this.useRecurringAllowance
         CoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
-        if (lastCall.target != address(this) || keccak256(lastCall.data) != keccak256(useRecurringAllowanceData)) {
+        if (lastCall.target != address(this) || BytesLib.eq(lastCall.data, useRecurringAllowanceData)) {
             revert InvalidUseRecurringAllowanceCall();
         }
     }

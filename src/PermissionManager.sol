@@ -74,7 +74,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Track if permissions are approved by accounts via transactions.
     ///
     /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
-    mapping(bytes32 permissionHash => mapping(address account => bool approved)) public isPermissionApproved;
+    mapping(bytes32 permissionHash => mapping(address account => bool approved)) internal _isPermissionApproved;
 
     /// @notice Track if permissions are revoked by accounts.
     ///
@@ -184,18 +184,8 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
             revert RevokedPermission();
         }
 
-        if (data.permission.approval.length == 0) {
-            // check permission is approved via storage
-            if (!isPermissionApproved[permissionHash][data.permission.account]) revert InvalidPermissionApproval();
-        } else {
-            // check permission is approved via signature
-            if (
-                IERC1271(data.permission.account).isValidSignature(permissionHash, data.permission.approval)
-                    != EIP1271_MAGIC_VALUE
-            ) {
-                revert InvalidPermissionApproval();
-            }
-        }
+        // check permission approved
+        if (!isPermissionApproved(data.permission)) revert InvalidPermissionApproval();
 
         // check permission signer signed userOpHash
         if (!P256SignatureCheckerLib.isValidSignatureNow(userOpHash, data.userOpSignature, data.permission.signer)) {
@@ -238,6 +228,26 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
         // return back to account to complete owner signature verification of userOpHash
         return EIP1271_MAGIC_VALUE;
+    }
+
+    /// @notice Verify if permission is approved via storage or approval signature.
+    ///
+    /// @param permission Fields of the permission (struct).
+    ///
+    /// @return approved True if permission is approved.
+    function isPermissionApproved(Permission memory permission) public view returns (bool) {
+        bytes32 permissionHash = hashPermission(permission);
+
+        // if approval signature present, check signature
+        if (
+            permission.approval.length > 0
+                && IERC1271(permission.account).isValidSignature(permissionHash, permission.approval) == EIP1271_MAGIC_VALUE
+        ) {
+            return true;
+        }
+
+        // fallback check permission is approved via storage
+        return _isPermissionApproved[permissionHash][permission.account];
     }
 
     /// @notice Check permission constraints not allowed during userOp validation phase as first call in batch.
@@ -294,11 +304,11 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         }
 
         // early return if permission is already approved
-        if (isPermissionApproved[permissionHash][permission.account]) {
+        if (_isPermissionApproved[permissionHash][permission.account]) {
             return;
         }
 
-        isPermissionApproved[permissionHash][permission.account] = true;
+        _isPermissionApproved[permissionHash][permission.account] = true;
 
         // initialize permission via external call to permission contract
         IPermissionContract(permission.permissionContract).initializePermission(

@@ -109,20 +109,13 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
             callsSpend += call.value;
         }
 
-        // add gas cost if beared by the user
-        uint256 totalSpend = callsSpend;
-        address paymaster = UserOperationLib.getPaymaster(userOp.paymasterAndData);
-        if (paymaster == address(0) || paymaster == magicSpend) {
-            // gas spend is prefund required by entrypoint (ignores refund for unused gas)
-            totalSpend += UserOperationLib.getRequiredPrefund(userOp);
-            // recall MagicSpend enforces withdraw to be native token when used as a paymaster
-        }
-
         // prepare expected call data for useRecurringAllowance
         bytes memory useRecurringAllowanceData = abi.encodeWithSelector(
             PermissionCallableAllowedContractNativeTokenRecurringAllowance.useRecurringAllowance.selector,
             permissionHash,
-            totalSpend
+            callsSpend,
+            UserOperationLib.getRequiredPrefund(userOp), // max possible gas cost for the userOp
+            UserOperationLib.getPaymaster(userOp.paymasterAndData)
         );
 
         // check last call is valid this.useRecurringAllowance
@@ -154,8 +147,19 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @dev State read on Manager for adding paymaster gas to total spend must happen in execution phase.
     ///
     /// @param permissionHash Hash of the permission.
-    /// @param spend Value of native token spent on calls and gas.
-    function useRecurringAllowance(bytes32 permissionHash, uint256 spend) external {
-        _useRecurringAllowance(msg.sender, permissionHash, spend);
+    /// @param callsSpend Value of native token spent on calls.
+    /// @param gasSpend Value of native token spent on gas.
+    /// @param paymaster Paymaster contract paying for this userOp or address(0) for self-sponsored.
+    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend, uint256 gasSpend, address paymaster)
+        external
+    {
+        // add gas cost if beared by the user
+        uint256 totalSpend = callsSpend;
+        if (paymaster == address(0) || paymaster == magicSpend) {
+            totalSpend += gasSpend;
+            // recall MagicSpend enforces withdraw to be native token when used as a paymaster
+        }
+
+        _useRecurringAllowance(msg.sender, permissionHash, totalSpend);
     }
 }

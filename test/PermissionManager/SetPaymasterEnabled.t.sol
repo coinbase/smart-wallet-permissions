@@ -5,6 +5,10 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {PermissionManagerBase} from "./PermissionManagerBase.sol";
 
-contract _Test is Test, PermissionManagerBase {
-    function setUp() public {}
+contract SetPaymasterEnabledTest is Test, PermissionManagerBase {
+    function setUp() public override {}
+
+    function test_setPaymasterEnabled_revert_Unauthorized() public {}
+
+    function test_setPaymasterEnabled_success() public {}
 }

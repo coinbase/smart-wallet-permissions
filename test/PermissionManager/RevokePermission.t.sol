@@ -5,6 +5,14 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {PermissionManagerBase} from "./PermissionManagerBase.sol";
 
-contract _Test is Test, PermissionManagerBase {
-    function setUp() public {}
+contract RevokePermissionTest is Test, PermissionManagerBase {
+    function setUp() public override {}
+
+    function test_revokePermission_success() public {}
+
+    function test_revokePermission_success_differentAccounts() public {}
+
+    function test_revokePermission_success_replaySameAccount() public {}
+
+    function test_revokePermission_success_batch() public {}
 }

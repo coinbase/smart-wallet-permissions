@@ -5,6 +5,16 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {PermissionManagerBase} from "./PermissionManagerBase.sol";
 
-contract _Test is Test, PermissionManagerBase {
-    function setUp() public {}
+contract RotateCosignerTest is Test, PermissionManagerBase {
+    function setUp() public override {}
+
+    function test_setPendingCosigner_revert_Unauthorized() public {}
+
+    function test_setPendingCosigner_success() public {}
+
+    function test_rotateCosigner_revert_Unauthorized() public {}
+
+    function test_rotateCosigner_revert_PendingCosignerIsZeroAddress() public {}
+
+    function test_rotateCosigner_success() public {}
 }

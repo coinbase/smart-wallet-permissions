@@ -11,4 +11,8 @@ contract InitializeRecurringAllowanceTest is Test {
     function test_initializeRecurringAllowance_success() public {}
 
     function test_initializeRecurringAllowance_success_replaySameValues() public {}
+
+    function test_initializeRecurringAllowance_success_replayNewValues() public {}
+
+    function test_getRecurringAllowance_success() public {}
 }

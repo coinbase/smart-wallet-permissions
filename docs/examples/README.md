@@ -8,7 +8,18 @@ The [smartwallet.dev](https://www.smartwallet.dev/why) docs are recommended.
 
 ### 1. Add support for permissioned user operations to call your smart contract.
 
+If you do not yet have `forge` installed, first [install the foundry toolkit](https://book.getfoundry.sh/getting-started/installation).
+
+```bash
+forge install coinbase/smart-wallet-permissions
+```
+
+After installing this codebase as a dependency in your project, simply import and inherit `PermissionCallable` into your contract and override the `supportsPermissionedCallSelector` function to allow your functions to be called by permissioned userOps.
+
 ```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.23;
+
 import {PermissionCallable} from "smart-wallet-permissions/src/utils/PermissionCallable.sol";
 
 contract Contract is PermissionCallable {
@@ -23,6 +34,6 @@ contract Contract is PermissionCallable {
 }
 ```
 
-### 2. Reach out for access to our Private Alpha on Base Sepolia.
+### 2. Reach out for help in our Discord
 
-Join our [Telegram group](https://t.me/+r3nLFnTj6spkNzdh) and post a message describing your project and intended use of Smart Wallet Permissions.
+Join our [Coinbase Developer Platform Discord](https://discord.com/invite/cdp/), join the `#smart-wallet` channel, and post a message describing your project and intended use of Smart Wallet Permissions if you encounter issues.

@@ -7,7 +7,7 @@ import {PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase as Pe
     "./PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase.sol";
 
 contract ValidatePermissionTest is Test, PermissionContractBase {
-    function setUp() public override {}
+    function setUp() public {}
 
     function test_validatePermission_revert_decodeError() public {}
 

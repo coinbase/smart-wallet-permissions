@@ -7,7 +7,7 @@ import {PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase as Pe
     "./PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase.sol";
 
 contract UseRecurringAllowanceTest is Test, PermissionContractBase {
-    function setUp() public override {}
+    function setUp() public {}
 
     function test_useRecurringAllowance_success_noPaymaster() public {}
 

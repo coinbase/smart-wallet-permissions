@@ -6,7 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {PermissionManagerBase} from "./PermissionManagerBase.sol";
 
 contract IsValidSignatureTest is Test, PermissionManagerBase {
-    function setUp() public override {}
+    function setUp() public {}
 
     function test_isValidSignature_revert_decodeAuthData() public {}
 

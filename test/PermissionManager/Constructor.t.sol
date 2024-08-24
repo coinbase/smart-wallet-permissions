@@ -6,7 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {PermissionManagerBase} from "./PermissionManagerBase.sol";
 
 contract ConstructorTest is Test, PermissionManagerBase {
-    function setUp() public override {}
+    function setUp() public {}
 
     function test_constructor_revert_NewOwnerIsZeroAddress() public {}
 

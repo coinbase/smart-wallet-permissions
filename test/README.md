@@ -12,10 +12,8 @@
 2. `PermissionManager`
    1. Can only validate signatures for ERC-4337 User Operations
       1. Only supports the same UserOp type as `CoinbaseSmartWallet` (v0.6)
-   2. Cannot update `CoinbaseSmartWallet` owners
-   3. Cannot upgrade `CoinbaseSmartWallet` implementation
-   4. Cannot make self-calls on `CoinbaseSmartWallet` as a precaution
-   5. Only returns User Operations as valid when:
+   2. Cannot make self-calls on `CoinbaseSmartWallet` to prevent updating owners or upgrading implementation.
+   3. Only returns User Operations as valid when:
       1. `PermissionManager` is not paused
       2. UserOp is signed by Permission signer ("session key")
       3. UserOp is signed by cosigner or pending cosigner (managed by Coinbase)
@@ -28,20 +26,21 @@
       10. Permission has not expired
       11. Permission is approved via storage or signature by a different owner on smart wallet
       12. Permission has not been revoked
-   6. Only owner can change owner through a 2-step process
-   7. Only owner can update paused status
-   8. Only owner can update enabled Permission Contracts
-   9. Only owner can update enabled Paymasters
-   10. Only owner can update if a Paymaster's gas spend should be added to the total spend (support potentially many `MagicSpend` contracts)
-   11. Only owner can rotate cosigners
-   12. Cosigners can be rotated without accidentally rejecting in-flight UserOps
-   13. Permissions can only be revoked by the account that it applies to
-   14. Permissions can be approved via signature or transaction
+   4. Only owner can update the owner
+      1. Supports a 2-step process where the new owner must explictly acknowledge its ownership
+   5. Only owner can update paused status
+   6. Only owner can update enabled Permission Contracts
+   7. Only owner can update enabled Paymasters
+   8. Only owner can update if a Paymaster's gas spend should be added to the total spend (support potentially many `MagicSpend` contracts)
+   9. Only owner can rotate cosigners
+   10. Cosigners can be rotated without accidentally rejecting in-flight UserOps
+   11. Permissions can only be revoked by the account that it applies to
+   12. Permissions can be approved via signature or transaction
        1. Via transaction, can only be approved by the account that it applies to or from anyone with a signature approval for that Permission from the account
        2. Via signature, can only be signed by the account itself
        3. Permissions cannot be approved if they have already been revoked
-   15. Permissions can be batch approved and revoked separately and simultaneously
-   16. Validations are 100% compliant with ERC-4337
+   13. Permissions can be batch approved and revoked separately and simultaneously
+   14. Validations are 100% compliant with [ERC-7562](https://eips.ethereum.org/EIPS/eip-7562)
 3. `NativeTokenRollingSpendLimit`
    1. Only allows spending native token up to a rolling limit
       1. Includes spending on external contract calls
@@ -51,9 +50,10 @@
    2. Allows withdrawing native token from `MagicSpend`
       1. Supports direct `withdraw` or `withdrawGasExcess` cases (used for JIT funds or as a Paymaster)
       2. Withdraws are not accounted as "spending" because they just moving assets from a users offchain account to this onchain account
-      3. Does not allow withdrawing any other tokens (e.g. ERC20/ERC721/ERC1155)
+      3. Withdraws can be made with or without immediate spending in same-operation
+      4. Does not allow withdrawing any other tokens (e.g. ERC20/ERC721/ERC1155)
    3. Besides `MagicSpend`, only allows external calls to a single allowed contract signed over by user
-      1. Also can only use a single special selector defined by `IPermissionCallable`
+      1. Also can only use a single special selector (`permissionedCall(bytes)`) defined by `IPermissionCallable`
    4. Does not allow spending other tokens (e.g. ERC20/ERC721/ERC1155)
    5. Does not allow approving or revoking permissions
    6. Validations are 100% compliant with ERC-4337

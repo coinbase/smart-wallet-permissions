@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {MagicSpend} from "magic-spend/MagicSpend.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
 import {PermissionManager} from "../PermissionManager.sol";
-import {IMagicSpend} from "../interfaces/IMagicSpend.sol";
 import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
 import {BytesLib} from "../utils/BytesLib.sol";
@@ -93,18 +93,18 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
                 // check call target is the allowed contract
                 if (call.target != values.allowedContract) revert UserOperationLib.TargetNotAllowed(call.target);
                 // assume PermissionManager already prevents account as target
-            } else if (selector == IMagicSpend.withdraw.selector) {
+            } else if (selector == MagicSpend.withdraw.selector) {
                 // check call target is MagicSpend
                 if (call.target != magicSpend) revert UserOperationLib.TargetNotAllowed(call.target);
 
                 // parse MagicSpend withdraw request
-                IMagicSpend.WithdrawRequest memory withdraw =
-                    abi.decode(BytesLib.trimSelector(calls[i].data), (IMagicSpend.WithdrawRequest));
+                MagicSpend.WithdrawRequest memory withdraw =
+                    abi.decode(BytesLib.trimSelector(calls[i].data), (MagicSpend.WithdrawRequest));
 
                 // check withdraw is native token
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset(withdraw.asset);
                 // do not need to accrue callsSpend because withdrawn value will be spent in other calls
-            } else if (selector == IMagicSpend.withdrawGasExcess.selector) {
+            } else if (selector == MagicSpend.withdrawGasExcess.selector) {
                 // check call target is MagicSpend
                 if (call.target != magicSpend) revert UserOperationLib.TargetNotAllowed(call.target);
             } else {

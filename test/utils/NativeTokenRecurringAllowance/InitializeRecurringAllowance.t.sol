@@ -3,7 +3,9 @@ pragma solidity ^0.8.23;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-contract InitializeRecurringAllowanceTest is Test {
+import {NativeTokenRecurringAllowanceBase} from "./NativeTokenRecurringAllowanceBase.sol";
+
+contract InitializeRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
     function setUp() public {}
 
     function test_initializeRecurringAllowance_revert_ZeroRecurringAllowance() public {}
@@ -11,4 +13,8 @@ contract InitializeRecurringAllowanceTest is Test {
     function test_initializeRecurringAllowance_success() public {}
 
     function test_initializeRecurringAllowance_success_replaySameValues() public {}
+
+    function test_initializeRecurringAllowance_success_replayNewValues() public {}
+
+    function test_getRecurringAllowance_success() public {}
 }

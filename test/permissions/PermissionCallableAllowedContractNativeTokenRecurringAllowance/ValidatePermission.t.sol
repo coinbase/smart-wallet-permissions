@@ -28,4 +28,6 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
     function test_validatePermission_success_withdrawGasExcess() public {}
 
     function test_validatePermission_success_batchCalls() public {}
+
+    function test_validatePermission_success_erc4337Compliance() public {}
 }

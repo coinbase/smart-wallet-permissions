@@ -232,7 +232,10 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         // check calls batch has no self-calls
         uint256 callsLen = calls.length;
         for (uint256 i = 1; i < callsLen; i++) {
-            if (calls[i].target == data.permission.account) revert UserOperationLib.TargetNotAllowed(calls[i].target);
+            // prevent account and PermissionManager direct re-entrancy
+            if (calls[i].target == data.permission.account || calls[i].target == address(this)) {
+                revert UserOperationLib.TargetNotAllowed(calls[i].target);
+            }
         }
 
         // validate permission-specific logic

@@ -10,7 +10,13 @@ contract RotateCosignerTest is Test, PermissionManagerBase {
 
     function test_setPendingCosigner_revert_Unauthorized() public {}
 
+    function test_setPendingCosigner_revert_PendingCosignerIsZeroAddress() public {}
+
     function test_setPendingCosigner_success() public {}
+
+    function test_resetPendingCosigner_revert_Unauthorized() public {}
+
+    function test_resetPendingCosigner_success() public {}
 
     function test_rotateCosigner_revert_Unauthorized() public {}
 

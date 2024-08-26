@@ -385,8 +385,15 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     ///
     /// @param newCosigner Address of new cosigner to rotate to.
     function setPendingCosigner(address newCosigner) external onlyOwner {
+        if (pendingCosigner == address(0)) revert PendingCosignerIsZeroAddress();
         pendingCosigner = newCosigner;
         emit PendingCosignerSet(newCosigner);
+    }
+
+    /// @notice Reset pending cosigner to zero address.
+    function resetPendingCosigner() external onlyOwner {
+        pendingCosigner = address(0);
+        emit PendingCosignerSet(address(0));
     }
 
     /// @notice Rotate cosigners.

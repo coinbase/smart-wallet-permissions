@@ -321,13 +321,12 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         }
 
         _isPermissionApproved[permissionHash][permission.account] = true;
+        emit PermissionApproved(permission.account, permissionHash);
 
         // initialize permission via external call to permission contract
         IPermissionContract(permission.permissionContract).initializePermission(
             permission.account, permissionHash, permission.permissionValues
         );
-
-        emit PermissionApproved(permission.account, permissionHash);
     }
 
     /// @notice Revoke a permission to disable its use indefinitely.

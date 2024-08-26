@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.23;
 
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 /// @notice Minimal interface for MagicSpend (https://github.com/coinbase/magic-spend).
 interface IMagicSpend {

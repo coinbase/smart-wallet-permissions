@@ -17,3 +17,7 @@
 [submodule "lib/smart-wallet"]
 	path = lib/smart-wallet
 	url = https://github.com/coinbase/smart-wallet
+[submodule "lib/magic-spend"]
+	path = lib/magic-spend
+	url = https://github.com/coinbase/magic-spend
+	branch = clean-imports

@@ -16,32 +16,9 @@ Permissions unlock experiences that keep all of the unique properties of wallets
 
 ## Get started
 
-> **Note**: These contracts are unaudited and are only recommended for testing purposes. Use at your own risk.
+> **Note**: These contracts are currently unaudited and are only recommended for testing purposes. Use at your own risk.
 
-### 0. Integrate Coinbase Smart Wallet into your app.
-
-The [smartwallet.dev](https://www.smartwallet.dev/why) docs are recommended.
-
-### 1. Add support for permissioned user operations to call your smart contract.
-
-```solidity
-import {PermissionCallable} from "smart-wallet-permissions/src/permissions/PermissionCallable/PermissionCallable.sol";
-
-contract Contract is PermissionCallable {
-    // define which function selectors are callable by permissioned userOps
-    function supportsPermissionedCallSelector(bytes4 selector) public pure override returns (bool) {
-        return selector == Contract.foo.selector;
-    }
-    // callable by permissioned userOps
-    function foo() external;
-    // not callable by permissioned userOps
-    function bar() external;
-}
-```
-
-### 2. Reach out for access to our Private Alpha on Base Sepolia.
-
-Join our [Telegram group](https://t.me/+r3nLFnTj6spkNzdh) and post a message describing your project and intended use of Smart Wallet Permissions.
+Read about how to [get started here](./docs/examples/).
 
 ## Sample flows
 
@@ -70,15 +47,12 @@ sequenceDiagram
     SDK-->>A: permissions with context
 ```
 
-### 2. Send calls with `permissions.context` capability
+### 2. Prepare, sign, and send calls
 
 ```mermaid
 sequenceDiagram
     autonumber
-    box transparent App
-        participant A as App Interface
-        participant SDK as Wallet SDK
-    end
+    participant A as App
     box transparent Wallet
         participant WS as Wallet Server
         participant CS as Cosigner
@@ -88,21 +62,20 @@ sequenceDiagram
         participant B as Bundler
     end
 
-    A->>SDK: wallet_sendCalls
-    SDK->>WS: wallet_prepareCalls
+    A->>WS: wallet_prepareCalls
+    Note over A,WS: permissions capability with context
     WS->>P: pm_getPaymasterStubData
     P-->>WS: paymaster stub data
     WS->>P: pm_getPaymasterData
     P-->>WS: paymaster data
-    WS-->>SDK: prepared calls with hash
-    SDK->>SDK: sign
-    SDK->>WS: wallet_sendCalls
-    Note over SDK,WS: preSigned capability with signature
+    WS-->>A: prepared calls with hash
+    A->>A: sign
+    A->>WS: wallet_sendCalls
+    Note over A,WS: preSigned capability with signature
     WS->>CS: cosign userOp
-    CS->>CS: validate userOp and sign
+    CS->>CS: validate userOp + sign
     CS-->>WS: cosignature
     WS->>B: eth_sendUserOperation
     B-->>WS: userOpHash
-    WS-->>SDK: callsId
-    SDK-->>A: callsId
+    WS-->>A: callsId
 ```

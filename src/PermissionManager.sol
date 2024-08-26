@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import {Ownable, Ownable2Step} from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
-import {Ownable} from "solady/auth/Ownable.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 
 import {IPermissionContract} from "./interfaces/IPermissionContract.sol";
@@ -18,7 +18,7 @@ import {UserOperation, UserOperationLib} from "./utils/UserOperationLib.sol";
 ///         (https://github.com/coinbase/smart-wallet).
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-contract PermissionManager is IERC1271, Ownable, Pausable {
+contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @notice Authentication data for signature validation over user operation hashes.
     struct AuthData {
         /// @dev User operation (v0.6) to validate for.
@@ -160,17 +160,13 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
 
     /// @notice Constructor.
     ///
-    /// @param newOwner Owner responsible for managing security controls.
-    /// @param newCosigner EOA responsible for cosigning user operations for abuse mitigation.
-    constructor(address newOwner, address newCosigner) Pausable() {
-        // check owner non-zero
-        if (newOwner == address(0)) revert NewOwnerIsZeroAddress();
-        _initializeOwner(newOwner);
-
+    /// @param initialOwner Owner responsible for managing security controls.
+    /// @param initialCosigner EOA responsible for cosigning user operations for abuse mitigation.
+    constructor(address initialOwner, address initialCosigner) Ownable(initialOwner) Pausable() {
         // check cosigner non-zero
-        if (newCosigner == address(0)) revert PendingCosignerIsZeroAddress();
-        cosigner = newCosigner;
-        emit CosignerRotated(address(0), newCosigner);
+        if (initialCosigner == address(0)) revert PendingCosignerIsZeroAddress();
+        cosigner = initialCosigner;
+        emit CosignerRotated(address(0), initialCosigner);
     }
 
     /// @notice Validates a permission via EIP-1271.
@@ -328,13 +324,12 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
         }
 
         _isPermissionApproved[permissionHash][permission.account] = true;
+        emit PermissionApproved(permission.account, permissionHash);
 
         // initialize permission via external call to permission contract
         IPermissionContract(permission.permissionContract).initializePermission(
             permission.account, permissionHash, permission.permissionValues
         );
-
-        emit PermissionApproved(permission.account, permissionHash);
     }
 
     /// @notice Revoke a permission to disable its use indefinitely.
@@ -393,8 +388,15 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     ///
     /// @param newCosigner Address of new cosigner to rotate to.
     function setPendingCosigner(address newCosigner) external onlyOwner {
+        if (pendingCosigner == address(0)) revert PendingCosignerIsZeroAddress();
         pendingCosigner = newCosigner;
         emit PendingCosignerSet(newCosigner);
+    }
+
+    /// @notice Reset pending cosigner to zero address.
+    function resetPendingCosigner() external onlyOwner {
+        pendingCosigner = address(0);
+        emit PendingCosignerSet(address(0));
     }
 
     /// @notice Rotate cosigners.
@@ -418,7 +420,7 @@ contract PermissionManager is IERC1271, Ownable, Pausable {
     /// @notice Renounce ownership of this contract.
     ///
     /// @dev Overidden to always revert to prevent accidental renouncing.
-    function renounceOwnership() public payable override onlyOwner {
+    function renounceOwnership() public view override onlyOwner {
         revert CannotRenounceOwnership();
     }
 }

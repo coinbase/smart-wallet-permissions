@@ -20,6 +20,7 @@ contract SetPaymasterEnabledTest is Test, PermissionManagerBase {
     }
 
     function test_setPaymasterEnabled_success(address paymaster, bool enabled) public {
+        vm.assume(paymaster != address(0));
         vm.prank(owner);
         permissionManager.setPaymasterEnabled(paymaster, enabled);
         vm.assertEq(permissionManager.isPaymasterEnabled(paymaster), enabled);

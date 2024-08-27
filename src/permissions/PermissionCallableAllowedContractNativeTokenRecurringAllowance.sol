@@ -7,8 +7,8 @@ import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 import {PermissionManager} from "../PermissionManager.sol";
 import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
+import {NativeTokenRecurringAllowance} from "../mixins/NativeTokenRecurringAllowance.sol";
 import {BytesLib} from "../utils/BytesLib.sol";
-import {NativeTokenRecurringAllowance} from "../utils/NativeTokenRecurringAllowance.sol";
 import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 
 /// @title PermissionCallableAllowedContractNativeTokenRecurringAllowance

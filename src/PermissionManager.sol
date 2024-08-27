@@ -243,6 +243,25 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         return EIP1271_MAGIC_VALUE;
     }
 
+    /// @notice Hash a Permission struct for signing.
+    ///
+    /// @dev Important that this hash cannot be phished via EIP-191/712 or other method.
+    ///
+    /// @param permission Struct to hash.
+    function hashPermission(Permission memory permission) public view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                permission.account,
+                block.chainid,
+                permission.expiry,
+                keccak256(permission.signer),
+                permission.permissionContract,
+                keccak256(permission.permissionValues),
+                address(this) // verifyingContract
+            )
+        );
+    }
+
     /// @notice Verify if permission is approved via storage or approval signature.
     ///
     /// @param permission Fields of the permission (struct).
@@ -342,25 +361,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         isPermissionRevoked[permissionHash][msg.sender] = true;
         emit PermissionRevoked(msg.sender, permissionHash);
-    }
-
-    /// @notice Hash a Permission struct for signing.
-    ///
-    /// @dev Important that this hash cannot be phished via EIP-191/712 or other method.
-    ///
-    /// @param permission Struct to hash.
-    function hashPermission(Permission memory permission) public view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                permission.account,
-                block.chainid,
-                permission.expiry,
-                keccak256(permission.signer),
-                permission.permissionContract,
-                keccak256(permission.permissionValues),
-                address(this) // verifyingContract
-            )
-        );
     }
 
     /// @notice Set permission contract enabled status.

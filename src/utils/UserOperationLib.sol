@@ -32,6 +32,11 @@ library UserOperationLib {
     /// @param selector Function selector of a call.
     error SelectorNotAllowed(bytes4 selector);
 
+    /// @notice Call value not allowed.
+    ///
+    /// @param value Value of a call.
+    error ValueNotAllowed(uint256 value);
+
     /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas.
     ///
     /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process.

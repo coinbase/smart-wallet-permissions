@@ -40,6 +40,7 @@ contract RotateCosignerTest is Test, PermissionManagerBase {
     }
 
     function test_resetPendingCosigner_success(address newCosigner) public {
+        vm.assume(newCosigner != address(0));
         vm.startPrank(owner);
         permissionManager.setPendingCosigner(newCosigner);
         permissionManager.resetPendingCosigner();
@@ -66,6 +67,7 @@ contract RotateCosignerTest is Test, PermissionManagerBase {
     }
 
     function test_rotateCosigner_success(address newCosigner) public {
+        vm.assume(newCosigner != address(0));
         vm.startPrank(owner);
         permissionManager.setPendingCosigner(newCosigner);
         permissionManager.rotateCosigner();

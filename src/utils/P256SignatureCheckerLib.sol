@@ -13,6 +13,7 @@ import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
+/// NOTE: I don't think there's much in here from solady, if anything 
 library P256SignatureCheckerLib {
     /// @notice Thrown when a provided signer is neither 64 bytes long (for public key)
     ///         nor a ABI encoded address.

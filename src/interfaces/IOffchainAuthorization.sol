@@ -4,6 +4,8 @@ pragma solidity ^0.8.23;
 /// @title IOffchainAuthorization
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
+/// NIT should all of this be in some like permissionCallableExample folder or something? 
+/// This feels very specific to some example contracts and not general? 
 interface IOffchainAuthorization {
     /// @notice Indicate if an offchain request comes from a signer authorized by this contract.
     enum Authorization {

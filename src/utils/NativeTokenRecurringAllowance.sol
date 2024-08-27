@@ -8,6 +8,8 @@ pragma solidity ^0.8.23;
 /// @dev Allowance and spend values capped at uint160 ~ 1e48.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
+/// NIT: is this a util? I don't think this and PermissionCallable should be in this folder? 
+/// maybe baseContracts or something ? 
 abstract contract NativeTokenRecurringAllowance {
     /// @notice Recurring allowance parameters.
     struct RecurringAllowance {

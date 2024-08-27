@@ -17,6 +17,7 @@ interface IPermissionContract {
         view;
 
     /// @notice Initialize the permission fields.
+    /// NOTE can you say more here ^ 
     ///
     /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.

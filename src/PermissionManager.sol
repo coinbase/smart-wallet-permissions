@@ -20,33 +20,38 @@ import {UserOperation, UserOperationLib} from "./utils/UserOperationLib.sol";
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @notice Authentication data for signature validation over user operation hashes.
+    /// NOTE: I find AuthData kinda a confusing name. Should it be like CallSpecification or something? 
+    /// wasn't immediately obvious to me we needed this per call. 
     struct AuthData {
         /// @dev User operation (v0.6) to validate for.
         UserOperation userOp;
-        /// @dev Signature over user operation from permission signer.
+        /// @dev `Permission.signer` signature of user operation hash.
         bytes userOpSignature;
-        /// @dev Cosignature over user operation from cosigner.
+        /// @dev `this.cosigner` signature of user operation hash.
         bytes userOpCosignature;
-        /// @dev Permission details, approved by user i.e. smart wallet
+        /// @dev Permission details
         Permission permission;
     }
 
-    /// @notice A time-bound permission over an account given to an external signer.
+    /// @notice A limited permission for an external signer to use an account.
     struct Permission {
-        /// @dev Smart wallet address this permission is valid for.
+        /// @dev smart account address this permission is valid for.
         address account;
         /// @dev Chain this permision is valid for.
         uint256 chainId;
-        /// @dev Unix timestamp this permission is valid until.
+        /// @dev Unix timestamp in seconds this permission is valid until.
         uint48 expiry;
-        /// @dev Non-account entity given permission to sign user operations.
-        /// @dev Supports Ethereum addresses (EOA, smart contract) and P256 public keys (passkey, cryptokey).
+        /// @dev The entity that has limited control of `account` in this Permission. 
+        /// @dev Supports abi-encoded Ethereum addresses (EOA, smart contract) and P256 public keys (passkey, cryptokey).
         bytes signer;
         /// @dev External contract to verify specific permission logic.
+        /// NOTE: Maybe permissionValidator or something? 
         address permissionContract;
         /// @dev Permission-specific values sent to permissionContract for validation.
+        /// NOTE: Should this be permissionData ? 
         bytes permissionValues;
         /// @dev Manager contract that verifies permissions for replay protection across potential future managers.
+        /// NOTE: hmmm not sure i understand this. 
         address verifyingContract;
         /// @dev Optional signature from account owner proving a permission is approved.
         bytes approval;
@@ -56,6 +61,8 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
 
     /// @notice Second-factor signer owned by Coinbase, required to have approval for each userOp.
+    /// >  signer owned by Coinbase --- should we specify this more generically? A co-signer which must 
+    /// sign all permission calls for them to be considered valid 
     address public cosigner;
 
     /// @notice Pending cosigner for a two-step rotation to limit failed userOps during rotation.
@@ -71,15 +78,15 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @dev Storage not keyable by account, can only be accessed in execution phase.
     mapping(address paymaster => bool enabled) public isPaymasterEnabled;
 
-    /// @notice Track if permissions are approved by accounts via transactions.
-    ///
-    /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
-    mapping(bytes32 permissionHash => mapping(address account => bool approved)) internal _isPermissionApproved;
-
     /// @notice Track if permissions are revoked by accounts.
     ///
     /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
     mapping(bytes32 permissionHash => mapping(address account => bool revoked)) public isPermissionRevoked;
+
+    /// @notice Track if permissions are approved by accounts via transactions.
+    ///
+    /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
+    mapping(bytes32 permissionHash => mapping(address account => bool approved)) internal _isPermissionApproved;
 
     /// @notice Permission is revoked.
     ///
@@ -166,12 +173,14 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         // check cosigner non-zero
         if (initialCosigner == address(0)) revert PendingCosignerIsZeroAddress();
         cosigner = initialCosigner;
+        // NOTE: Is there an internal method that emits this same event which we could call? If not, should we factor out? 
         emit CosignerRotated(address(0), initialCosigner);
     }
 
     /// @notice Validates a permission via EIP-1271.
     ///
     /// @dev Assumes called by CoinbaseSmartWallet where this contract is an owner.
+    /// NOTE which parts assumes CoinbaseSmartWallet ? 
     /// @dev All accessed storage must be nested by account address to pass ERC-4337 constraints.
     ///
     /// @param userOpHash Hash of user operation signed by permission signer.
@@ -191,12 +200,14 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         }
 
         // check permission not revoked
+        /// NOTE: Should revoke check go in isPermissionApproved?
         if (isPermissionRevoked[permissionHash][data.permission.account]) revert RevokedPermission(permissionHash);
 
         // check permission approved
         if (!isPermissionApproved(data.permission)) revert InvalidPermissionApproval();
 
         // check permission signer signed userOpHash
+        /// NOTE: I don't think P256SignatureCheckerLib is accurate given it also supports secp256k1 signatures, and 1271 generally? 
         if (!P256SignatureCheckerLib.isValidSignatureNow(userOpHash, data.userOpSignature, data.permission.signer)) {
             revert InvalidSignature();
         }
@@ -206,6 +217,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         if (paymaster == address(0)) revert DisabledPaymaster(address(0));
 
         // parse cosigner from cosignature
+        // NOTE: should this be specified or should we assume it must be the cosigner that we have stored?
         address userOpCosigner = ECDSA.recover(userOpHash, data.userOpCosignature);
 
         // check userOp.callData is `executeBatch`
@@ -229,6 +241,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         uint256 callsLen = calls.length;
         for (uint256 i = 1; i < callsLen; i++) {
             // prevent account and PermissionManager direct re-entrancy
+            // NOTE what would be the consequence of this? :thinking
             if (calls[i].target == data.permission.account || calls[i].target == address(this)) {
                 revert UserOperationLib.TargetNotAllowed(calls[i].target);
             }
@@ -268,6 +281,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     ///
     /// @return approved True if permission is approved.
     function isPermissionApproved(Permission memory permission) public view returns (bool) {
+        /// NOTE: this should return false if revoked?
         bytes32 permissionHash = hashPermission(permission);
 
         // check if approval storage has been set, i.e. permission has been used
@@ -291,6 +305,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param permission Details of the permission.
     /// @param paymaster Paymaster contract address.
     /// @param userOpCosigner Address of recovered cosigner from cosignature in validation phase.
+    /// NOTE: Should be above view functions 
     function beforeCalls(Permission calldata permission, address paymaster, address userOpCosigner)
         external
         whenNotPaused
@@ -307,6 +322,9 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         if (!isPaymasterEnabled[paymaster]) revert DisabledPaymaster(paymaster);
 
         // check userOpCosigner is cosigner or pendingCosigner
+        // NOTE: hmm do we really need to solve for pending cosigner :thinking. 
+        // I guess we could have lots of inflight transactions that suddendly stop working. Need to think about how 
+        // we would do this hand over 
         if (userOpCosigner != cosigner && userOpCosigner != pendingCosigner) revert InvalidCosigner(userOpCosigner);
 
         // approve permission to cache storage for cheaper execution on future use
@@ -320,6 +338,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @dev This can be called by anyone after an approval signature has been used for gas optimization.
     ///
     /// @param permission Details of the permission.
+    /// NOTE: should be above view functions 
     function approvePermission(Permission calldata permission) public {
         bytes32 permissionHash = hashPermission(permission);
 
@@ -386,6 +405,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @notice Add pending cosigner.
     ///
     /// @param newCosigner Address of new cosigner to rotate to.
+    /// NOTE: Should we have used some off the shelf roles contract so that we didn't have to roll our own? 
     function setPendingCosigner(address newCosigner) external onlyOwner {
         if (pendingCosigner == address(0)) revert PendingCosignerIsZeroAddress();
         pendingCosigner = newCosigner;
@@ -393,14 +413,17 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     }
 
     /// @notice Reset pending cosigner to zero address.
+    /// NOTE: should pending cosigner be able to call this? 
     function resetPendingCosigner() external onlyOwner {
         pendingCosigner = address(0);
         emit PendingCosignerSet(address(0));
     }
 
     /// @notice Rotate cosigners.
+    /// NOTE: rotate is confusing, can we call this like acceptPendingCosigner 
     function rotateCosigner() external onlyOwner {
         if (pendingCosigner == address(0)) revert PendingCosignerIsZeroAddress();
+        // NOTE: why event before setting state? Seems non idiomatic 
         emit CosignerRotated(cosigner, pendingCosigner);
         cosigner = pendingCosigner;
         pendingCosigner = address(0);

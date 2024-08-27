@@ -26,6 +26,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     NativeTokenRecurringAllowance
 {
     /// @notice Permission-specific values for this permission contract.
+    /// NOTE PermissionValues kinda vague, maybe PermissionDetails a little more clear?  
     struct PermissionValues {
         /// @dev Recurring native token allowance value (struct).
         RecurringAllowance recurringAllowance;
@@ -104,7 +105,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset(withdraw.asset);
                 // do not need to accrue callsSpend because withdrawn value will be spent in other calls
             } else if (call.data.length == 0) {
-                // only allow direct ETH transfer for debiting paymaster (optional)
+                // only allow direct ETH transfer for crediting paymaster (optional)
 
                 // check call target is paymaster
                 if (call.target != UserOperationLib.getPaymaster(userOp.paymasterAndData)) {
@@ -130,7 +131,8 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
             callsSpend
         );
 
-        // check last call is valid this.useRecurringAllowance
+        /// Should we have a convenience view function that takes an array of calls 
+        /// and adds the state and end calls needed? 
         CoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
         if (lastCall.target != address(this) || !BytesLib.eq(lastCall.data, useRecurringAllowanceData)) {
             revert InvalidUseRecurringAllowanceCall();
@@ -159,7 +161,11 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     ///
     /// @param permissionHash Hash of the permission.
     /// @param callsSpend Value of native token spent on calls.
+    /// Hmm if I'm an app and can trick a user into calling this function, 
+    /// I can mess up the permissions for any session key? 
     function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend) external {
+        /// Goes for whole code base: named arugments would help for clarity 
+        /// https://github.com/coinbase/solidity-style-guide?tab=readme-ov-file#b-prefer-named-arguments
         _useRecurringAllowance(msg.sender, permissionHash, callsSpend);
     }
 }

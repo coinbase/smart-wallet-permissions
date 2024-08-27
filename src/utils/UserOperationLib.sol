@@ -12,6 +12,7 @@ import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 library UserOperationLib {
     address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
+    /// NOTE: Why do we define errors here? it looks like they are only used in one file, and they are not used here? 
     /// @notice UserOperation does not match provided hash.
     ///
     /// @param userOpHash Hash of the user operation.
@@ -41,6 +42,8 @@ library UserOperationLib {
     ///
     /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process.
     /// @dev Implementation forked from
+    /// NIT: user permalink 
+    /// https://github.com/eth-infinitism/account-abstraction/blob/fa61290d37d079e928d92d53a122efcc63822214/contracts/core/EntryPoint.sol#L325
     ///      https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.6/contracts/core/EntryPoint.sol#L325
     ///
     /// @param userOp User operation struct.
@@ -72,6 +75,7 @@ library UserOperationLib {
     ///
     /// @return paymaster Address of contract or address(0) if no paymaster used.
     function getPaymaster(bytes memory paymasterAndData) internal pure returns (address paymaster) {
+        /// note: do you need this conditional? wouldn't it return address(0) either way? 
         return paymasterAndData.length == 0 ? address(0) : address(bytes20(paymasterAndData));
     }
 }

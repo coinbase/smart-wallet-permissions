@@ -12,14 +12,14 @@ contract PauseTest is Test, PermissionManagerBase {
         _initializePermissionManager();
     }
 
-    function test_pause_revert_unauthorized(address sender) public {
+    function test_pause_revert_notOwner(address sender) public {
         vm.assume(sender != owner);
         vm.startPrank(sender);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, sender));
         permissionManager.pause();
     }
 
-    function test_pause_revert_paused() public {
+    function test_pause_revert_alreadyPaused() public {
         vm.startPrank(owner);
 
         permissionManager.pause();
@@ -35,14 +35,14 @@ contract PauseTest is Test, PermissionManagerBase {
         vm.assertEq(permissionManager.paused(), true);
     }
 
-    function test_unpause_revert_unauthorized(address sender) public {
+    function test_unpause_revert_notOwner(address sender) public {
         vm.assume(sender != owner);
         vm.startPrank(sender);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, sender));
         permissionManager.unpause();
     }
 
-    function test_unpause_revert_unpaused() public {
+    function test_unpause_revert_alreadyUnpaused() public {
         vm.startPrank(owner);
 
         vm.expectRevert(abi.encodeWithSelector(Pausable.ExpectedPause.selector));

@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
+import {SignatureCheckerLib as EthereumAddressSignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
-/// @title P256SignatureCheckerLib
+/// @title SignatureCheckerLib
 ///
-/// @notice Verify signatures for ethereum addresses (EOAs, smart contracts) and secp256r1 keys (passkeys, cryptokeys).
+/// @notice Verify signatures for Ethereum addresses (EOAs, smart contracts) and secp256r1 keys (passkeys, cryptokeys).
 /// @notice Forked from official implementation in Coinbase Smart Wallet.
 ///
-/// @dev Wraps SignatureCheckerLib and WebAuthn.
+/// @dev Wraps Solady SignatureCheckerLib and Base WebAuthn.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-/// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
-library P256SignatureCheckerLib {
+library SignatureCheckerLib {
     /// @notice Thrown when a provided signer is neither 64 bytes long (for public key)
     ///         nor a ABI encoded address.
     ///
@@ -35,7 +34,7 @@ library P256SignatureCheckerLib {
         view
         returns (bool)
     {
-        // signer is an ethereum address (EOA or smart contract)
+        // signer is an Ethereum address (EOA or smart contract)
         if (signerBytes.length == 32) {
             if (uint256(bytes32(signerBytes)) > type(uint160).max) {
                 // technically should be impossible given signers can only be added with
@@ -48,7 +47,7 @@ library P256SignatureCheckerLib {
                 signer := mload(add(signerBytes, 32))
             }
 
-            return SignatureCheckerLib.isValidSignatureNow(signer, hash, signature);
+            return EthereumAddressSignatureCheckerLib.isValidSignatureNow(signer, hash, signature);
         }
 
         // signer is a secp256r1 key using WebAuthn

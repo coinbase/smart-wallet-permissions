@@ -107,7 +107,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
                 // only allow direct ETH transfer for refunding paymaster (optional)
 
                 // check call target is paymaster
-                if (call.target != UserOperationLib.getPaymaster(userOp.paymasterAndData)) {
+                if (call.target != address(bytes20(userOp.paymasterAndData))) {
                     revert UserOperationLib.TargetNotAllowed(call.target);
                 }
 

@@ -9,7 +9,7 @@ import {ECDSA} from "solady/utils/ECDSA.sol";
 
 import {IPermissionContract} from "./interfaces/IPermissionContract.sol";
 import {BytesLib} from "./utils/BytesLib.sol";
-import {P256SignatureCheckerLib} from "./utils/P256SignatureCheckerLib.sol";
+import {SignatureCheckerLib} from "./utils/SignatureCheckerLib.sol";
 import {UserOperation, UserOperationLib} from "./utils/UserOperationLib.sol";
 
 /// @title PermissionManager
@@ -339,12 +339,12 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         if (!isPermissionApproved(data.permission)) revert InvalidPermissionApproval();
 
         // check permission signer signed userOpHash
-        if (!P256SignatureCheckerLib.isValidSignatureNow(userOpHash, data.userOpSignature, data.permission.signer)) {
+        if (!SignatureCheckerLib.isValidSignatureNow(userOpHash, data.userOpSignature, data.permission.signer)) {
             revert InvalidSignature();
         }
 
         // check paymaster is being used, i.e. non-zero
-        address paymaster = UserOperationLib.getPaymaster(data.userOp.paymasterAndData);
+        address paymaster = address(bytes20(data.userOp.paymasterAndData));
         if (paymaster == address(0)) revert DisabledPaymaster(address(0));
 
         // parse cosigner from cosignature

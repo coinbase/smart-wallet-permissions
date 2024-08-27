@@ -126,7 +126,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
         // check last call is valid this.useRecurringAllowance
         CoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
-        if (lastCall.target != address(this) || BytesLib.eq(lastCall.data, useRecurringAllowanceData)) {
+        if (lastCall.target != address(this) || !BytesLib.eq(lastCall.data, useRecurringAllowanceData)) {
             revert InvalidUseRecurringAllowanceCall();
         }
     }

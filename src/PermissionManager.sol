@@ -221,7 +221,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         );
 
         // check first call is valid self.beforeCalls
-        if (calls[0].target != address(this) || BytesLib.eq(calls[0].data, beforeCallsData)) {
+        if (calls[0].target != address(this) || !BytesLib.eq(calls[0].data, beforeCallsData)) {
             revert InvalidBeforeCallsCall();
         }
 

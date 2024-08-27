@@ -54,6 +54,9 @@ abstract contract NativeTokenRecurringAllowance {
     /// @param allowance Allowance value that was exceeded.
     error ExceededRecurringAllowance(uint256 spend, uint256 allowance);
 
+    /// @notice Call to useRecurringAllowance not made on self or with invalid data.
+    error InvalidUseRecurringAllowanceCall();
+
     /// @notice Register native token spend for a permission
     ///
     /// @param account Account of the permission.

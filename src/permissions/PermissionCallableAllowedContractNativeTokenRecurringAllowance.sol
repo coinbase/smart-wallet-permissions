@@ -8,6 +8,7 @@ import {PermissionManager} from "../PermissionManager.sol";
 import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
 import {NativeTokenRecurringAllowance} from "../mixins/NativeTokenRecurringAllowance.sol";
+import {RefundPaymaster} from "../mixins/RefundPaymaster.sol";
 import {BytesLib} from "../utils/BytesLib.sol";
 import {CallErrors} from "../utils/CallErrors.sol";
 import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
@@ -24,7 +25,8 @@ import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     IPermissionContract,
-    NativeTokenRecurringAllowance
+    NativeTokenRecurringAllowance,
+    RefundPaymaster
 {
     /// @notice Permission-specific values for this permission contract.
     struct PermissionValues {
@@ -47,9 +49,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     ///
     /// @param asset Address of asset for MagicSpend withdraw request.
     error InvalidWithdrawAsset(address asset);
-
-    /// @notice Call to useRecurringAllowance not made on self or with invalid data.
-    error InvalidUseRecurringAllowanceCall();
 
     /// @notice Constructor.
     ///
@@ -85,6 +84,16 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @param callsSpend Value of native token spent on calls.
     function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend) external {
         _useRecurringAllowance({account: msg.sender, permissionHash: permissionHash, spend: callsSpend});
+    }
+
+    /// @notice Refund paymaster in native token.
+    ///
+    /// @dev Native token lockout is prevented by requiring the paymaster to accept the refund.
+    ///
+    /// @param paymaster Paymaster contract address to refund.
+    /// @param userOpHash User operation hash the refund took place in.
+    function refundPaymaster(address paymaster, bytes32 userOpHash) external payable {
+        _refundPaymaster({paymaster: paymaster, userOpHash: userOpHash, account: msg.sender, value: msg.value});
     }
 
     /// @notice Validate the permission to execute a userOp.

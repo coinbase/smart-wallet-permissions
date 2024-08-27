@@ -34,8 +34,11 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         address allowedContract;
     }
 
-    /// @notice Sender for intializePermission was not permission manager.
-    error InvalidInitializePermissionSender();
+    /// @notice PermissionManager singleton.
+    address public immutable permissionManager;
+
+    /// @notice MagicSpend singleton.
+    address public immutable magicSpend;
 
     /// @notice MagicSpend withdraw asset is not native token.
     ///
@@ -45,12 +48,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @notice Call to useRecurringAllowance not made on self or with invalid data.
     error InvalidUseRecurringAllowanceCall();
 
-    /// @notice PermissionManager singleton.
-    address public immutable permissionManager;
-
-    /// @notice MagicSpend singleton.
-    address public immutable magicSpend;
-
     /// @notice Constructor.
     ///
     /// @param permissionManager_ Contract address for PermissionManager.
@@ -58,6 +55,33 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     constructor(address permissionManager_, address magicSpend_) {
         permissionManager = permissionManager_;
         magicSpend = magicSpend_;
+    }
+
+    /// @notice Initialize the permission values.
+    ///
+    /// @dev Called by permission manager on approval transaction.
+    ///
+    /// @param account Account of the permission.
+    /// @param permissionHash Hash of the permission.
+    /// @param permissionValues Permission-specific values for this permission contract.
+    function initializePermission(address account, bytes32 permissionHash, bytes calldata permissionValues) external {
+        (PermissionValues memory values) = abi.decode(permissionValues, (PermissionValues));
+
+        // check sender is permission manager
+        if (msg.sender != permissionManager) revert InvalidInitializePermissionSender(msg.sender);
+
+        _initializeRecurringAllowance(account, permissionHash, values.recurringAllowance);
+    }
+
+    /// @notice Register a spend of native token for a given permission.
+    ///
+    /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS vector.
+    ///      Users can only impact themselves though because storage for allowances is keyed by account (msg.sender).
+    ///
+    /// @param permissionHash Hash of the permission.
+    /// @param callsSpend Value of native token spent on calls.
+    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend) external {
+        _useRecurringAllowance({account: msg.sender, permissionHash: permissionHash, spend: callsSpend});
     }
 
     /// @notice Validate the permission to execute a userOp.
@@ -136,32 +160,5 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         if (lastCall.target != address(this) || !BytesLib.eq(lastCall.data, useRecurringAllowanceData)) {
             revert InvalidUseRecurringAllowanceCall();
         }
-    }
-
-    /// @notice Initialize the permission values.
-    ///
-    /// @dev Called by permission manager on approval transaction.
-    ///
-    /// @param account Account of the permission.
-    /// @param permissionHash Hash of the permission.
-    /// @param permissionValues Permission-specific values for this permission contract.
-    function initializePermission(address account, bytes32 permissionHash, bytes calldata permissionValues) external {
-        (PermissionValues memory values) = abi.decode(permissionValues, (PermissionValues));
-
-        // check sender is permission manager
-        if (msg.sender != permissionManager) revert InvalidInitializePermissionSender();
-
-        _initializeRecurringAllowance(account, permissionHash, values.recurringAllowance);
-    }
-
-    /// @notice Register a spend of native token for a given permission.
-    ///
-    /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS vector.
-    ///      Users can only impact themselves though because storage for allowances is keyed by account (msg.sender).
-    ///
-    /// @param permissionHash Hash of the permission.
-    /// @param callsSpend Value of native token spent on calls.
-    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend) external {
-        _useRecurringAllowance(msg.sender, permissionHash, callsSpend);
     }
 }

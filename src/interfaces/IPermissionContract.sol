@@ -7,6 +7,9 @@ import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 interface IPermissionContract {
+    /// @notice Sender for intializePermission was not permission manager.
+    error InvalidInitializePermissionSender(address sender);
+
     /// @notice Validate the permission to execute a userOp.
     ///
     /// @param permissionHash Hash of the permission.

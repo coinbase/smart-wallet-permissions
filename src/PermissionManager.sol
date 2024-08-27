@@ -9,6 +9,7 @@ import {ECDSA} from "solady/utils/ECDSA.sol";
 
 import {IPermissionContract} from "./interfaces/IPermissionContract.sol";
 import {BytesLib} from "./utils/BytesLib.sol";
+import {CallErrors} from "./utils/CallErrors.sol";
 import {SignatureCheckerLib} from "./utils/SignatureCheckerLib.sol";
 import {UserOperation, UserOperationLib} from "./utils/UserOperationLib.sol";
 
@@ -352,7 +353,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         // check userOp.callData is `executeBatch`
         if (bytes4(data.userOp.callData) != CoinbaseSmartWallet.executeBatch.selector) {
-            revert UserOperationLib.SelectorNotAllowed(bytes4(data.userOp.callData));
+            revert CallErrors.SelectorNotAllowed(bytes4(data.userOp.callData));
         }
 
         CoinbaseSmartWallet.Call[] memory calls =
@@ -372,7 +373,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         for (uint256 i = 1; i < callsLen; i++) {
             // prevent account and PermissionManager direct re-entrancy
             if (calls[i].target == data.permission.account || calls[i].target == address(this)) {
-                revert UserOperationLib.TargetNotAllowed(calls[i].target);
+                revert CallErrors.TargetNotAllowed(calls[i].target);
             }
         }
 

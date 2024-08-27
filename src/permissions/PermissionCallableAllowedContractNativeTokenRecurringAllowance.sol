@@ -9,6 +9,7 @@ import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
 import {NativeTokenRecurringAllowance} from "../mixins/NativeTokenRecurringAllowance.sol";
 import {BytesLib} from "../utils/BytesLib.sol";
+import {CallErrors} from "../utils/CallErrors.sol";
 import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 
 /// @title PermissionCallableAllowedContractNativeTokenRecurringAllowance
@@ -90,11 +91,11 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
             if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
-                if (call.target != values.allowedContract) revert UserOperationLib.TargetNotAllowed(call.target);
+                if (call.target != values.allowedContract) revert CallErrors.TargetNotAllowed(call.target);
                 // assume PermissionManager already prevents account as target
             } else if (selector == MagicSpend.withdraw.selector) {
                 // check call target is MagicSpend
-                if (call.target != magicSpend) revert UserOperationLib.TargetNotAllowed(call.target);
+                if (call.target != magicSpend) revert CallErrors.TargetNotAllowed(call.target);
 
                 // parse MagicSpend withdraw request
                 MagicSpend.WithdrawRequest memory withdraw =
@@ -108,15 +109,15 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
                 // check call target is paymaster
                 if (call.target != address(bytes20(userOp.paymasterAndData))) {
-                    revert UserOperationLib.TargetNotAllowed(call.target);
+                    revert CallErrors.TargetNotAllowed(call.target);
                 }
 
                 // check call value is less than or equal to max gas cost
                 if (call.value > UserOperationLib.getRequiredPrefund(userOp)) {
-                    revert UserOperationLib.ValueNotAllowed(call.value);
+                    revert CallErrors.ValueNotAllowed(call.value);
                 }
             } else {
-                revert UserOperationLib.SelectorNotAllowed(selector);
+                revert CallErrors.SelectorNotAllowed(selector);
             }
 
             // accumulate spend value

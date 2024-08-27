@@ -12,21 +12,6 @@ import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 library UserOperationLib {
     address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
-    /// @notice Call target not allowed.
-    ///
-    /// @param target Address target of a call.
-    error TargetNotAllowed(address target);
-
-    /// @notice Call function selector not allowed.
-    ///
-    /// @param selector Function selector of a call.
-    error SelectorNotAllowed(bytes4 selector);
-
-    /// @notice Call value not allowed.
-    ///
-    /// @param value Value of a call.
-    error ValueNotAllowed(uint256 value);
-
     /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas.
     ///
     /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process.

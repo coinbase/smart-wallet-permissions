@@ -25,10 +25,10 @@ contract ApprovePermissionTest is Test, PermissionManagerBase {
         permission.approval = approval;
 
         vm.startPrank(sender);
-        vm.expectRevert(abi.encodeWithSelector(PermissionManager.InvalidPermissionApproval.selector));
+        vm.expectRevert(abi.encodeWithSelector(PermissionManager.UnauthorizedPermission.selector));
         permissionManager.approvePermission(permission);
 
-        vm.assertEq(permissionManager.isPermissionApproved(permission), false);
+        vm.assertEq(permissionManager.isPermissionAuthorized(permission), false);
     }
 
     function test_approvePermission_success_senderIsAccount() public {
@@ -40,9 +40,9 @@ contract ApprovePermissionTest is Test, PermissionManagerBase {
         emit PermissionManager.PermissionApproved(address(account), permissionHash);
         permissionManager.approvePermission(permission);
 
-        vm.assertEq(permissionManager.isPermissionApproved(permission), true);
+        vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
         permission.approval = hex"";
-        vm.assertEq(permissionManager.isPermissionApproved(permission), true);
+        vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
     }
 
     function test_approvePermission_success_validApprovalSignature(address sender) public {
@@ -64,9 +64,9 @@ contract ApprovePermissionTest is Test, PermissionManagerBase {
         emit PermissionManager.PermissionApproved(address(account), permissionHash);
         permissionManager.approvePermission(permission);
 
-        vm.assertEq(permissionManager.isPermissionApproved(permission), true);
+        vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
         permission.approval = hex"";
-        vm.assertEq(permissionManager.isPermissionApproved(permission), true);
+        vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
     }
 
     function test_approvePermission_success_replay() public {
@@ -78,9 +78,9 @@ contract ApprovePermissionTest is Test, PermissionManagerBase {
         emit PermissionManager.PermissionApproved(address(account), permissionHash);
         permissionManager.approvePermission(permission);
 
-        vm.assertEq(permissionManager.isPermissionApproved(permission), true);
+        vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
         permission.approval = hex"";
-        vm.assertEq(permissionManager.isPermissionApproved(permission), true);
+        vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
 
         // no revert on replay approval
         permissionManager.approvePermission(permission);

@@ -419,7 +419,8 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         }
 
         // fallback check permission approved via signature
-        return IERC1271(permission.account).isValidSignature(permissionHash, permission.approval) == EIP1271_MAGIC_VALUE;
+        return permission.approval.length != 0
+            && IERC1271(permission.account).isValidSignature(permissionHash, permission.approval) == EIP1271_MAGIC_VALUE;
     }
 
     /// @notice Set new pending cosigner.

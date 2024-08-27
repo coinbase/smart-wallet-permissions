@@ -7,7 +7,7 @@ import {Multicall} from "openzeppelin-contracts/contracts/utils/Multicall.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
 import {IOffchainAuthorization} from "../../src/interfaces/IOffchainAuthorization.sol";
-import {PermissionCallable} from "../../src/utils/PermissionCallable.sol";
+import {PermissionCallable} from "../../src/mixins/PermissionCallable.sol";
 
 interface IFriendTech {
     function buyShares(uint256 id, uint256 value) external payable;

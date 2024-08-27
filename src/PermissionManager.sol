@@ -74,7 +74,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @notice Track if permissions are revoked by accounts.
     ///
     /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
-    mapping(bytes32 permissionHash => mapping(address account => bool revoked)) public isPermissionRevoked;
+    mapping(bytes32 permissionHash => mapping(address account => bool revoked)) internal _isPermissionRevoked;
 
     /// @notice Track if permissions are approved by accounts via transactions.
     ///
@@ -91,8 +91,8 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param sender Account that the user operation is made from.
     error InvalidUserOperationSender(address sender);
 
-    /// @notice PermissionApproval is invalid
-    error InvalidPermissionApproval();
+    /// @notice Permission is unauthorized by either revocation or lack of approval.
+    error UnauthorizedPermission();
 
     /// @notice Invalid signature.
     error InvalidSignature();
@@ -230,7 +230,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
                         == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
             )
         ) {
-            revert InvalidPermissionApproval();
+            revert UnauthorizedPermission();
         }
 
         _isPermissionApproved[permissionHash][permission.account] = true;
@@ -249,11 +249,11 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param permissionHash hash of the permission to revoke
     function revokePermission(bytes32 permissionHash) external {
         // early return if permission is already revoked
-        if (isPermissionRevoked[permissionHash][msg.sender]) {
+        if (_isPermissionRevoked[permissionHash][msg.sender]) {
             return;
         }
 
-        isPermissionRevoked[permissionHash][msg.sender] = true;
+        _isPermissionRevoked[permissionHash][msg.sender] = true;
         emit PermissionRevoked(msg.sender, permissionHash);
     }
 
@@ -290,7 +290,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         _setPendingCosigner(address(0));
     }
 
-    /// @notice Rotate cosigners.
+    /// @notice Set cosigner to pending cosigner and reset pending cosigner.
     function rotateCosigner() external onlyOwner {
         if (pendingCosigner == address(0)) revert PendingCosignerIsZeroAddress();
         _setCosigner(pendingCosigner);
@@ -335,8 +335,8 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
             revert InvalidUserOperationHash(UserOperationLib.getUserOpHash(data.userOp));
         }
 
-        // check permission approved
-        if (!isPermissionApproved(data.permission)) revert InvalidPermissionApproval();
+        // check permission authorized (approved and not yet revoked)
+        if (!isPermissionAuthorized(data.permission)) revert UnauthorizedPermission();
 
         // check permission signer signed userOpHash
         if (!SignatureCheckerLib.isValidSignatureNow(userOpHash, data.userOpSignature, data.permission.signer)) {
@@ -404,16 +404,18 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         );
     }
 
-    /// @notice Verify if permission is approved via storage or approval signature.
+    /// @notice Verify if permission has been authorized.
+    ///
+    /// @dev Checks if has not been revoked and is approved via storage or approval signature.
     ///
     /// @param permission Fields of the permission (struct).
     ///
     /// @return approved True if permission is approved.
-    function isPermissionApproved(Permission memory permission) public view returns (bool) {
+    function isPermissionAuthorized(Permission memory permission) public view returns (bool) {
         bytes32 permissionHash = hashPermission(permission);
 
         // check permission not revoked
-        if (isPermissionRevoked[permissionHash][permission.account]) {
+        if (_isPermissionRevoked[permissionHash][permission.account]) {
             return false;
         }
 

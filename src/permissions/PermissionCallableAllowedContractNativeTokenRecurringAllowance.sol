@@ -104,7 +104,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset(withdraw.asset);
                 // do not need to accrue callsSpend because withdrawn value will be spent in other calls
             } else if (call.data.length == 0) {
-                // only allow direct ETH transfer for debiting paymaster (optional)
+                // only allow direct ETH transfer for refunding paymaster (optional)
 
                 // check call target is paymaster
                 if (call.target != UserOperationLib.getPaymaster(userOp.paymasterAndData)) {
@@ -156,6 +156,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @notice Register a spend of native token for a given permission.
     ///
     /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS vector.
+    ///      Users can only impact themselves though because storage for allowances is keyed by account (msg.sender).
     ///
     /// @param permissionHash Hash of the permission.
     /// @param callsSpend Value of native token spent on calls.

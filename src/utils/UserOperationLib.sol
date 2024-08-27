@@ -12,16 +12,6 @@ import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 library UserOperationLib {
     address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
-    /// @notice UserOperation does not match provided hash.
-    ///
-    /// @param userOpHash Hash of the user operation.
-    error InvalidUserOperationHash(bytes32 userOpHash);
-
-    /// @notice UserOperation sender does not match account.
-    ///
-    /// @param sender Account that the user operation is made from.
-    error InvalidUserOperationSender(address sender);
-
     /// @notice Call target not allowed.
     ///
     /// @param target Address target of a call.

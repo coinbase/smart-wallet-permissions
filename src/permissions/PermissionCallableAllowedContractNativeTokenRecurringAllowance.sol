@@ -16,7 +16,7 @@ import {UserOperation, UserOperationLib} from "../utils/UserOperationLib.sol";
 /// @notice Only allow custom external calls with IPermissionCallable.permissionedCall selector.
 /// @notice Only allow custom external calls to a single allowed contract.
 /// @notice Allow spending native token with recurring allowance.
-/// @notice Allow withdrawing native token from MagicSpend both as paymaster and non-paymaster flows.
+/// @notice Allow withdrawing native token from MagicSpend for non-paymaster flow.
 ///
 /// @dev Requires appending useRecurringAllowance call on every use.
 ///
@@ -62,9 +62,8 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @notice Validate the permission to execute a userOp.
     ///
     /// @dev Offchain userOp construction should append useRecurringAllowance call to calls array if spending value.
-    /// @dev Rolling native token spend accounting does not protect against re-entrancy where an external call could
+    /// @dev Recurring native token spend accounting does not protect against re-entrancy where an external call could
     ///      trigger an authorized call back to the account to spend more ETH.
-    /// @dev Rolling native token spend accounting overestimates spend via gas when a paymaster is not used.
     ///
     /// @param permissionHash Hash of the permission.
     /// @param permissionValues Permission-specific values for this permission contract.
@@ -104,9 +103,18 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
                 // check withdraw is native token
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset(withdraw.asset);
                 // do not need to accrue callsSpend because withdrawn value will be spent in other calls
-            } else if (selector == MagicSpend.withdrawGasExcess.selector) {
-                // check call target is MagicSpend
-                if (call.target != magicSpend) revert UserOperationLib.TargetNotAllowed(call.target);
+            } else if (call.data.length == 0) {
+                // only allow direct ETH transfer for debiting paymaster (optional)
+
+                // check call target is paymaster
+                if (call.target != UserOperationLib.getPaymaster(userOp.paymasterAndData)) {
+                    revert UserOperationLib.TargetNotAllowed(call.target);
+                }
+
+                // check call value is less than or equal to max gas cost
+                if (call.value > UserOperationLib.getRequiredPrefund(userOp)) {
+                    revert UserOperationLib.ValueNotAllowed(call.value);
+                }
             } else {
                 revert UserOperationLib.SelectorNotAllowed(selector);
             }
@@ -119,9 +127,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         bytes memory useRecurringAllowanceData = abi.encodeWithSelector(
             PermissionCallableAllowedContractNativeTokenRecurringAllowance.useRecurringAllowance.selector,
             permissionHash,
-            callsSpend,
-            UserOperationLib.getRequiredPrefund(userOp), // max possible gas cost for the userOp
-            UserOperationLib.getPaymaster(userOp.paymasterAndData)
+            callsSpend
         );
 
         // check last call is valid this.useRecurringAllowance
@@ -150,22 +156,10 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @notice Register a spend of native token for a given permission.
     ///
     /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS vector.
-    /// @dev State read on Manager for adding paymaster gas to total spend must happen in execution phase.
     ///
     /// @param permissionHash Hash of the permission.
     /// @param callsSpend Value of native token spent on calls.
-    /// @param gasSpend Value of native token spent on gas.
-    /// @param paymaster Paymaster contract paying for this userOp or address(0) for self-sponsored.
-    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend, uint256 gasSpend, address paymaster)
-        external
-    {
-        // add gas cost if beared by the user
-        uint256 totalSpend = callsSpend;
-        if (paymaster == address(0) || paymaster == magicSpend) {
-            totalSpend += gasSpend;
-            // recall MagicSpend enforces withdraw to be native token when used as a paymaster
-        }
-
-        _useRecurringAllowance(msg.sender, permissionHash, totalSpend);
+    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend) external {
+        _useRecurringAllowance(msg.sender, permissionHash, callsSpend);
     }
 }

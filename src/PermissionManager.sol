@@ -201,6 +201,10 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
             revert InvalidSignature();
         }
 
+        // check paymaster is being used, i.e. non-zero
+        address paymaster = UserOperationLib.getPaymaster(data.userOp.paymasterAndData);
+        if (paymaster == address(0)) revert DisabledPaymaster(address(0));
+
         // parse cosigner from cosignature
         address userOpCosigner = ECDSA.recover(userOpHash, data.userOpCosignature);
 
@@ -213,12 +217,8 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
             abi.decode(BytesLib.trimSelector(data.userOp.callData), (CoinbaseSmartWallet.Call[]));
 
         // prepare beforeCalls data
-        bytes memory beforeCallsData = abi.encodeWithSelector(
-            PermissionManager.beforeCalls.selector,
-            data.permission,
-            UserOperationLib.getPaymaster(data.userOp.paymasterAndData),
-            userOpCosigner
-        );
+        bytes memory beforeCallsData =
+            abi.encodeWithSelector(PermissionManager.beforeCalls.selector, data.permission, paymaster, userOpCosigner);
 
         // check first call is valid self.beforeCalls
         if (calls[0].target != address(this) || !BytesLib.eq(calls[0].data, beforeCallsData)) {
@@ -304,7 +304,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         }
 
         // check paymaster enabled
-        if (paymaster != address(0) && !isPaymasterEnabled[paymaster]) revert DisabledPaymaster(paymaster);
+        if (!isPaymasterEnabled[paymaster]) revert DisabledPaymaster(paymaster);
 
         // check userOpCosigner is cosigner or pendingCosigner
         if (userOpCosigner != cosigner && userOpCosigner != pendingCosigner) revert InvalidCosigner(userOpCosigner);
@@ -377,6 +377,8 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param paymaster ERC-4337 paymaster contract.
     /// @param enabled True if the contract is enabled.
     function setPaymasterEnabled(address paymaster, bool enabled) external onlyOwner {
+        // never allow no-paymaster, reverting to keep event feed not confusing if accidental enablement made
+        if (paymaster == address(0)) revert DisabledPaymaster(address(0));
         isPaymasterEnabled[paymaster] = enabled;
         emit PaymasterUpdated(paymaster, enabled);
     }

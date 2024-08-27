@@ -243,6 +243,25 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         return EIP1271_MAGIC_VALUE;
     }
 
+    /// @notice Hash a Permission struct for signing.
+    ///
+    /// @dev Important that this hash cannot be phished via EIP-191/712 or other method.
+    ///
+    /// @param permission Struct to hash.
+    function hashPermission(Permission memory permission) public view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                permission.account,
+                block.chainid,
+                permission.expiry,
+                keccak256(permission.signer),
+                permission.permissionContract,
+                keccak256(permission.permissionValues),
+                address(this) // verifyingContract
+            )
+        );
+    }
+
     /// @notice Verify if permission is approved via storage or approval signature.
     ///
     /// @param permission Fields of the permission (struct).
@@ -251,16 +270,13 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     function isPermissionApproved(Permission memory permission) public view returns (bool) {
         bytes32 permissionHash = hashPermission(permission);
 
-        // if approval signature present, check signature
-        if (
-            permission.approval.length > 0
-                && IERC1271(permission.account).isValidSignature(permissionHash, permission.approval) == EIP1271_MAGIC_VALUE
-        ) {
+        // check if approval storage has been set, i.e. permission has been used
+        if (_isPermissionApproved[permissionHash][permission.account]) {
             return true;
         }
 
-        // fallback check permission is approved via storage
-        return _isPermissionApproved[permissionHash][permission.account];
+        // fallback check permission approved via signature
+        return IERC1271(permission.account).isValidSignature(permissionHash, permission.approval) == EIP1271_MAGIC_VALUE;
     }
 
     /// @notice Check permission constraints not allowed during userOp validation phase as first call in batch.
@@ -345,25 +361,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         isPermissionRevoked[permissionHash][msg.sender] = true;
         emit PermissionRevoked(msg.sender, permissionHash);
-    }
-
-    /// @notice Hash a Permission struct for signing.
-    ///
-    /// @dev Important that this hash cannot be phished via EIP-191/712 or other method.
-    ///
-    /// @param permission Struct to hash.
-    function hashPermission(Permission memory permission) public view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                permission.account,
-                block.chainid,
-                permission.expiry,
-                keccak256(permission.signer),
-                permission.permissionContract,
-                keccak256(permission.permissionValues),
-                address(this) // verifyingContract
-            )
-        );
     }
 
     /// @notice Set permission contract enabled status.

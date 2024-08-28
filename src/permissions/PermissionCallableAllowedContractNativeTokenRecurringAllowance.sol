@@ -82,18 +82,15 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     ///
     /// @param permissionHash Hash of the permission.
     /// @param callsSpend Value of native token spent on calls.
-    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend) external {
-        _useRecurringAllowance({account: msg.sender, permissionHash: permissionHash, spend: callsSpend});
-    }
-
-    /// @notice Refund paymaster in native token.
-    ///
-    /// @dev Native token lockout is prevented by requiring the paymaster to accept the refund.
-    ///
-    /// @param paymaster Paymaster contract address to refund.
-    /// @param userOpHash User operation hash the refund took place in.
-    function refundPaymaster(address paymaster, bytes32 userOpHash) external payable {
-        _refundPaymaster({paymaster: paymaster, userOpHash: userOpHash, account: msg.sender, value: msg.value});
+    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend, bytes32 userOpHash, address paymaster)
+        external
+        payable
+    {
+        uint256 paymasterRefund = msg.value;
+        _useRecurringAllowance({account: msg.sender, permissionHash: permissionHash, spend: callsSpend + paymasteRefund});
+        if (paymasterRefund != 0) {
+            _refundPaymaster({paymaster: paymaster, userOpHash: userOpHash, account: msg.sender, value: paymasteRefund});
+        }
     }
 
     /// @notice Validate the permission to execute a userOp.
@@ -155,12 +152,17 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         bytes memory useRecurringAllowanceData = abi.encodeWithSelector(
             PermissionCallableAllowedContractNativeTokenRecurringAllowance.useRecurringAllowance.selector,
             permissionHash,
-            callsSpend
+            callsSpend,
+            UserOperationLib.getUserOpHash(userOp),
+            address(bytes20(userOp.paymasterAndData)) // paymaster address
         );
 
         // check last call is valid this.useRecurringAllowance
         CoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
-        if (lastCall.target != address(this) || !BytesLib.eq(lastCall.data, useRecurringAllowanceData)) {
+        if (
+            lastCall.target != address(this) || !BytesLib.eq(lastCall.data, useRecurringAllowanceData)
+                || lastCall.value > UserOperationLib.getRequiredPrefund(userOp)
+        ) {
             revert InvalidUseRecurringAllowanceCall();
         }
     }

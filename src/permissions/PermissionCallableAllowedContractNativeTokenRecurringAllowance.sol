@@ -40,6 +40,9 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @notice MagicSpend singleton.
     address public immutable magicSpend;
 
+    /// @notice Detected that gas fee is being paid for by user (MagicSpend or no paymaster).
+    error GasSponsorshipRequired();
+
     /// @notice MagicSpend withdraw asset is not native token.
     ///
     /// @param asset Address of asset for MagicSpend withdraw request.
@@ -97,6 +100,9 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         external
         view
     {
+        address paymaster = address(bytes20(userOp.paymasterAndData));
+        if (paymaster == address(0) || paymaster == magicSpend) revert GasSponsorshipRequired();
+
         (PermissionValues memory values) = abi.decode(permissionValues, (PermissionValues));
 
         // parse user operation call data as `executeBatch` arguments (call array)
@@ -128,18 +134,6 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
                 // check withdraw is native token
                 if (withdraw.asset != address(0)) revert InvalidWithdrawAsset(withdraw.asset);
                 // do not need to accrue callsSpend because withdrawn value will be spent in other calls
-            } else if (call.data.length == 0) {
-                // only allow direct ETH transfer for refunding paymaster (optional)
-
-                // check call target is paymaster
-                if (call.target != address(bytes20(userOp.paymasterAndData))) {
-                    revert CallErrors.TargetNotAllowed(call.target);
-                }
-
-                // check call value is less than or equal to max gas cost
-                if (call.value > UserOperationLib.getRequiredPrefund(userOp)) {
-                    revert CallErrors.ValueNotAllowed(call.value);
-                }
             } else {
                 revert CallErrors.SelectorNotAllowed(selector);
             }

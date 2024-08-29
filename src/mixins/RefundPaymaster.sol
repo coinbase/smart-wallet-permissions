@@ -18,7 +18,9 @@ abstract contract RefundPaymaster {
     /// @param userOpHash User operation hash the refund took place in.
     /// @param account Address performing the refund.
     /// @param value Amount of native token refunded.
-    event PaymasterRefunded(bytes32 indexed userOpHash, address indexed account, uint256 value);
+    event PaymasterRefunded(
+        address indexed paymaster, address indexed account, bytes32 indexed userOpHash, uint256 value
+    );
 
     /// @notice Refund paymaster in native token.
     ///
@@ -31,6 +33,6 @@ abstract contract RefundPaymaster {
     function _refundPaymaster(address paymaster, bytes32 userOpHash, address account, uint256 value) internal {
         (bool success,) = paymaster.call{value: value}();
         if (!success) revert PaymasterRejectedRefund();
-        emit PaymasterRefunded(userOpHash, account, value);
+        emit PaymasterRefunded(paymaster, userOpHash, account, value);
     }
 }

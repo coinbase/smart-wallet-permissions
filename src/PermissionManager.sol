@@ -269,11 +269,11 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
     /// @notice Set paymaster enabled status.
     ///
+    /// @dev Must explicitly set address(0) as enabled to support no-paymaster userOps.
+    ///
     /// @param paymaster ERC-4337 paymaster contract.
     /// @param enabled True if the contract is enabled.
     function setPaymasterEnabled(address paymaster, bool enabled) external onlyOwner {
-        // never allow no-paymaster, reverting to keep event feed not confusing if accidental enablement made
-        if (paymaster == address(0)) revert DisabledPaymaster(address(0));
         isPaymasterEnabled[paymaster] = enabled;
         emit PaymasterUpdated(paymaster, enabled);
     }
@@ -343,10 +343,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         if (!SignatureCheckerLib.isValidSignatureNow(userOpHash, data.userOpSignature, data.permission.signer)) {
             revert InvalidSignature();
         }
-
-        // check paymaster is being used, i.e. non-zero
-        address paymaster = address(bytes20(data.userOp.paymasterAndData));
-        if (paymaster == address(0)) revert DisabledPaymaster(address(0));
 
         // parse cosigner from cosignature
         address userOpCosigner = ECDSA.recover(userOpHash, data.userOpCosignature);

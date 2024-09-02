@@ -37,6 +37,7 @@ contract Deploy is Script {
 
         permissionManager.setPermissionContractEnabled(address(permissionContract), true);
         permissionManager.setPaymasterEnabled(CDP_PAYMASTER, true);
+        permissionManager.setPaymasterEnabled(CDP_PAYMASTER_PUBLIC, true);
 
         vm.stopBroadcast();
     }
@@ -47,9 +48,6 @@ contract Deploy is Script {
 
         permissionContract = new PermissionContract{salt: 0}(address(permissionManager), MAGIC_SPEND);
         logAddress("PermissionContract", address(permissionContract));
-
-        // Click click = new Click{salt: 0}(OWNER);
-        // logAddress("Click", address(click));
     }
 
     function logAddress(string memory name, address addr) internal pure {

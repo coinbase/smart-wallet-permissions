@@ -22,22 +22,20 @@ import {UserOperation, UserOperationLib} from "./utils/UserOperationLib.sol";
 contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @notice UserOperation that is validated via Permissions.
     struct PermissionedUserOperation {
+        /// @dev Permission details.
+        Permission permission;
         /// @dev User operation (v0.6) to validate for.
         UserOperation userOp;
         /// @dev `Permission.signer` signature of user operation hash.
         bytes userOpSignature;
-        /// @dev `this.cosigner` signature of user operation hash.
+        /// @dev `this.cosigner` or `this.pendingCosigner` signature of user operation hash.
         bytes userOpCosignature;
-        /// @dev Permission details.
-        Permission permission;
     }
 
     /// @notice A limited permission for an external signer to use an account.
     struct Permission {
         /// @dev Smart account this permission is valid for.
         address account;
-        /// @dev Chain this permision is valid for.
-        uint256 chainId;
         /// @dev Timestamp this permission is valid until (unix seconds).
         uint48 expiry;
         /// @dev The entity that has limited control of `account` in this Permission.
@@ -47,8 +45,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         address permissionContract;
         /// @dev Permission-specific values sent to permissionContract for validation.
         bytes permissionValues;
-        /// @dev Manager contract that verifies permissions for replay protection across potential future managers.
-        address verifyingContract;
         /// @dev Optional signature from account owner proving a permission is approved.
         bytes approval;
     }
@@ -225,11 +221,8 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         // check sender is permission account or approval signature is valid for permission account
         if (
-            !(
-                msg.sender == permission.account
-                    || EIP1271_MAGIC_VALUE
-                        == IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
-            )
+            msg.sender != permission.account
+                && IERC1271(permission.account).isValidSignature(permissionHash, permission.approval) != EIP1271_MAGIC_VALUE
         ) {
             revert UnauthorizedPermission();
         }
@@ -317,13 +310,13 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
     /// @notice Validates a permission via EIP-1271.
     ///
-    /// @dev Assumes called within `CoinbaseSmartWallet.executeBatch`.
+    /// @dev Assume `userOp.calldata` calls CoinbaseSmartWallet.executeBatch`.
     /// @dev All accessed storage must be nested by account address to pass ERC-4337 constraints.
     ///
-    /// @param userOpHash Hash of user operation signed by permission signer.
-    /// @param authData Variable data for validating permissioned user operation.
-    function isValidSignature(bytes32 userOpHash, bytes calldata authData) external view returns (bytes4 result) {
-        (PermissionedUserOperation memory data) = abi.decode(authData, (PermissionedUserOperation));
+    /// @param userOpHash Hash of the user operation.
+    /// @param userOpAuth Authentication data for this permissioned user operation.
+    function isValidSignature(bytes32 userOpHash, bytes calldata userOpAuth) external view returns (bytes4 result) {
+        (PermissionedUserOperation memory data) = abi.decode(userOpAuth, (PermissionedUserOperation));
         bytes32 permissionHash = hashPermission(data.permission);
 
         // check userOperation sender matches account;
@@ -363,12 +356,12 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
             userOpCosigner
         );
 
-        // check first call is valid self.beforeCalls
+        // check first call is valid `self.beforeCalls`
         if (calls[0].target != address(this) || !BytesLib.eq(calls[0].data, beforeCallsData)) {
             revert InvalidBeforeCallsCall();
         }
 
-        // check calls batch has no self-calls
+        // check rest of calls batch do not re-enter account or this contract
         uint256 callsLen = calls.length;
         for (uint256 i = 1; i < callsLen; i++) {
             // prevent account and PermissionManager direct re-entrancy
@@ -395,23 +388,23 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         return keccak256(
             abi.encode(
                 permission.account,
-                block.chainid,
                 permission.expiry,
                 keccak256(permission.signer),
                 permission.permissionContract,
                 keccak256(permission.permissionValues),
-                address(this) // verifyingContract
+                block.chainid, // prevent cross-chain replay
+                address(this) // prevent cross-manager replay
             )
         );
     }
 
     /// @notice Verify if permission has been authorized.
     ///
-    /// @dev Checks if has not been revoked and is approved via storage or approval signature.
+    /// @dev Checks if has not been revoked and is approved via storage or signature.
     ///
     /// @param permission Fields of the permission (struct).
     ///
-    /// @return approved True if permission is approved.
+    /// @return approved True if permission is approved and not yet revoked.
     function isPermissionAuthorized(Permission memory permission) public view returns (bool) {
         bytes32 permissionHash = hashPermission(permission);
 
@@ -420,7 +413,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
             return false;
         }
 
-        // check if approval storage has been set, i.e. permission has been used
+        // check if approval storage has been set (automatically set on first use)
         if (_isPermissionApproved[permissionHash][permission.account]) {
             return true;
         }

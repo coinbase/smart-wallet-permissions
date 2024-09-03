@@ -36,7 +36,7 @@ abstract contract NativeTokenRecurringAllowance {
     mapping(address account => mapping(bytes32 permissionHash => CycleUsage)) internal _lastCycleUsages;
 
     /// @notice Zero recurring allowance value.
-    error ZeroRecurringAllowance();
+    error InvalidInitialization();
 
     /// @notice Recurring cycle has not started yet.
     ///
@@ -111,12 +111,12 @@ abstract contract NativeTokenRecurringAllowance {
         bytes32 permissionHash,
         RecurringAllowance memory recurringAllowance
     ) internal {
-        // check non-zero recurring allowance
-        if (recurringAllowance.allowance == 0) revert ZeroRecurringAllowance();
+        // check valid initialization
+        if (!_isValidInitialization(recurringAllowance)) revert InvalidInitialization();
 
         // initialize recurring allowance if not yet initialized
         RecurringAllowance memory savedRecurringAllowance = _recurringAllowances[account][permissionHash];
-        if (savedRecurringAllowance.allowance == 0) {
+        if (!_isValidInitialization(savedRecurringAllowance)) {
             _recurringAllowances[account][permissionHash] = recurringAllowance;
             emit RecurringAllowanceInitialized(account, permissionHash, recurringAllowance);
         }
@@ -133,9 +133,10 @@ abstract contract NativeTokenRecurringAllowance {
         // early return if no value spent
         if (spend == 0) return;
 
-        // check non-zero recurring allowance, i.e. has been initialized
         RecurringAllowance memory recurringAllowance = _recurringAllowances[account][permissionHash];
-        if (recurringAllowance.allowance == 0) revert ZeroRecurringAllowance();
+
+        // check valid initialization
+        if (!_isValidInitialization(recurringAllowance)) revert InvalidInitialization();
 
         // get active cycle start and spend, check if recurring allowance has started
         CycleUsage memory currentCycle = _getCurrentCycleUsage(account, permissionHash, recurringAllowance);
@@ -157,6 +158,17 @@ abstract contract NativeTokenRecurringAllowance {
         emit RecurringAllowanceUsed(
             account, permissionHash, CycleUsage(currentCycle.start, currentCycle.end, uint160(spend))
         );
+    }
+
+    /// @notice Determine if a recurring allowance has valid initialization
+    ///
+    /// @dev Allowance can be zero for apps that don't need to spend native token.
+    ///
+    /// @param recurringAllowance Allowed spend per recurring cycle (struct).
+    ///
+    /// @return isValid True if recurring allowance has valid paramters for initialization.
+    function _isValidInitialization(RecurringAllowance memory recurringAllowance) internal pure returns (bool) {
+        return recurringAllowance.start > 0 && recurringAllowance.period > 0;
     }
 
     /// @notice Get current cycle usage.
@@ -182,20 +194,31 @@ abstract contract NativeTokenRecurringAllowance {
 
         // return last cycle if still active, otherwise compute new active cycle start time with no spend
         CycleUsage memory lastCycleUsage = _lastCycleUsages[account][permissionHash];
-        if (lastCycleUsage.start > 0 && currentTimestamp < lastCycleUsage.start + recurringAllowance.period) {
-            // last active cycle is still active
+
+        // last cycle exists if allowance has been used before
+        bool lastCycleExists = !(lastCycleUsage.start == 0 && lastCycleUsage.end == 0 && lastCycleUsage.spend == 0);
+
+        // cycle time ranges are [start, end), i.e. leading-inclusive and trailing-exclusive
+        bool lastCycleStillActive = currentTimestamp < lastCycleUsage.start + recurringAllowance.period;
+
+        if (lastCycleExists && lastCycleStillActive) {
             return lastCycleUsage;
         } else {
-            // last active cycle is outdated, determine current cycle
+            // last active cycle does not exist or is outdated, determine current cycle
 
             // current cycle progress is remainder of time since first recurring cycle mod reset period
             uint48 currentCycleProgress = (currentTimestamp - recurringAllowance.start) % recurringAllowance.period;
 
-            return CycleUsage(
-                currentTimestamp - currentCycleProgress, // start is progress duration before current time
-                currentTimestamp - currentCycleProgress + recurringAllowance.period, // end is a period after start
-                0 // no tracked spends yet
-            );
+            // start is progress duration before current time
+            uint48 start = currentTimestamp - currentCycleProgress;
+
+            // `end` will overflow if `period` is sufficiently large
+            bool endOverflow = uint256(start) + uint256(recurringAllowance.period) > type(uint48).max;
+
+            // end is one `period` after `start` or maximum uint48
+            uint48 end = endOverflow ? type(uint48).max : start + recurringAllowance.period;
+
+            return CycleUsage({start: start, end: end, spend: 0});
         }
     }
 }

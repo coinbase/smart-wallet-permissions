@@ -182,20 +182,31 @@ abstract contract NativeTokenRecurringAllowance {
 
         // return last cycle if still active, otherwise compute new active cycle start time with no spend
         CycleUsage memory lastCycleUsage = _lastCycleUsages[account][permissionHash];
-        if (lastCycleUsage.start > 0 && currentTimestamp < lastCycleUsage.start + recurringAllowance.period) {
-            // last active cycle is still active
+
+        // last cycle exists if start, end, and spend are non-zero
+        bool lastCycleExists = lastCycleUsage.start != 0 && lastCycleUsage.end != 0 && lastCycleUsage.spend != 0;
+
+        // last cycle still active if current time within [start, end) range, i.e. start-inclusive and end-exclusive
+        bool lastCycleStillActive = currentTimestamp < lastCycleUsage.start + recurringAllowance.period;
+
+        if (lastCycleExists && lastCycleStillActive) {
             return lastCycleUsage;
         } else {
-            // last active cycle is outdated, determine current cycle
+            // last active cycle does not exist or is outdated, determine current cycle
 
             // current cycle progress is remainder of time since first recurring cycle mod reset period
             uint48 currentCycleProgress = (currentTimestamp - recurringAllowance.start) % recurringAllowance.period;
 
-            return CycleUsage(
-                currentTimestamp - currentCycleProgress, // start is progress duration before current time
-                currentTimestamp - currentCycleProgress + recurringAllowance.period, // end is a period after start
-                0 // no tracked spends yet
-            );
+            // current cycle start is progress duration before current time
+            uint48 start = currentTimestamp - currentCycleProgress;
+
+            // current cycle end will overflow if period is sufficiently large
+            bool endOverflow = uint256(start) + uint256(recurringAllowance.period) > type(uint48).max;
+
+            // end is one period after start or maximum uint48 if overflow
+            uint48 end = endOverflow ? type(uint48).max : start + recurringAllowance.period;
+
+            return CycleUsage({start: start, end: end, spend: 0});
         }
     }
 }

@@ -3,14 +3,33 @@ pragma solidity ^0.8.23;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {PermissionManagerBase} from "./PermissionManagerBase.sol";
+import {UserOperation, UserOperationLib} from "../../src/utils/UserOperationLib.sol";
+
+import {PermissionManager, PermissionManagerBase} from "./PermissionManagerBase.sol";
 
 contract IsValidSignatureTest is Test, PermissionManagerBase {
-    function setUp() public {}
+    function setUp() public {
+        _initializePermissionManager();
+    }
 
-    function test_isValidSignature_revert_decodeAuthData() public {}
+    function test_isValidSignature_revert_decodePermissionedUserOp(bytes32 userOpHash) public {
+        vm.expectRevert();
+        permissionManager.isValidSignature(userOpHash, hex"");
+    }
 
-    function test_isValidSignature_revert_InvalidUserOperationSender() public {}
+    function test_isValidSignature_revert_invalidUserOperationSender(address sender) public {
+        PermissionManager.Permission memory permission = _createPermission();
+        vm.assume(sender != permission.account);
+
+        UserOperation memory userOp = _createUserOperation();
+        userOp.sender = sender;
+
+        PermissionManager.PermissionedUserOperation memory pUserOp =
+            _createPermissionedUserOperation(userOp, hex"", hex"", permission);
+
+        vm.expectRevert(abi.encodeWithSelector(PermissionManager.InvalidUserOperationSender.selector, sender));
+        permissionManager.isValidSignature(UserOperationLib.getUserOpHash(userOp), abi.encode(pUserOp));
+    }
 
     function test_isValidSignature_revert_InvalidUserOperationHash() public {}
 

@@ -22,9 +22,7 @@ contract RevokePermissionTest is Test, PermissionManagerBase {
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), false);
     }
 
-    function test_revokePermission_success_differentAccounts(address sender1, address sender2, bytes32 permissionHash)
-        public
-    {
+    function test_revokePermission_success_differentAccounts(address sender1, address sender2) public {
         PermissionManager.Permission memory permission = _createPermission();
         permission.account = sender1;
         bytes32 permissionHash = permissionManager.hashPermission(permission);
@@ -45,7 +43,7 @@ contract RevokePermissionTest is Test, PermissionManagerBase {
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), false);
     }
 
-    function test_revokePermission_success_replaySameAccount(address sender, bytes32 permissionHash) public {
+    function test_revokePermission_success_replaySameAccount(address sender) public {
         PermissionManager.Permission memory permission = _createPermission();
         permission.account = sender;
         bytes32 permissionHash = permissionManager.hashPermission(permission);

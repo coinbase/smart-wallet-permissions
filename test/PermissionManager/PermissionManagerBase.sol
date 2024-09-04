@@ -34,12 +34,10 @@ contract PermissionManagerBase is Test {
     function _createPermission() internal returns (PermissionManager.Permission memory) {
         return PermissionManager.Permission({
             account: address(account),
-            chainId: block.chainid,
             expiry: type(uint48).max,
             signer: abi.encode(cosigner),
             permissionContract: address(successPermissionContract),
             permissionValues: hex"",
-            verifyingContract: address(permissionManager),
             approval: hex""
         });
     }
@@ -61,11 +59,11 @@ contract PermissionManagerBase is Test {
     }
 
     function _createPermissionedUserOperation(
+        PermissionManager.Permission memory permission,
         UserOperation memory userOp,
         bytes memory userOpSignature,
-        bytes memory userOpCosignature,
-        PermissionManager.Permission memory permission
+        bytes memory userOpCosignature
     ) internal returns (PermissionManager.PermissionedUserOperation memory) {
-        return PermissionManager.PermissionedUserOperation(userOp, userOpSignature, userOpCosignature, permission);
+        return PermissionManager.PermissionedUserOperation(permission, userOp, userOpSignature, userOpCosignature);
     }
 }

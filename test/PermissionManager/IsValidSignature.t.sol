@@ -24,8 +24,12 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
         userOp.sender = sender;
 
-        PermissionManager.PermissionedUserOperation memory pUserOp =
-            _createPermissionedUserOperation(userOp, hex"", hex"", permission);
+        PermissionManager.PermissionedUserOperation memory pUserOp = _createPermissionedUserOperation({
+            permission: permission,
+            userOp: userOp,
+            userOpSignature: hex"",
+            userOpCosignature: hex""
+        });
 
         vm.expectRevert(abi.encodeWithSelector(PermissionManager.InvalidUserOperationSender.selector, sender));
         permissionManager.isValidSignature(UserOperationLib.getUserOpHash(userOp), abi.encode(pUserOp));

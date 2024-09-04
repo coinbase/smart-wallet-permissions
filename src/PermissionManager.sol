@@ -222,7 +222,11 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         // check sender is permission account or approval signature is valid for permission account
         if (
             msg.sender != permission.account
-                && IERC1271(permission.account).isValidSignature(permissionHash, permission.approval) != EIP1271_MAGIC_VALUE
+                && (
+                    permission.approval.length == 0
+                        || IERC1271(permission.account).isValidSignature(permissionHash, permission.approval)
+                            != EIP1271_MAGIC_VALUE
+                )
         ) {
             revert UnauthorizedPermission();
         }

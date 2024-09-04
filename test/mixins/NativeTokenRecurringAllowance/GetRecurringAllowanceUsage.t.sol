@@ -66,7 +66,7 @@ contract GetRecurringAllowanceUsageTest is Test, NativeTokenRecurringAllowanceBa
         assertEq(usage.spend, 0);
     }
 
-    function test_getRecurringAllowanceUsage_success_currentPeriod(
+    function test_getRecurringAllowanceUsage_success_startOfPeriod(
         address account,
         bytes32 permissionHash,
         uint48 start,
@@ -89,6 +89,36 @@ contract GetRecurringAllowanceUsageTest is Test, NativeTokenRecurringAllowanceBa
         mockNativeTokenRecurringAllowance.useRecurringAllowance(account, permissionHash, spend);
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             mockNativeTokenRecurringAllowance.getRecurringAllowanceUsage(account, permissionHash);
+        assertEq(usage.start, start);
+        assertEq(usage.end, start + period);
+        assertEq(usage.spend, spend);
+    }
+
+    function test_getRecurringAllowanceUsage_success_endOfPeriod(
+        address account,
+        bytes32 permissionHash,
+        uint48 start,
+        uint48 period,
+        uint160 allowance,
+        uint160 spend
+    ) public {
+        vm.assume(start > 0);
+        vm.assume(period > 0);
+        vm.assume(start < type(uint24).max);
+        vm.assume(period < type(uint24).max);
+        vm.assume(allowance > 0);
+        vm.assume(spend <= allowance);
+
+        mockNativeTokenRecurringAllowance.initializeRecurringAllowance(
+            account, permissionHash, _createRecurringAllowance(start, period, allowance)
+        );
+
+        vm.warp(start);
+        mockNativeTokenRecurringAllowance.useRecurringAllowance(account, permissionHash, spend);
+        NativeTokenRecurringAllowance.CycleUsage memory usage =
+            mockNativeTokenRecurringAllowance.getRecurringAllowanceUsage(account, permissionHash);
+
+        vm.warp(start + period - 1);
         assertEq(usage.start, start);
         assertEq(usage.end, start + period);
         assertEq(usage.spend, spend);

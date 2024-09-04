@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
-import {UserOperation, UserOperationLib as InnerLib} from "account-abstraction/interfaces/UserOperation.sol";
+import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 
 /// @title UserOperationLib
 ///

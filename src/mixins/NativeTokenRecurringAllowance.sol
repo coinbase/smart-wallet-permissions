@@ -98,6 +98,10 @@ abstract contract NativeTokenRecurringAllowance {
         returns (CycleUsage memory cycleUsage)
     {
         RecurringAllowance memory recurringAllowance = _recurringAllowances[account][permissionHash];
+
+        // check valid initialization
+        if (!_isValidInitialization(recurringAllowance)) revert InvalidInitialization();
+
         return _getCurrentCycleUsage(account, permissionHash, recurringAllowance);
     }
 

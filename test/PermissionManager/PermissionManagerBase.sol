@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 import {Test, console2} from "forge-std/Test.sol";
+import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
 import {MockCoinbaseSmartWallet} from "../mocks/MockCoinbaseSmartWallet.sol";
 
@@ -10,6 +11,7 @@ import {PermissionManager} from "../../src/PermissionManager.sol";
 import {MockPermissionContract} from "../mocks/MockPermissionContract.sol";
 
 contract PermissionManagerBase is Test {
+    string public constant MAINNET_RPC_URL = "https://base.org";
     PermissionManager permissionManager;
     uint256 ownerPk = uint256(keccak256("owner"));
     address owner = vm.addr(ownerPk);
@@ -35,7 +37,7 @@ contract PermissionManagerBase is Test {
         return PermissionManager.Permission({
             account: address(account),
             expiry: type(uint48).max,
-            signer: abi.encode(cosigner),
+            signer: abi.encode(permissionSigner),
             permissionContract: address(successPermissionContract),
             permissionValues: hex"",
             approval: hex""
@@ -58,12 +60,28 @@ contract PermissionManagerBase is Test {
         });
     }
 
-    function _createPermissionedUserOperation(
-        PermissionManager.Permission memory permission,
-        UserOperation memory userOp,
-        bytes memory userOpSignature,
-        bytes memory userOpCosignature
-    ) internal returns (PermissionManager.PermissionedUserOperation memory) {
-        return PermissionManager.PermissionedUserOperation(permission, userOp, userOpSignature, userOpCosignature);
+    function _createExecuteBatchData(CoinbaseSmartWallet.Call[] memory calls) internal returns (bytes memory) {
+        return abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
+    }
+
+    function _createCall(address target, uint256 value, bytes memory data)
+        internal
+        returns (CoinbaseSmartWallet.Call memory)
+    {
+        return CoinbaseSmartWallet.Call(target, value, data);
+    }
+
+    function _createBeforeCallsData(PermissionManager.Permission memory permission, UserOperation memory userOp)
+        internal
+        returns (bytes memory)
+    {
+        return abi.encodeWithSelector(
+            PermissionManager.beforeCalls.selector, permission, address(bytes20(userOp.paymasterAndData)), cosigner
+        );
+    }
+
+    function _sign(uint256 pk, bytes32 hash) internal returns (bytes memory signature) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, hash);
+        return abi.encodePacked(r, s, v);
     }
 }

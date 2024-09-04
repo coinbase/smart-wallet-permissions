@@ -5,7 +5,7 @@ import {IPermissionContract} from "../../src/interfaces/IPermissionContract.sol"
 import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 
 contract MockPermissionContract is IPermissionContract {
-    bool alwaysRevert;
+    bool public immutable alwaysRevert;
 
     constructor(bool arg) {
         alwaysRevert = arg;

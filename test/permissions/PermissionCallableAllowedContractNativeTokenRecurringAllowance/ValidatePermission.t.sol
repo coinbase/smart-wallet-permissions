@@ -9,25 +9,47 @@ import {PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase as Pe
 contract ValidatePermissionTest is Test, PermissionContractBase {
     function setUp() public {}
 
-    function test_validatePermission_revert_decodeError() public {}
+    function test_validatePermission_revert_decodeError() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_revert_TargetNotAllowed_permissionedCall() public {}
+    function test_validatePermission_revert_TargetNotAllowed_permissionedCall() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_revert_TargetNotAllowed_withdraw() public {}
+    function test_validatePermission_revert_TargetNotAllowed_withdraw() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_revert_InvalidWithdrawAsset_withdraw() public {}
+    function test_validatePermission_revert_InvalidWithdrawAsset_withdraw() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_revert_SelectorNotAllowed() public {}
+    function test_validatePermission_revert_SelectorNotAllowed() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_revert_InvalidUseRecurringAllowanceCall() public {}
+    function test_validatePermission_revert_InvalidUseRecurringAllowanceCall() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_success_permissionedCall() public {}
+    function test_validatePermission_success_permissionedCall() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_success_withdraw() public {}
+    function test_validatePermission_success_withdraw() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_success_withdrawGasExcess() public {}
+    function test_validatePermission_success_withdrawGasExcess() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_success_batchCalls() public {}
+    function test_validatePermission_success_batchCalls() public {
+        revert("unimplemented");
+    }
 
-    function test_validatePermission_success_erc4337Compliance() public {}
+    function test_validatePermission_success_erc4337Compliance() public {
+        revert("unimplemented");
+    }
 }

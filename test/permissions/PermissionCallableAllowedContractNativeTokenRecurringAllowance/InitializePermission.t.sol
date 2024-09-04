@@ -9,9 +9,15 @@ import {PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase as Pe
 contract InitializePermissionTest is Test, PermissionContractBase {
     function setUp() public {}
 
-    function test_initializePermission_revert_decodingError() public {}
+    function test_initializePermission_revert_decodingError() public {
+        revert("unimplemented");
+    }
 
-    function test_initializePermission_revert_InvalidInitializePermissionSender() public {}
+    function test_initializePermission_revert_InvalidInitializePermissionSender() public {
+        revert("unimplemented");
+    }
 
-    function test_initializePermission_success() public {}
+    function test_initializePermission_success() public {
+        revert("unimplemented");
+    }
 }

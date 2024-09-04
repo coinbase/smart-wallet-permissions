@@ -9,9 +9,15 @@ import {PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase as Pe
 contract UseRecurringAllowanceTest is Test, PermissionContractBase {
     function setUp() public {}
 
-    function test_useRecurringAllowance_success_noPaymaster() public {}
+    function test_useRecurringAllowance_success_noPaymaster() public {
+        revert("unimplemented");
+    }
 
-    function test_useRecurringAllowance_success_magicSpend() public {}
+    function test_useRecurringAllowance_success_magicSpend() public {
+        revert("unimplemented");
+    }
 
-    function test_useRecurringAllowance_success_paymaster() public {}
+    function test_useRecurringAllowance_success_paymaster() public {
+        revert("unimplemented");
+    }
 }

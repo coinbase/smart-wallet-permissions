@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {Script, console2} from "forge-std/Script.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-import {Click} from "../docs/examples/Click.sol";
 import {PermissionManager} from "../src/PermissionManager.sol";
 import {PermissionCallableAllowedContractNativeTokenRecurringAllowance as PermissionContract} from
     "../src/permissions/PermissionCallableAllowedContractNativeTokenRecurringAllowance.sol";

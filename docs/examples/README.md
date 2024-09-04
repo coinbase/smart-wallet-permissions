@@ -4,7 +4,7 @@
 
 ### 0. Integrate Coinbase Smart Wallet into your app.
 
-The [smartwallet.dev](https://www.smartwallet.dev/why) docs are recommended.
+The [smartwallet.dev](https://www.smartwallet.dev/guides/session-keys) docs are recommended.
 
 ### 1. Add support for permissioned user operations to call your smart contract.
 
@@ -20,7 +20,7 @@ After installing this codebase as a dependency in your project, simply import an
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {PermissionCallable} from "smart-wallet-permissions/src/utils/PermissionCallable.sol";
+import {PermissionCallable} from "smart-wallet-permissions/mixins/PermissionCallable.sol";
 
 contract Contract is PermissionCallable {
     // define which function selectors are callable by permissioned userOps

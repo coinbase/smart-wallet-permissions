@@ -2,21 +2,58 @@
 pragma solidity ^0.8.23;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
+import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 import {PermissionManagerBase} from "./PermissionManagerBase.sol";
 
 contract PauseTest is Test, PermissionManagerBase {
-    function setUp() public {}
+    function setUp() public {
+        _initializePermissionManager();
+    }
 
-    function test_pause_revert_Unauthorized() public {}
+    function test_pause_revert_notOwner(address sender) public {
+        vm.assume(sender != owner);
+        vm.startPrank(sender);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, sender));
+        permissionManager.pause();
+    }
 
-    function test_pause_revert_EnforcedPause() public {}
+    function test_pause_revert_alreadyPaused() public {
+        vm.startPrank(owner);
 
-    function test_pause_success() public {}
+        permissionManager.pause();
 
-    function test_unpause_revert_Unauthorized() public {}
+        vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
+        permissionManager.pause();
+    }
 
-    function test_unpause_revert_ExpectedPause() public {}
+    function test_pause_success() public {
+        vm.startPrank(owner);
 
-    function test_unpause_success() public {}
+        permissionManager.pause();
+        vm.assertEq(permissionManager.paused(), true);
+    }
+
+    function test_unpause_revert_notOwner(address sender) public {
+        vm.assume(sender != owner);
+        vm.startPrank(sender);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, sender));
+        permissionManager.unpause();
+    }
+
+    function test_unpause_revert_alreadyUnpaused() public {
+        vm.startPrank(owner);
+
+        vm.expectRevert(abi.encodeWithSelector(Pausable.ExpectedPause.selector));
+        permissionManager.unpause();
+    }
+
+    function test_unpause_success() public {
+        vm.startPrank(owner);
+
+        permissionManager.pause();
+        permissionManager.unpause();
+        vm.assertEq(permissionManager.paused(), false);
+    }
 }

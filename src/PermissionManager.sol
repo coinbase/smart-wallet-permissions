@@ -222,7 +222,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         // check sender is permission account or approval signature is valid for permission account
         if (
             msg.sender != permission.account
-                && IERC1271(permission.account).isValidSignature(permissionHash, permission.approval) != EIP1271_MAGIC_VALUE
+                && !_isValidApprovalSignature(permission.account, permissionHash, permission.approval)
         ) {
             revert UnauthorizedPermission();
         }
@@ -419,7 +419,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         }
 
         // fallback check permission approved via signature
-        return IERC1271(permission.account).isValidSignature(permissionHash, permission.approval) == EIP1271_MAGIC_VALUE;
+        return _isValidApprovalSignature(permission.account, permissionHash, permission.approval);
     }
 
     /// @notice Set new pending cosigner.
@@ -437,5 +437,22 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         address oldCosigner = cosigner;
         cosigner = newCosigner;
         emit CosignerRotated(oldCosigner, cosigner);
+    }
+
+    /// @notice Check if a permission approval signature is valid.
+    ///
+    /// @param account Smart account this permission is valid for.
+    /// @param permissionHash Hash of the permission.
+    /// @param approval Signature bytes signed by account owner.
+    ///
+    /// @return isValid True if approval signature is valid.
+    function _isValidApprovalSignature(address account, bytes32 permissionHash, bytes memory approval)
+        internal
+        view
+        returns (bool)
+    {
+        // early return false if approval is zero-length, otherwise validate via ERC-1271 on account
+        return
+            approval.length != 0 && IERC1271(account).isValidSignature(permissionHash, approval) == EIP1271_MAGIC_VALUE;
     }
 }

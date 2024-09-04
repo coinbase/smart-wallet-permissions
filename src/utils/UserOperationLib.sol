@@ -38,6 +38,20 @@ library UserOperationLib {
     ///
     /// @return userOpHash Hash of the user operation.
     function getUserOpHash(UserOperation memory userOp) internal view returns (bytes32) {
-        return IEntryPoint(ENTRY_POINT_V06).getUserOpHash(userOp);
+        bytes32 innerHash = keccak256(
+            abi.encode(
+                userOp.sender,
+                userOp.nonce,
+                keccak256(userOp.initCode),
+                keccak256(userOp.callData),
+                userOp.callGasLimit,
+                userOp.verificationGasLimit,
+                userOp.preVerificationGas,
+                userOp.maxFeePerGas,
+                userOp.maxPriorityFeePerGas,
+                keccak256(userOp.paymasterAndData)
+            )
+        );
+        return keccak256(abi.encode(innerHash, ENTRY_POINT_V06, block.chainid));
     }
 }

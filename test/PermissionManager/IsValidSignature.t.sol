@@ -324,17 +324,144 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
     }
 
-    function test_isValidSignature_success_permissionApprovalSignature() public {}
+    function test_isValidSignature_success_permissionApprovalStorage() public {
+        PermissionManager.Permission memory permission = _createPermission();
+        UserOperation memory userOp = _createUserOperation();
 
-    function test_isValidSignature_success_permissionApprovalStorage() public {}
+        CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
+        userOp.callData = callData;
 
-    function test_isValidSignature_success_userOpSignatureEOA() public {}
+        bytes32 userOpHash = UserOperationLib.getUserOpHash(userOp);
+        bytes memory userOpSignature = _sign(permmissionSignerPk, userOpHash);
+        bytes memory userOpCosignature = _sign(cosignerPk, userOpHash);
 
-    function test_isValidSignature_success_userOpSignatureContract() public {}
+        PermissionManager.PermissionedUserOperation memory pUserOp = PermissionManager.PermissionedUserOperation({
+            permission: permission,
+            userOp: userOp,
+            userOpSignature: userOpSignature,
+            userOpCosignature: userOpCosignature
+        });
 
-    function test_isValidSignature_success_userOpSignatureWebAuthn() public {}
+        vm.prank(address(account));
+        permissionManager.approvePermission(permission);
 
-    function test_isValidSignature_success_replay() public {}
+        bytes4 magicValue = permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
+        assertEq(magicValue, EIP1271_MAGIC_VALUE);
+    }
 
-    function test_isValidSignature_success_erc4337Compliance() public {}
+    function test_isValidSignature_success_permissionApprovalSignature() public {
+        PermissionManager.Permission memory permission = _createPermission();
+
+        permission.approval = _signPermission(permission);
+
+        UserOperation memory userOp = _createUserOperation();
+
+        CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
+        userOp.callData = callData;
+
+        bytes32 userOpHash = UserOperationLib.getUserOpHash(userOp);
+        bytes memory userOpSignature = _sign(permmissionSignerPk, userOpHash);
+        bytes memory userOpCosignature = _sign(cosignerPk, userOpHash);
+
+        PermissionManager.PermissionedUserOperation memory pUserOp = PermissionManager.PermissionedUserOperation({
+            permission: permission,
+            userOp: userOp,
+            userOpSignature: userOpSignature,
+            userOpCosignature: userOpCosignature
+        });
+
+        bytes4 magicValue = permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
+        assertEq(magicValue, EIP1271_MAGIC_VALUE);
+    }
+
+    function test_isValidSignature_success_userOpSignatureEOA() public {
+        PermissionManager.Permission memory permission = _createPermission();
+
+        permission.approval = _signPermission(permission);
+
+        UserOperation memory userOp = _createUserOperation();
+
+        CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
+        userOp.callData = callData;
+
+        bytes32 userOpHash = UserOperationLib.getUserOpHash(userOp);
+        bytes memory userOpSignature = _sign(permmissionSignerPk, userOpHash);
+        bytes memory userOpCosignature = _sign(cosignerPk, userOpHash);
+
+        PermissionManager.PermissionedUserOperation memory pUserOp = PermissionManager.PermissionedUserOperation({
+            permission: permission,
+            userOp: userOp,
+            userOpSignature: userOpSignature,
+            userOpCosignature: userOpCosignature
+        });
+
+        bytes4 magicValue = permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
+        assertEq(magicValue, EIP1271_MAGIC_VALUE);
+    }
+
+    function test_isValidSignature_success_userOpSignatureContract() public {
+        PermissionManager.Permission memory permission = _createPermission();
+        permission.signer = abi.encode(address(permissionSignerContract));
+
+        permission.approval = _signPermission(permission);
+
+        UserOperation memory userOp = _createUserOperation();
+
+        CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
+        userOp.callData = callData;
+
+        bytes32 userOpHash = UserOperationLib.getUserOpHash(userOp);
+        bytes memory userOpSignature = _sign(permmissionSignerPk, userOpHash);
+        bytes memory userOpCosignature = _sign(cosignerPk, userOpHash);
+
+        PermissionManager.PermissionedUserOperation memory pUserOp = PermissionManager.PermissionedUserOperation({
+            permission: permission,
+            userOp: userOp,
+            userOpSignature: userOpSignature,
+            userOpCosignature: userOpCosignature
+        });
+
+        bytes4 magicValue = permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
+        assertEq(magicValue, EIP1271_MAGIC_VALUE);
+    }
+
+    function test_isValidSignature_success_userOpSignatureWebAuthn() public {
+        PermissionManager.Permission memory permission = _createPermission();
+        permission.signer = p256PublicKey;
+
+        permission.approval = _signPermission(permission);
+
+        UserOperation memory userOp = _createUserOperation();
+
+        CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
+        userOp.callData = callData;
+
+        bytes32 userOpHash = UserOperationLib.getUserOpHash(userOp);
+        bytes memory userOpSignature = _signP256(p256PrivateKey, userOpHash);
+        bytes memory userOpCosignature = _sign(cosignerPk, userOpHash);
+
+        PermissionManager.PermissionedUserOperation memory pUserOp = PermissionManager.PermissionedUserOperation({
+            permission: permission,
+            userOp: userOp,
+            userOpSignature: userOpSignature,
+            userOpCosignature: userOpCosignature
+        });
+
+        bytes4 magicValue = permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
+        assertEq(magicValue, EIP1271_MAGIC_VALUE);
+    }
+
+    function test_isValidSignature_success_erc4337Compliance() public {
+        revert("unimplemented");
+    }
 }

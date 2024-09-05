@@ -40,8 +40,6 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
             permissionHash,
             abi.encode(_createPermissionValues(start, period, allowance, allowedContract))
         );
-        NativeTokenRecurringAllowance.RecurringAllowance memory recurringAllowance =
-            permissionContract.getRecurringAllowance(address(account), permissionHash);
 
         vm.warp(start - 1);
         vm.expectRevert(

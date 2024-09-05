@@ -8,7 +8,7 @@ import {Utils, WebAuthnInfo} from "webauthn-sol/../test/Utils.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
 import {MockCoinbaseSmartWallet} from "../mocks/MockCoinbaseSmartWallet.sol";
-import {MockPermissionSigner} from "../mocks/MockPermissionSigner.sol";
+import {MockContractSigner} from "../mocks/MockContractSigner.sol";
 
 contract Base is Test {
     string public constant MAINNET_RPC_URL = "https://base.org";
@@ -20,11 +20,11 @@ contract Base is Test {
     uint256 p256PrivateKey = uint256(0x03d99692017473e2d631945a812607b23269d85721e0f370b8d3e7d29a874fd2);
     bytes p256PublicKey =
         hex"1c05286fe694493eae33312f2d2e0d0abeda8db76238b7a204be1fb87f54ce4228fef61ef4ac300f631657635c28e59bfb2fe71bce1634c81c65642042f6dc4d";
-    MockPermissionSigner permissionSignerContract;
+    MockContractSigner permissionSignerContract;
     MockCoinbaseSmartWallet account;
 
     function _initialize() internal {
-        permissionSignerContract = new MockPermissionSigner(permissionSigner);
+        permissionSignerContract = new MockContractSigner(permissionSigner);
 
         account = new MockCoinbaseSmartWallet();
         bytes[] memory owners = new bytes[](1);

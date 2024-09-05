@@ -5,7 +5,7 @@ import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol
 
 import {SignatureCheckerLib as EthereumAddressSignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 
-contract MockPermissionSigner is IERC1271 {
+contract MockContractSigner is IERC1271 {
     address public immutable signer;
 
     constructor(address signer_) {

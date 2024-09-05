@@ -4,21 +4,21 @@ pragma solidity ^0.8.23;
 import {PermissionCallable} from "../../src/mixins/PermissionCallable.sol";
 
 contract MockPermissionCallable is PermissionCallable {
-    function notPermissionCallable() external {}
+    function notPermissionCallable() external pure {}
 
-    function revertNoData() external {
+    function revertNoData() external pure {
         revert();
     }
 
-    function revertWithData(string memory data) external returns (bytes memory) {
+    function revertWithData(string memory data) external pure returns (bytes memory) {
         revert(data);
     }
 
-    function successNoData() external {
+    function successNoData() external pure {
         return;
     }
 
-    function successWithData(bytes memory data) external returns (bytes memory) {
+    function successWithData(bytes memory data) external pure returns (bytes memory) {
         return data;
     }
 

@@ -40,6 +40,9 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @notice MagicSpend singleton.
     address public immutable magicSpend;
 
+    /// @notice Cannot initialize with zero-address.
+    error ZeroAddress();
+
     /// @notice Detected that gas fee is being paid for by user (MagicSpend or no paymaster).
     error GasSponsorshipRequired();
 
@@ -56,6 +59,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @param permissionManager_ Contract address for PermissionManager.
     /// @param magicSpend_ Contract address for MagicSpend.
     constructor(address permissionManager_, address magicSpend_) {
+        if (permissionManager_ == address(0) || magicSpend_ == address(0)) revert ZeroAddress();
         permissionManager = permissionManager_;
         magicSpend = magicSpend_;
     }

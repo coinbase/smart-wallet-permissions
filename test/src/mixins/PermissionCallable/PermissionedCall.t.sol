@@ -15,6 +15,11 @@ contract PermissionedCallTest is Test {
         mockPermissionCallable = new MockPermissionCallable();
     }
 
+    function test_permissionedCall_revert_InvalidCallLength(bytes3 invalidCall) public {
+        vm.expectRevert(abi.encodeWithSelector(PermissionCallable.InvalidCallLength.selector));
+        mockPermissionCallable.permissionedCall(abi.encodePacked(invalidCall));
+    }
+
     function test_permissionedCall_revert_NotPermissionCallable() public {
         bytes4 selector = MockPermissionCallable.notPermissionCallable.selector;
         vm.expectRevert(abi.encodeWithSelector(PermissionCallable.NotPermissionCallable.selector, selector));

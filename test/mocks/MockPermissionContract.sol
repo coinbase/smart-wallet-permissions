@@ -11,12 +11,15 @@ contract MockPermissionContract is IPermissionContract {
         alwaysRevert = arg;
     }
 
-    function validatePermission(bytes32 permissionHash, bytes calldata permissionValues, UserOperation calldata userOp)
-        external
-        view
-    {
+    function validatePermission(
+        bytes32, /*permissionHash*/
+        bytes calldata, /*permissionValues*/
+        UserOperation calldata /*userOp*/
+    ) external view {
         if (alwaysRevert) revert();
     }
 
-    function initializePermission(address account, bytes32 permissionHash, bytes calldata permissionValues) external {}
+    function initializePermission(address, /*account*/ bytes32, /*permissionHash*/ bytes calldata /*permissionValues*/ )
+        external
+    {}
 }

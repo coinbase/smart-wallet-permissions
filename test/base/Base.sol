@@ -11,7 +11,8 @@ import {MockCoinbaseSmartWallet} from "../mocks/MockCoinbaseSmartWallet.sol";
 import {MockContractSigner} from "../mocks/MockContractSigner.sol";
 
 contract Base is Test {
-    string public constant MAINNET_RPC_URL = "https://base.org";
+    string public constant BASE_SEPOLIA_RPC = "https://sepolia.base.org";
+    address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
     bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
     uint256 ownerPk = uint256(keccak256("owner"));
     address owner = vm.addr(ownerPk);

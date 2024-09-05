@@ -5,7 +5,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
-import {PermissionManagerBase} from "./PermissionManagerBase.sol";
+import {PermissionManagerBase} from "../base/PermissionManagerBase.sol";
 
 contract PauseTest is Test, PermissionManagerBase {
     function setUp() public {

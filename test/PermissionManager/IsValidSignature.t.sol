@@ -4,12 +4,12 @@ pragma solidity ^0.8.23;
 import {Test, console2} from "forge-std/Test.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
+import {PermissionManager} from "../../src/PermissionManager.sol";
 import {CallErrors} from "../../src/utils/CallErrors.sol";
-
 import {SignatureCheckerLib} from "../../src/utils/SignatureCheckerLib.sol";
 import {UserOperation, UserOperationLib} from "../../src/utils/UserOperationLib.sol";
 
-import {PermissionManager, PermissionManagerBase} from "./PermissionManagerBase.sol";
+import {PermissionManagerBase} from "../base/PermissionManagerBase.sol";
 
 contract IsValidSignatureTest is Test, PermissionManagerBase {
     function setUp() public {
@@ -351,7 +351,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         assertEq(magicValue, EIP1271_MAGIC_VALUE);
     }
 
-    function test_isValidSignature_success_permissionApprovalSignature() public {
+    function test_isValidSignature_success_permissionApprovalSignature() public view {
         PermissionManager.Permission memory permission = _createPermission();
 
         permission.approval = _signPermission(permission);
@@ -378,7 +378,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         assertEq(magicValue, EIP1271_MAGIC_VALUE);
     }
 
-    function test_isValidSignature_success_userOpSignatureEOA() public {
+    function test_isValidSignature_success_userOpSignatureEOA() public view {
         PermissionManager.Permission memory permission = _createPermission();
 
         permission.approval = _signPermission(permission);
@@ -405,7 +405,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         assertEq(magicValue, EIP1271_MAGIC_VALUE);
     }
 
-    function test_isValidSignature_success_userOpSignatureContract() public {
+    function test_isValidSignature_success_userOpSignatureContract() public view {
         PermissionManager.Permission memory permission = _createPermission();
         permission.signer = abi.encode(address(permissionSignerContract));
 
@@ -433,7 +433,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         assertEq(magicValue, EIP1271_MAGIC_VALUE);
     }
 
-    function test_isValidSignature_success_userOpSignatureWebAuthn() public {
+    function test_isValidSignature_success_userOpSignatureWebAuthn() public view {
         PermissionManager.Permission memory permission = _createPermission();
         permission.signer = p256PublicKey;
 
@@ -461,7 +461,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         assertEq(magicValue, EIP1271_MAGIC_VALUE);
     }
 
-    function test_isValidSignature_success_erc4337Compliance() public {
+    function test_isValidSignature_success_erc4337Compliance() public pure {
         revert("unimplemented");
     }
 }

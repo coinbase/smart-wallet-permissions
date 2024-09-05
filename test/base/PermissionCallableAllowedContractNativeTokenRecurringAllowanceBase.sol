@@ -5,14 +5,13 @@ import {Test, console2} from "forge-std/Test.sol";
 import {MagicSpend} from "magic-spend/MagicSpend.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
-import {IPermissionCallable} from "../../../src/interfaces/IPermissionCallable.sol";
-import {NativeTokenRecurringAllowance} from "../../../src/mixins/NativeTokenRecurringAllowance.sol";
+import {IPermissionCallable} from "../../src/interfaces/IPermissionCallable.sol";
+import {NativeTokenRecurringAllowance} from "../../src/mixins/NativeTokenRecurringAllowance.sol";
 import {PermissionCallableAllowedContractNativeTokenRecurringAllowance as PermissionContract} from
-    "../../../src/permissions/PermissionCallableAllowedContractNativeTokenRecurringAllowance.sol";
+    "../../src/permissions/PermissionCallableAllowedContractNativeTokenRecurringAllowance.sol";
 
-import {PermissionManagerBase} from "../../PermissionManager/PermissionManagerBase.sol";
-import {NativeTokenRecurringAllowanceBase} from
-    "../../mixins/NativeTokenRecurringAllowance/NativeTokenRecurringAllowanceBase.sol";
+import {NativeTokenRecurringAllowanceBase} from "./NativeTokenRecurringAllowanceBase.sol";
+import {PermissionManagerBase} from "./PermissionManagerBase.sol";
 
 contract PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase is
     PermissionManagerBase,
@@ -31,6 +30,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase is
 
     function _createPermissionValues(uint48 start, uint48 period, uint160 allowance, address allowedContract)
         internal
+        pure
         returns (PermissionContract.PermissionValues memory)
     {
         return PermissionContract.PermissionValues({
@@ -41,6 +41,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase is
 
     function _createPermissionValues(uint160 allowance, address allowedContract)
         internal
+        pure
         returns (PermissionContract.PermissionValues memory)
     {
         return PermissionContract.PermissionValues({
@@ -51,6 +52,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase is
 
     function _createPermissionedCall(address target, uint256 value, bytes memory data)
         internal
+        pure
         returns (CoinbaseSmartWallet.Call memory)
     {
         return CoinbaseSmartWallet.Call({
@@ -62,6 +64,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase is
 
     function _createUseRecurringAllowanceCall(address target, bytes32 permissionHash, uint256 spend)
         internal
+        pure
         returns (CoinbaseSmartWallet.Call memory)
     {
         return CoinbaseSmartWallet.Call({
@@ -73,6 +76,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase is
 
     function _createWithdrawCall(address target, address asset, uint256 amount)
         internal
+        pure
         returns (CoinbaseSmartWallet.Call memory)
     {
         return CoinbaseSmartWallet.Call({

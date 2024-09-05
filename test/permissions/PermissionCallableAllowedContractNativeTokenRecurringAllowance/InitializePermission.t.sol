@@ -9,7 +9,7 @@ import {PermissionCallableAllowedContractNativeTokenRecurringAllowance as Permis
     "../../../src/permissions/PermissionCallableAllowedContractNativeTokenRecurringAllowance.sol";
 
 import {PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase as PermissionContractBase} from
-    "./PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase.sol";
+    "../../base/PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase.sol";
 
 contract InitializePermissionTest is Test, PermissionContractBase {
     function setUp() public {

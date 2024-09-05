@@ -14,7 +14,7 @@ import {CallErrors} from "../../../src/utils/CallErrors.sol";
 import {UserOperation} from "../../../src/utils/UserOperationLib.sol";
 
 import {PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase as PermissionContractBase} from
-    "./PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase.sol";
+    "../../base/PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase.sol";
 
 contract ValidatePermissionTest is Test, PermissionContractBase {
     function setUp() public {
@@ -319,7 +319,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         uint160 allowance,
         address allowedContract,
         uint160 spend
-    ) public {
+    ) public view {
         vm.assume(paymaster != address(0));
         vm.assume(paymaster != address(magicSpend));
 
@@ -345,7 +345,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         uint160 allowance,
         address allowedContract,
         uint256 withdrawAmount
-    ) public {
+    ) public view {
         vm.assume(paymaster != address(0));
         vm.assume(paymaster != address(magicSpend));
         address asset = address(0);
@@ -375,7 +375,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         uint160 totalSpend,
         uint256 withdrawAmount,
         uint8 n
-    ) public {
+    ) public view {
         vm.assume(paymaster != address(0));
         vm.assume(paymaster != address(magicSpend));
         vm.assume(n > 0);
@@ -407,7 +407,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         );
     }
 
-    function test_validatePermission_success_erc4337Compliance() public {
+    function test_validatePermission_success_erc4337Compliance() public pure {
         revert("unimplemented");
     }
 }

@@ -16,5 +16,6 @@ contract MockPermissionSigner is IERC1271 {
         if (EthereumAddressSignatureCheckerLib.isValidSignatureNow(signer, hash, signature)) {
             return IERC1271.isValidSignature.selector;
         }
+        return 0xffffffff;
     }
 }

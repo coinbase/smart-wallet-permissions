@@ -4,7 +4,9 @@ pragma solidity ^0.8.23;
 import {Test, console2} from "forge-std/Test.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
-import {PermissionManager, PermissionManagerBase} from "./PermissionManagerBase.sol";
+import {PermissionManager} from "../../src/PermissionManager.sol";
+
+import {PermissionManagerBase} from "../base/PermissionManagerBase.sol";
 
 contract RenounceOwnershipTest is Test, PermissionManagerBase {
     function setUp() public {

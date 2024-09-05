@@ -6,7 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {NativeTokenRecurringAllowance} from "../../../src/mixins/NativeTokenRecurringAllowance.sol";
 
 import {PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase as PermissionContractBase} from
-    "./PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase.sol";
+    "../../base/PermissionCallableAllowedContractNativeTokenRecurringAllowanceBase.sol";
 
 contract UseRecurringAllowanceTest is Test, PermissionContractBase {
     function setUp() public {

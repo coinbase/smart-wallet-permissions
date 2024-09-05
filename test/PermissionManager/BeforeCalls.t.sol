@@ -4,7 +4,9 @@ pragma solidity ^0.8.23;
 import {Test, console2} from "forge-std/Test.sol";
 import {Pausable} from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
-import {PermissionManager, PermissionManagerBase} from "./PermissionManagerBase.sol";
+import {PermissionManager} from "../../src/PermissionManager.sol";
+
+import {PermissionManagerBase} from "../base/PermissionManagerBase.sol";
 
 contract BeforeCallsTest is Test, PermissionManagerBase {
     function setUp() public {

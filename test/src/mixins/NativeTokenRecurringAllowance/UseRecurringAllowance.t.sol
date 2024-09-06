@@ -59,8 +59,6 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
         vm.assume(period > 0);
         vm.assume(allowance > 0);
         vm.assume(spend > type(uint160).max);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
 
         mockNativeTokenRecurringAllowance.initializeRecurringAllowance(
             account, permissionHash, _createRecurringAllowance(start, period, allowance)
@@ -81,8 +79,6 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(allowance > 0);
         vm.assume(allowance < type(uint160).max - 1);
         vm.assume(spend > allowance);
@@ -107,8 +103,6 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(allowance > 0);
         vm.assume(allowance < type(uint160).max - 1);
         uint256 spend = allowance;
@@ -144,8 +138,6 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(allowance > 0);
         vm.assume(spend < allowance);
 
@@ -158,7 +150,7 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             mockNativeTokenRecurringAllowance.getRecurringAllowanceUsage(account, permissionHash);
         assertEq(usage.start, start);
-        assertEq(usage.end, start + period);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, spend);
     }
 
@@ -171,8 +163,6 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(allowance > 0);
         uint256 spend = allowance;
 
@@ -185,7 +175,7 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             mockNativeTokenRecurringAllowance.getRecurringAllowanceUsage(account, permissionHash);
         assertEq(usage.start, start);
-        assertEq(usage.end, start + period);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, spend);
     }
 
@@ -199,8 +189,6 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(n > 1);
         vm.assume(allowance >= n);
         uint256 spend = allowance / n;
@@ -218,7 +206,7 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
             NativeTokenRecurringAllowance.CycleUsage memory usage =
                 mockNativeTokenRecurringAllowance.getRecurringAllowanceUsage(account, permissionHash);
             assertEq(usage.start, start);
-            assertEq(usage.end, start + period);
+            assertEq(usage.end, _safeAdd(start, period));
             assertEq(usage.spend, totalSpend);
         }
     }

@@ -114,6 +114,23 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
     }
 
+    function test_beforeCalls_success_emitsEvent(address paymaster) public {
+        vm.assume(paymaster != address(0));
+
+        PermissionManager.Permission memory permission = _createPermission();
+        bytes32 permissionHash = permissionManager.hashPermission(permission);
+
+        vm.startPrank(owner);
+        permissionManager.setPermissionContractEnabled(permission.permissionContract, true);
+        permissionManager.setPaymasterEnabled(paymaster, true);
+        vm.stopPrank();
+
+        vm.prank(permission.account);
+        vm.expectEmit(address(permissionManager));
+        emit PermissionManager.PermissionApproved(address(account), permissionHash);
+        permissionManager.beforeCalls(permission, paymaster, cosigner);
+    }
+
     function test_beforeCalls_success_validApprovalSignature(address sender, address paymaster) public {
         vm.assume(paymaster != address(0));
 

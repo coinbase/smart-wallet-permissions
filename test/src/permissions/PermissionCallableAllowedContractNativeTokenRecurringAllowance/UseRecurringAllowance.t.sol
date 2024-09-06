@@ -144,7 +144,39 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         permissionContract.useRecurringAllowance(permissionHash, spend);
     }
 
-    function test_useRecurringAllowance_success(
+    function test_useRecurringAllowance_success_emitsEvent(
+        bytes32 permissionHash,
+        uint48 start,
+        uint48 period,
+        uint160 allowance,
+        address allowedContract,
+        uint160 spend
+    ) public {
+        vm.assume(start > 0);
+        vm.assume(period > 0);
+        vm.assume(allowance > 0);
+        vm.assume(spend < allowance);
+        vm.assume(spend > 0);
+
+        vm.prank(address(permissionManager));
+        permissionContract.initializePermission(
+            address(account),
+            permissionHash,
+            abi.encode(_createPermissionValues(start, period, allowance, allowedContract))
+        );
+
+        vm.warp(start);
+        vm.prank(address(account));
+        vm.expectEmit(address(permissionContract));
+        emit NativeTokenRecurringAllowance.RecurringAllowanceUsed(
+            address(account),
+            permissionHash,
+            NativeTokenRecurringAllowance.CycleUsage({start: start, end: _safeAdd(start, period), spend: spend})
+        );
+        permissionContract.useRecurringAllowance(permissionHash, spend);
+    }
+
+    function test_useRecurringAllowance_success_setsState(
         bytes32 permissionHash,
         uint48 start,
         uint48 period,

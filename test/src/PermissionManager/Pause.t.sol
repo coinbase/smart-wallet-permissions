@@ -28,6 +28,14 @@ contract PauseTest is Test, PermissionManagerBase {
         permissionManager.pause();
     }
 
+    function test_pause_success_emitsEvent() public {
+        vm.startPrank(owner);
+
+        vm.expectEmit(address(permissionManager));
+        emit Pausable.Paused(owner);
+        permissionManager.pause();
+    }
+
     function test_pause_success() public {
         vm.startPrank(owner);
 
@@ -49,7 +57,17 @@ contract PauseTest is Test, PermissionManagerBase {
         permissionManager.unpause();
     }
 
-    function test_unpause_success() public {
+    function test_unpause_success_emitsEvent() public {
+        vm.startPrank(owner);
+
+        permissionManager.pause();
+
+        vm.expectEmit(address(permissionManager));
+        emit Pausable.Unpaused(owner);
+        permissionManager.unpause();
+    }
+
+    function test_unpause_success_setsState() public {
         vm.startPrank(owner);
 
         permissionManager.pause();

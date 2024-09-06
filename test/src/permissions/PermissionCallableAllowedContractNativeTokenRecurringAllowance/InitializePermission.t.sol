@@ -46,7 +46,29 @@ contract InitializePermissionTest is Test, PermissionContractBase {
         );
     }
 
-    function test_initializePermission_success(
+    function test_initializePermission_success_emitsEvent(
+        address account,
+        bytes32 permissionHash,
+        uint48 start,
+        uint48 period,
+        uint160 allowance,
+        address allowedContract
+    ) public {
+        vm.assume(start > 0);
+        vm.assume(period > 0);
+
+        vm.prank(address(permissionManager));
+
+        vm.expectEmit(address(permissionContract));
+        emit NativeTokenRecurringAllowance.RecurringAllowanceInitialized(
+            address(account), permissionHash, _createRecurringAllowance(start, period, allowance)
+        );
+        permissionContract.initializePermission(
+            account, permissionHash, abi.encode(_createPermissionValues(start, period, allowance, allowedContract))
+        );
+    }
+
+    function test_initializePermission_success_setsState(
         address account,
         bytes32 permissionHash,
         uint48 start,

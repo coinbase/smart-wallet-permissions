@@ -4,6 +4,8 @@ pragma solidity ^0.8.23;
 import {Test, console2} from "forge-std/Test.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
+import {PermissionManager} from "../../../src/PermissionManager.sol";
+
 import {PermissionManagerBase} from "../../base/PermissionManagerBase.sol";
 
 contract SetPaymasterEnabledTest is Test, PermissionManagerBase {
@@ -19,7 +21,15 @@ contract SetPaymasterEnabledTest is Test, PermissionManagerBase {
         permissionManager.setPaymasterEnabled(paymaster, enabled);
     }
 
-    function test_setPaymasterEnabled_success(address paymaster, bool enabled) public {
+    function test_setPaymasterEnabled_success_emitsEvent(address paymaster, bool enabled) public {
+        vm.assume(paymaster != address(0));
+        vm.prank(owner);
+        vm.expectEmit(address(permissionManager));
+        emit PermissionManager.PaymasterUpdated(paymaster, enabled);
+        permissionManager.setPaymasterEnabled(paymaster, enabled);
+    }
+
+    function test_setPaymasterEnabled_success_setsState(address paymaster, bool enabled) public {
         vm.assume(paymaster != address(0));
         vm.prank(owner);
         permissionManager.setPaymasterEnabled(paymaster, enabled);

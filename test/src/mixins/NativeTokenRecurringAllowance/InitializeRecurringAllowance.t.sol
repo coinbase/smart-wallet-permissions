@@ -42,6 +42,25 @@ contract InitializeRecurringAllowanceTest is Test, NativeTokenRecurringAllowance
         );
     }
 
+    function test_initializeRecurringAllowance_success_emitsEvent(
+        address account,
+        bytes32 permissionHash,
+        uint48 start,
+        uint48 period
+    ) public {
+        uint160 allowance = 0;
+        vm.assume(start > 0);
+        vm.assume(period > 0);
+
+        vm.expectEmit(address(mockNativeTokenRecurringAllowance));
+        emit NativeTokenRecurringAllowance.RecurringAllowanceInitialized(
+            address(account), permissionHash, _createRecurringAllowance(start, period, allowance)
+        );
+        mockNativeTokenRecurringAllowance.initializeRecurringAllowance(
+            account, permissionHash, _createRecurringAllowance(start, period, allowance)
+        );
+    }
+
     function test_initializeRecurringAllowance_success_zeroAllowance(
         address account,
         bytes32 permissionHash,

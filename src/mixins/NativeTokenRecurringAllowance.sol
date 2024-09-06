@@ -203,7 +203,8 @@ abstract contract NativeTokenRecurringAllowance {
         bool lastCycleExists = lastCycleUsage.start != 0 && lastCycleUsage.end != 0 && lastCycleUsage.spend != 0;
 
         // last cycle still active if current time within [start, end) range, i.e. start-inclusive and end-exclusive
-        bool lastCycleStillActive = currentTimestamp < lastCycleUsage.start + recurringAllowance.period;
+        bool lastCycleStillActive =
+            currentTimestamp < uint256(lastCycleUsage.start) + uint256(recurringAllowance.period);
 
         if (lastCycleExists && lastCycleStillActive) {
             return lastCycleUsage;

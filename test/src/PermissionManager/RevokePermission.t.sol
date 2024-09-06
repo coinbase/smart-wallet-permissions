@@ -12,7 +12,7 @@ contract RevokePermissionTest is Test, PermissionManagerBase {
         _initializePermissionManager();
     }
 
-    function test_revokePermission_success(address sender) public {
+    function test_revokePermission_success_emitsEvent(address sender) public {
         PermissionManager.Permission memory permission = _createPermission();
         permission.account = sender;
         bytes32 permissionHash = permissionManager.hashPermission(permission);
@@ -20,6 +20,15 @@ contract RevokePermissionTest is Test, PermissionManagerBase {
         vm.prank(sender);
         vm.expectEmit(address(permissionManager));
         emit PermissionManager.PermissionRevoked(sender, permissionHash);
+        permissionManager.revokePermission(permissionHash);
+    }
+
+    function test_revokePermission_success_setsState(address sender) public {
+        PermissionManager.Permission memory permission = _createPermission();
+        permission.account = sender;
+        bytes32 permissionHash = permissionManager.hashPermission(permission);
+
+        vm.prank(sender);
         permissionManager.revokePermission(permissionHash);
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), false);
     }

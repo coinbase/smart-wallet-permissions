@@ -37,14 +37,22 @@ contract ApprovePermissionTest is Test, PermissionManagerBase {
         PermissionManager.Permission memory permission = _createPermission();
         bytes32 permissionHash = permissionManager.hashPermission(permission);
 
-        vm.startPrank(address(account));
-        vm.expectEmit(address(permissionManager));
-        emit PermissionManager.PermissionApproved(address(account), permissionHash);
+        vm.prank(address(account));
         permissionManager.approvePermission(permission);
 
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
         permission.approval = hex"";
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
+    }
+
+    function test_approvePermission_success_emitsEvent() public {
+        PermissionManager.Permission memory permission = _createPermission();
+        bytes32 permissionHash = permissionManager.hashPermission(permission);
+
+        vm.startPrank(address(account));
+        vm.expectEmit(address(permissionManager));
+        emit PermissionManager.PermissionApproved(address(account), permissionHash);
+        permissionManager.approvePermission(permission);
     }
 
     function test_approvePermission_success_validApprovalSignature(address sender) public {

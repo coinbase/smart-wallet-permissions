@@ -128,7 +128,35 @@ contract UseRecurringAllowanceTest is Test, NativeTokenRecurringAllowanceBase {
         mockNativeTokenRecurringAllowance.useRecurringAllowance(account, permissionHash, spend);
     }
 
-    function test_useRecurringAllowance_success(
+    function test_useRecurringAllowance_success_emitsEvent(
+        address account,
+        bytes32 permissionHash,
+        uint48 start,
+        uint48 period,
+        uint160 allowance,
+        uint160 spend
+    ) public {
+        vm.assume(start > 0);
+        vm.assume(period > 0);
+        vm.assume(allowance > 0);
+        vm.assume(spend < allowance);
+        vm.assume(spend > 0);
+
+        mockNativeTokenRecurringAllowance.initializeRecurringAllowance(
+            account, permissionHash, _createRecurringAllowance(start, period, allowance)
+        );
+
+        vm.warp(start);
+        vm.expectEmit(address(mockNativeTokenRecurringAllowance));
+        emit NativeTokenRecurringAllowance.RecurringAllowanceUsed(
+            account,
+            permissionHash,
+            NativeTokenRecurringAllowance.CycleUsage({start: start, end: _safeAdd(start, period), spend: spend})
+        );
+        mockNativeTokenRecurringAllowance.useRecurringAllowance(account, permissionHash, spend);
+    }
+
+    function test_useRecurringAllowance_success_setsState(
         address account,
         bytes32 permissionHash,
         uint48 start,

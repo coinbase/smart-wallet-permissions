@@ -27,7 +27,15 @@ contract RotateCosignerTest is Test, PermissionManagerBase {
         permissionManager.setPendingCosigner(address(0));
     }
 
-    function test_setPendingCosigner_success(address newCosigner) public {
+    function test_setPendingCosigner_success_emitsEvent(address newCosigner) public {
+        vm.assume(newCosigner != address(0));
+        vm.prank(owner);
+        vm.expectEmit(address(permissionManager));
+        emit PermissionManager.PendingCosignerSet(newCosigner);
+        permissionManager.setPendingCosigner(newCosigner);
+    }
+
+    function test_setPendingCosigner_success_setsState(address newCosigner) public {
         vm.assume(newCosigner != address(0));
         vm.prank(owner);
         permissionManager.setPendingCosigner(newCosigner);
@@ -41,7 +49,17 @@ contract RotateCosignerTest is Test, PermissionManagerBase {
         permissionManager.resetPendingCosigner();
     }
 
-    function test_resetPendingCosigner_success(address newCosigner) public {
+    function test_resetPendingCosigner_success_emitsEvent(address newCosigner) public {
+        vm.assume(newCosigner != address(0));
+        vm.startPrank(owner);
+        permissionManager.setPendingCosigner(newCosigner);
+
+        vm.expectEmit(address(permissionManager));
+        emit PermissionManager.PendingCosignerSet(address(0));
+        permissionManager.resetPendingCosigner();
+    }
+
+    function test_resetPendingCosigner_success_setsState(address newCosigner) public {
         vm.assume(newCosigner != address(0));
         vm.startPrank(owner);
         permissionManager.setPendingCosigner(newCosigner);
@@ -68,7 +86,17 @@ contract RotateCosignerTest is Test, PermissionManagerBase {
         permissionManager.rotateCosigner();
     }
 
-    function test_rotateCosigner_success(address newCosigner) public {
+    function test_rotateCosigner_success_emitsEvent(address newCosigner) public {
+        vm.assume(newCosigner != address(0));
+        vm.startPrank(owner);
+        permissionManager.setPendingCosigner(newCosigner);
+
+        vm.expectEmit(address(permissionManager));
+        emit PermissionManager.CosignerRotated(cosigner, newCosigner);
+        permissionManager.rotateCosigner();
+    }
+
+    function test_rotateCosigner_success_setsState(address newCosigner) public {
         vm.assume(newCosigner != address(0));
         vm.startPrank(owner);
         permissionManager.setPendingCosigner(newCosigner);

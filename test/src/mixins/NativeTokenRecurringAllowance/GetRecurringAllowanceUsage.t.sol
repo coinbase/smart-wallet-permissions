@@ -59,10 +59,8 @@ contract GetRecurringAllowanceUsageTest is Test, NativeTokenRecurringAllowanceBa
         vm.warp(start);
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             mockNativeTokenRecurringAllowance.getRecurringAllowanceUsage(account, permissionHash);
-        bool endOverflow = uint256(start) + uint256(period) > type(uint48).max;
-        uint48 end = endOverflow ? type(uint48).max : start + period;
         assertEq(usage.start, start);
-        assertEq(usage.end, end);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, 0);
     }
 
@@ -88,10 +86,8 @@ contract GetRecurringAllowanceUsageTest is Test, NativeTokenRecurringAllowanceBa
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             mockNativeTokenRecurringAllowance.getRecurringAllowanceUsage(account, permissionHash);
 
-        bool endOverflow = uint256(start) + uint256(period) > type(uint48).max;
-        uint48 end = endOverflow ? type(uint48).max : start + period;
         assertEq(usage.start, start);
-        assertEq(usage.end, end);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, spend);
     }
 
@@ -116,13 +112,11 @@ contract GetRecurringAllowanceUsageTest is Test, NativeTokenRecurringAllowanceBa
         vm.warp(start);
         mockNativeTokenRecurringAllowance.useRecurringAllowance(account, permissionHash, spend);
 
-        bool endOverflow = uint256(start) + uint256(period) > type(uint48).max;
-        uint48 end = endOverflow ? type(uint48).max : start + period;
-        vm.warp(end - 1);
+        vm.warp(_safeAdd(start, period) - 1);
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             mockNativeTokenRecurringAllowance.getRecurringAllowanceUsage(account, permissionHash);
         assertEq(usage.start, start);
-        assertEq(usage.end, end);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, spend);
     }
 
@@ -152,9 +146,7 @@ contract GetRecurringAllowanceUsageTest is Test, NativeTokenRecurringAllowanceBa
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             mockNativeTokenRecurringAllowance.getRecurringAllowanceUsage(account, permissionHash);
         assertEq(usage.start, start + period);
-        bool nextCycleEndOverflow = uint256(start) + 2 * uint256(period) > type(uint48).max;
-        uint48 nextCycleEnd = nextCycleEndOverflow ? type(uint48).max : start + 2 * period;
-        assertEq(usage.end, nextCycleEnd);
+        assertEq(usage.end, _safeAdd(_safeAdd(start, period), period));
         assertEq(usage.spend, 0);
     }
 

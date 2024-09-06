@@ -61,8 +61,6 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         vm.assume(period > 0);
         vm.assume(allowance > 0);
         vm.assume(spend > type(uint160).max);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
 
         vm.prank(address(permissionManager));
         permissionContract.initializePermission(
@@ -87,8 +85,6 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(allowance > 0);
         vm.assume(allowance < type(uint160).max - 1);
         vm.assume(spend > allowance);
@@ -117,8 +113,6 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(allowance > 0);
         vm.assume(allowance < type(uint160).max - 1);
         uint256 spend = allowance;
@@ -160,8 +154,6 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(allowance > 0);
         vm.assume(spend < allowance);
 
@@ -178,7 +170,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);
         assertEq(usage.start, start);
-        assertEq(usage.end, start + period);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, spend);
     }
 
@@ -191,8 +183,6 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(allowance > 0);
         uint256 spend = allowance;
 
@@ -209,7 +199,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);
         assertEq(usage.start, start);
-        assertEq(usage.end, start + period);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, spend);
     }
 
@@ -223,8 +213,6 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(n > 1);
         vm.assume(allowance >= n);
         uint256 spend = allowance / n;
@@ -246,7 +234,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
             NativeTokenRecurringAllowance.CycleUsage memory usage =
                 permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);
             assertEq(usage.start, start);
-            assertEq(usage.end, start + period);
+            assertEq(usage.end, _safeAdd(start, period));
             assertEq(usage.spend, totalSpend);
         }
     }
@@ -264,8 +252,6 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
-        vm.assume(start < type(uint24).max);
-        vm.assume(period < type(uint24).max);
         vm.assume(allowance > 0);
         vm.assume(spend < allowance);
         vm.assume(spend > 0);
@@ -284,7 +270,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);
         assertEq(usage.start, start);
-        assertEq(usage.end, start + period);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, spend);
 
         // checking same permissionHash on other sender fails because hasn't been initialized
@@ -302,13 +288,13 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         // original recurring allowance usage untouched
         usage = permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);
         assertEq(usage.start, start);
-        assertEq(usage.end, start + period);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, spend);
 
         // new recurring allowance usage for other sender
         usage = permissionContract.getRecurringAllowanceUsage(otherSender, permissionHash);
         assertEq(usage.start, start);
-        assertEq(usage.end, start + period);
+        assertEq(usage.end, _safeAdd(start, period));
         assertEq(usage.spend, spend - 1);
     }
 }

@@ -15,10 +15,27 @@ contract PermissionedCallTest is Test {
         mockPermissionCallable = new MockPermissionCallable();
     }
 
-    function test_permissionedCall_revert_NotPermissionCallable() public {
+    function test_permissionedCall_revert_InvalidCallLength(bytes memory call) public {
+        vm.assume(call.length < 4);
+        vm.expectRevert(abi.encodeWithSelector(PermissionCallable.InvalidCallLength.selector));
+        mockPermissionCallable.permissionedCall(call);
+    }
+
+    function test_permissionedCall_revert_notPermissionCallable() public {
         bytes4 selector = MockPermissionCallable.notPermissionCallable.selector;
         vm.expectRevert(abi.encodeWithSelector(PermissionCallable.NotPermissionCallable.selector, selector));
         mockPermissionCallable.permissionedCall(abi.encodeWithSelector(selector));
+    }
+
+    function test_permissionedCall_revert_notPermissionCallable_fuzz(bytes memory call) public {
+        vm.assume(call.length >= 4);
+        bytes4 selector = bytes4(call);
+        vm.assume(selector != MockPermissionCallable.revertNoData.selector);
+        vm.assume(selector != MockPermissionCallable.revertWithData.selector);
+        vm.assume(selector != MockPermissionCallable.successNoData.selector);
+        vm.assume(selector != MockPermissionCallable.successWithData.selector);
+        vm.expectRevert(abi.encodeWithSelector(PermissionCallable.NotPermissionCallable.selector, selector));
+        mockPermissionCallable.permissionedCall(call);
     }
 
     function test_permissionedCall_revert_noData() public {

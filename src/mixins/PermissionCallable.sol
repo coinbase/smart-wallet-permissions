@@ -11,6 +11,9 @@ import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 abstract contract PermissionCallable is IPermissionCallable {
+    /// @notice Call length under 4 bytes.
+    error InvalidCallLength();
+
     /// @notice Call not enabled through permissionedCall and smart wallet permissions systems.
     ///
     /// @param selector The function that was attempting to go through permissionedCall.
@@ -18,7 +21,9 @@ abstract contract PermissionCallable is IPermissionCallable {
 
     /// @inheritdoc IPermissionCallable
     function permissionedCall(bytes calldata call) external payable returns (bytes memory res) {
-        // check if call selector is allowed through permissionedCall
+        // require call length at least 4 bytes
+        if (call.length < 4) revert InvalidCallLength();
+        // require call selector is allowed through permissionedCall
         if (!supportsPermissionedCallSelector(bytes4(call))) revert NotPermissionCallable(bytes4(call));
         // make self-delegatecall with provided call data
         return Address.functionDelegateCall(address(this), call);

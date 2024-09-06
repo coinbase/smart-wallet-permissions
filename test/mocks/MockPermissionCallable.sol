@@ -23,6 +23,11 @@ contract MockPermissionCallable is PermissionCallable {
     }
 
     function supportsPermissionedCallSelector(bytes4 selector) public pure override returns (bool) {
-        return selector != MockPermissionCallable.notPermissionCallable.selector;
+        return (
+            selector == MockPermissionCallable.revertNoData.selector
+                || selector == MockPermissionCallable.revertWithData.selector
+                || selector == MockPermissionCallable.successNoData.selector
+                || selector == MockPermissionCallable.successWithData.selector
+        );
     }
 }

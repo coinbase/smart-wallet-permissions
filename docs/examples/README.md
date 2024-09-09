@@ -20,11 +20,7 @@ After installing this codebase as a dependency in your project, simply import an
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-<<<<<<< HEAD
 import {PermissionCallable} from "smart-wallet-permissions/mixins/PermissionCallable.sol";
-=======
-import {PermissionCallable} from "smart-wallet-permissions/utils/PermissionCallable.sol";
->>>>>>> fbbc469 (Update imports)
 
 contract Contract is PermissionCallable {
     // define which function selectors are callable by permissioned userOps

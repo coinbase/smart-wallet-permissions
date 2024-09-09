@@ -178,6 +178,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
 
     function test_beforeCalls_success_pendingCosigner(address paymaster, address newCosigner) public {
         vm.assume(paymaster != address(0));
+        vm.assume(newCosigner != address(0));
 
         PermissionManager.Permission memory permission = _createPermission();
 

@@ -8,7 +8,7 @@ This page summarizes key design decisions for [`PermissionManager`](../src/Permi
 
 ### Immutable singleton
 
-Some security mechanisms require storing state external to Smart Wallets. Given that some state applies to the system as a whole, designing around a singleton architecture was most intuitive. Given this contract will be added as an owner to all Smart Wallets that opt-in, it is vital that this contract be non-upgradeable to mitigate the risk of mass attacks to our users by swapping into a malicious implementation. However, this singleton is not permissionless and has a single `owner` to manage its safe operation.
+Some security mechanisms require storing state external to Smart Wallets. Given that some state applies to the system as a whole, designing around a singleton architecture was most intuitive. Given this contract will be added as an owner to all Smart Wallets that opt-in, it is vital that this contract be non-upgradeable to mitigate the risk of mass attacks to our users by swapping into a malicious implementation. However, this singleton is not permissionless and has a single `owner` to manage its safe operation. Should the singleton ever become known as compromised, the `owner` has the authority to pause the contract through a typical pausable mechanism.
 
 ### Ethereum address and `secp256r1` signers
 

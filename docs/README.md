@@ -1,27 +1,56 @@
 # Smart Wallet Permissions Docs
 
-These docs are meant to walk you through the key design decisions and mechanisms that underly the Smart Wallet Permissions V1 contracts.
+> :information_source: These contracts are unaudited. Please use at your own risk.
 
-- apps can now request permissions from wallets using [ERC-7715](./ERC-7715.md)
-- wallets are responsible for preparing a context that can be used to authorize account actions
-- user approves some permissions to an app-owned signer which can then take actions
-- our first design iteration leans into existing 4337 patterns and infrastructure
-- one goal is to support permissions without upgrading the core Coinbase Smart Wallet account implementation
-- we accomplish this by adding a new smart contract as an owner of smart wallets that enables the permissions feature called [PermissionsManager](./PermissionManager.md)
-- [image of contract diagrams with PermissionsManager in auth flow]
-- PermissionsManager is responsible for authenticating permissioned user operations for accounts
-- There are many kinds of permissions that we expect to support over time, so we leaned into a modular design where permission-specific checks are delegated to a set of permission contracts
-- These permission contracts implement specific controls and trust that the manager has already made the most fundamental guarantees
-- [image of contract diagrams]
+With [ERC-7715](./ERC-7715.md), users can grant permissions to apps to submit transactions on their behalf. These docs are meant to walk you through the key design decisions and mechanisms that chose to enable this feature at the contract layer. Reading all linked resources is encouraged to get the full depth of design intuition.
 
-For the V1 launch, we will only support one permission contract with the goals of:
+## 1. ERC-4337 Alignment
 
-- spend native token (ETH) via a [recurring allowance](./RecurringAllowance.md)
-- call external contracts
-- support MagicSpend withdraws
+Our first iteration chose to lean into the patterns defined by [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) for actually executing onchain. This allowed us to share infrastructure Coinbase and many other teams have invested in for Bundlers and Paymasters. It also absolved us of redesigning a solution for problems that the Entrypoint already solves like DoS protection via separation of validation and execution phases and modularizing gas payment.
 
-This new paradigm of apps submitting transactions on behalf of users is new ground and security is most important which led us to three security features:
+## 2. Optional addition to Coinbase Smart Wallet
 
-- external contracts can only be called through a [single selector, `permissionedCall(bytes)`](./PermissionedCall.md)
-- apps [must use a paymaster](./PaymasterRequirement.md) to front transaction costs
-- all permissioned user operations must be [cosigned by Coinbase](./Cosigner.md)
+While baking this feature into a new Coinbase Smart Wallet V2 contract was tempting, we decided to leverage the modular owner system from V1 and avoid a hard upgrade. This helped reduce our launch timeline and also gives us a lower risk path to introduce the substantially different paradigm of account authentication.
+
+We accomplished this by writing a new singleton contract, [`PermissionManager`](./PermissionManager.md), which can be optionally added as an owner to existing accounts your first time encountering an app that uses Session Keys.
+
+```mermaid
+graph LR
+    E["EntryPoint"]
+    SW["Smart Wallet"]
+    PM["Permission Manager"]
+
+    E -- validateUserOp --> SW
+    SW -- isValidSignature --> PM
+```
+
+## 3. Generic/Specific permission validation split
+
+`PermissionManager` is responsible for validating permissioned user operations. There are many kinds of permissions we expect developers to request over time, so we chose a modular design where permission-specific validations are delegated to a permission contract. The `PermissionManager` will initially validate the core properties of a permissioned user operation (e.g. authorized by user, not expired) and then call the permission contract to perform additional checks (e.g. allowed contract calls).
+
+```mermaid
+graph LR
+    E["EntryPoint"]
+    SW["Smart Wallet"]
+    PM["Permission Manager"]
+    PC["Permission Contract"]
+
+    E -- validateUserOp --> SW
+    SW -- isValidSignature --> PM
+    PM -- validatePermission --> PC
+```
+
+## 4. Tightly-scoped first permission contract
+
+For the V1 launch, we will only support one permission contract with select features:
+
+- spend native token (ETH) with a [recurring allowance](./RecurringAllowance.md)
+- withdraw assets from [MagicSpend](https://github.com/coinbase/magic-spend)
+- call external contracts with a [single, required selector](./PermissionedCall.md)
+- sponsor transactions with a [required paymaster](./PaymasterRequirement.md)
+
+While we believe these capabilities unlock many valuable use cases, some integrations will not yet be possible. We encourage you to join our [Discord](<(https://discord.com/invite/cdp/)>) and submit feedback in `#smart-wallet` for your feature requests and use case to help shape our roadmap. Currently, adding support for ERC20 and more function selectors are top priorities.
+
+## 5. Validation/Execution phase checks split
+
+To be compatible with ERC-4337, we had to adhere to the restrictions during validation phase defined in [ERC-7562](https://eips.ethereum.org/EIPS/eip-7562). One pattern we employed both for the `PermissionManager` and permission contract is two have two sets of checks with as many as possible in validation phase and then a select few in execution phase. We make these execution-phase checks by packing additional calls into the call batch sent to the Smart Wallet in `userOp.calldata` and we enforce their precense in this calldata during validation phase. If any of these execution-phase checks fail, the entire user operation execution fails.

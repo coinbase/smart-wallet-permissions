@@ -1,6 +1,6 @@
-# Permission Callable
+# Permissioned Call
 
-**Permission Callable enable apps to safely and permissionlessly integrate Smart Wallet Permissions in their application.**
+**Permission Call enable apps to safely and permissionlessly integrate Smart Wallet Permissions in their application.**
 
 The default approach to enable this is for a permission to enable calling arbitrary contracts with arbitrary function selectors and arguments. Even with controls for users to allowlist specific contracts/selectors/arguments, we believe this model is insecure.
 

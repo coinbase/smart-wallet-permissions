@@ -5,12 +5,12 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {PermissionCallable} from "../mixins/PermissionCallable.sol";
 
-/// @title UniversalSandbox
+/// @title BasicSandbox
 ///
 /// @notice Forwards any external calls to a specified target.
 ///
 /// @dev This pattern works for target contracts that do not care who `msg.sender` is.
-contract UniversalSandbox is PermissionCallable {
+contract BasicSandbox is PermissionCallable {
     /// @notice Call a target contract with data.
     ///
     /// @param target Address of contract to call.
@@ -23,6 +23,6 @@ contract UniversalSandbox is PermissionCallable {
 
     /// @inheritdoc PermissionCallable
     function supportsPermissionedCallSelector(bytes4 selector) public pure override returns (bool) {
-        return selector == UniversalSandbox.sandboxedCall.selector;
+        return selector == BasicSandbox.sandboxedCall.selector;
     }
 }

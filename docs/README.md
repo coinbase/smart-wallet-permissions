@@ -10,11 +10,11 @@ With [ERC-7715](./ERC-7715.md), users can grant permissions to apps to submit tr
 
 Our first iteration chose to lean into the patterns defined by [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) for actually executing onchain. This allowed us to share infrastructure Coinbase and many other teams have invested in for Bundlers and Paymasters. It also absolved us of redesigning a solution for problems that the Entrypoint already solves like DoS protection via separation of validation and execution phases and modularizing gas payment.
 
-### 2. Optional addition to Coinbase Smart Wallet
+### 2. Optional addition to Coinbase Smart Wallet V1
 
-While baking this feature into a new Coinbase Smart Wallet V2 contract was tempting, we decided to leverage the modular owner system from V1 and avoid a hard upgrade. This helped reduce our launch timeline and also gives us a lower risk path to introduce the substantially different paradigm of account authentication.
+While implementing this feature as a new V2 wallet implementation was tempting, we decided to leverage the modular owner system from [Smart Wallet V1](https://github.com/coinbase/smart-wallet) and avoid a hard upgrade. This helped reduce our launch timeline and also reduced the risk of introducing this substantially different account authentication paradigm.
 
-We accomplished this by writing a new singleton contract, [`PermissionManager`](./PermissionManager.md), which can be optionally added as an owner to existing accounts your first time encountering an app that uses Session Keys.
+We accomplished this by writing a new singleton contract, [`PermissionManager`](./PermissionManager.md), which can be optionally added as an owner to existing accounts your first time encountering an app that uses Session Keys or during accounts creation.
 
 ```mermaid
 graph LR

@@ -23,8 +23,8 @@ sequenceDiagram
     P-->>WS: paymaster data
     WS-->>A: prepared calls with hash
     A->>A: sign
-    A->>WS: wallet_sendCalls
-    Note over A,WS: preSigned capability with signature
+    A->>WS: wallet_sendPreparedCalls
+    Note over A,WS: prepared calls with signature
     WS->>CS: cosign userOp
     CS->>CS: validate userOp + sign
     CS-->>WS: cosignature

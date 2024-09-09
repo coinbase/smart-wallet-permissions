@@ -15,7 +15,7 @@ Offchain, apps do not have to change how they currently encode calls to their co
 Additionally, we encourage smart contract developers to intentionally support permissioned calls for the functions that need it. Some functionality may be irreversible or high-severity to the point that ensuring users are involved in the final signing process is useful friction. Contracts are also expected to implement `supportsPermissionedCallSelector(bytes4 selector) view returns (bool)` which declares if a specific function selector is supported or not through `permissionedCall`. This pattern takes inspiration from [EIP-165](https://eips.ethereum.org/EIPS/eip-165) and easily enables granular selector filtering or enabling all selectors with `return true`. We provide a default [`PermissionCallable`](./PermissionCallable.sol) implementation that developers can inherit directly in their contracts. We do not recommend using this contract in production until our audit has completed.
 
 ```solidity
-import {PermissionCallable} from "smart-wallet-permissions/src/PermissionCallable/PermissionCallable.sol";
+import {PermissionCallable} from "smart-wallet-permissions/mixins/PermissionCallable.sol";
 
 contract Contract is PermissionCallable {
     // define which function selectors are callable by permissioned userOps
@@ -36,10 +36,10 @@ Non-upgradeable contracts make implementing `permissionedCall` difficult, but no
 ```mermaid
 flowchart LR
     SW["Smart Wallet"]
-    PP["Permission Proxy"]
+    PS["Permission Sandbox"]
     TC["Target Contract"]
 
-    SW -- permissionedCall --> PP -- call --> TC
+    SW -- permissionedCall --> PS -- call --> TC
 ```
 
 For cases where you only want to ask for one permission approval to interact with many contracts, the middleware pattern can also help isolate a single address to get permission to call. Note that the middleware contract obscures the original Smart Wallet address which would normally be `msg.sender` in the context of the target contracts, which makes it default secure but also potentially incompatible.
@@ -47,15 +47,15 @@ For cases where you only want to ask for one permission approval to interact wit
 ```mermaid
 flowchart LR
     SW["Smart Wallet"]
-    PP["Permission Proxy"]
+    PS["Permission Sandbox"]
     TC1["Target Contract 1"]
     TC2["Target Contract 2"]
     TC3["Target Contract 3"]
 
-    SW -- permissionedCall --> PP
-    PP -- call --> TC1
-    PP -- call --> TC2
-    PP -- call --> TC3
+    SW -- permissionedCall --> PS
+    PS -- call --> TC1
+    PS -- call --> TC2
+    PS -- call --> TC3
 ```
 
 We are continuing to build out a set of examples that help developers grab a pre-made solution. If you feel like you do not have a clear way to implement `permissionedCall`, please reach out in our [Discord](https://discord.com/invite/cdp/).

@@ -69,6 +69,19 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         permissionManager.beforeCalls(permission, address(0), cosigner);
     }
 
+    function test_beforeCalls_revert_zeroCosigner(address paymaster) public {
+        address userOpCosigner = address(0);
+
+        PermissionManager.Permission memory permission = _createPermission();
+
+        vm.startPrank(owner);
+        permissionManager.setPermissionContractEnabled(permission.permissionContract, true);
+        permissionManager.setPaymasterEnabled(paymaster, true);
+
+        vm.expectRevert(abi.encodeWithSelector(PermissionManager.InvalidCosigner.selector, userOpCosigner));
+        permissionManager.beforeCalls(permission, paymaster, userOpCosigner);
+    }
+
     function test_beforeCalls_revert_invalidCosigner(address paymaster, address userOpCosigner) public {
         vm.assume(cosigner != userOpCosigner);
 

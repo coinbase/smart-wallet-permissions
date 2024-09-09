@@ -63,33 +63,10 @@ To be compatible with ERC-4337, we had to adhere to the restrictions during vali
 
 View a sample sequence diagram [here](./diagrams/offchain/grantPermissions.md) and Smart Wallet's supported capabilities [here](./ERC-7715.md).
 
-1. App requests permissions via the new `wallet_grantPermissions` RPC defined in [ERC-7715](https://eip.tools/eip/7715).
-1. User presented a pop-up window with permission details summary and signs with their on-device passkey for their Smart Wallet to approve.
-1. Smart Wallet returns an abi-encoded struct which includes the permission details along with the user's signature.
-
 ### 2. App prepares and sends calls (offchain)
 
 View a sample sequence diagram [here](./diagrams/offchain/prepareCalls+sendCalls.md).
 
-1. App prepares calls via the new `wallet_prepareCalls` RPC which is forwarded to a Wallet Server (to be defined in a new ERC).
-1. Wallet Server prepares a user operation and returns the prepared calls back to the app to sign.
-1. App signs the prepared calls (user operation hash) with its Session Key.
-1. App sends the prepared calls via the new `wallet_sendPreparedCalls` RPC which is forwarded to a Wallet Server (to be defined in a new ERC).
-1. Wallet Server simulates the prepared and signed user operation, cosigns the user operation if simulation is valid, formates the final `userOp.signature`, and submits to a Bundler.
-
 ### 3. Bundler executes User Operation (onchain)
 
 View a sample sequence diagram [here](./diagrams/onchain/permissionedCalls.md).
-
-1. Bundler calls `EntryPoint.handleOps`.
-1. EntryPoint calls `CoinbaseSmartWallet.validateUserOp`.
-1. Smart Wallet calls `PermissionManager.isValidSignature`.
-1. Permission Manager makes series of checks.
-1. Permission Manager calls `PermissionContract.validatePermission`.
-1. Permission Contract makes series of checks.
-1. Validation phase is now complete.
-1. EntryPoint calls `CoinbaseSmartWallet.executeBatch`.
-1. Smart Wallet calls `PermissionManager.beforeCalls` (a packed call for execution-phase checks).
-1. If this is the first time the permission is being used, Permission Manager calls `PermissionContract.initializePermission`.
-1. Smart Wallet makes external contract calls.
-1. Smart Wallet calls `PermissionContract.useRecurringAllowance` (a packed call for execution-phase checks).

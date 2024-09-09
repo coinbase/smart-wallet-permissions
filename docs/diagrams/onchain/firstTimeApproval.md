@@ -10,7 +10,7 @@ The first call in the batch is to `EntryPoint.handleOps` with our previously sig
 
 The second call in the batch is to `PermissionManager.approvePermission` to approve the permission. Because the call is made from the Smart Wallet, the Permission Manager will not require an approval signature packed into the `Permission` argument, saving our user from this additional signature.
 
-````mermaid
+```mermaid
 sequenceDiagram
     autonumber
     participant E as Entrypoint
@@ -34,5 +34,5 @@ sequenceDiagram
     Note over A,E: Add Permission Manager
     A->>M: approvePermission
     Note over A,M: permission struct
-    M->>P: initializePermission```
-````
+    M->>P: initializePermission
+```

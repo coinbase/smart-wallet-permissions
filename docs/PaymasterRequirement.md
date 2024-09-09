@@ -1,0 +1,9 @@
+# Paymaster Requirement
+
+Prior knowledge of [recurring allowances](./RecurringAllowance.md) is recommended.
+
+It is critical that token expenditure accounting to be 100% accurate and unfortunately, this is at risk if a paymaster is not used. When a paymaster is not used, the gas fee comes directly from the user's account to pay the Bundler. In the event the user operation execution fails, our updated allowance usage does not persist because it is also done in execution phase. This creates a situation where the user paid native token for gas to the Bundler, but this spend is not accounted for. Without mitigation, this opens a attack vector where an app can spend the user's entire native token balance by spamming failing user operations.
+
+Fortunately, the mitigation is simple where if apps are required to pay for the gas costs of permissioned user operations, incentives are aligned where a user never pays for unsuccessful user operations. Note that this does not force apps to pay for all permissioned user operations though, just to front the initial gas reserve to the Bundler. If an app would like users to pay for their gas, they can pack a call to refund themselves in the same user operation. Should many apps request and leverage this capability, we may consider adding a paved road for this pattern of refunding the sponsoring app.
+
+This fundamental issue of accounting for users native token expenditure on gas for failing user operations also applies for when MagicSpend is used as a paymaster. In the MagicSpend case, users assets are still fronting the bundler's gas payment so we also exclude MagicSpend as a valid paymaster to protect users. Note that this does not prevent apps from using MagicSpend withdraws within a user operation or using part of these withdrawn funds to refund itself, just for initial Bundler payment.

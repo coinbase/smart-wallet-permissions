@@ -1,1 +1,0 @@
-# Native Token Recurring Allowance

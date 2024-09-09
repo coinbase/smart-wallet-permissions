@@ -36,6 +36,7 @@ sequenceDiagram
     U-->>W: signature
     W->>B: eth_sendUserOperation
     B-->>W: userOpHash
+    Note over W: wait for userOp to land
     W-->>SDK: permissions with context
     SDK-->>A: permissions with context
 ```

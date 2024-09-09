@@ -197,8 +197,10 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         // check paymaster enabled
         if (!isPaymasterEnabled[paymaster]) revert DisabledPaymaster(paymaster);
 
-        // check userOpCosigner is cosigner or pendingCosigner
-        if (userOpCosigner != cosigner && userOpCosigner != pendingCosigner) revert InvalidCosigner(userOpCosigner);
+        // check userOpCosigner is non-zero and is cosigner or pendingCosigner
+        if (userOpCosigner == address(0) || (userOpCosigner != cosigner && userOpCosigner != pendingCosigner)) {
+            revert InvalidCosigner(userOpCosigner);
+        }
 
         // approve permission to cache storage for cheaper execution on future use
         approvePermission(permission);

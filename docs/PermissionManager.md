@@ -14,11 +14,13 @@ Some security mechanisms require storing state external to Smart Wallets. Given 
 
 Just like Smart Wallet V1, Session Keys supports both Ethereum address and `secp256r1` signers. Ethereum addresses are split into validating EOA signatures with `ecrecover` and contract signatures with [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) `isValidSignature`. The `secp256r1` curve supports both Passkey and [CryptoKey](./CryptoKey.md) signature validation through [WebAuthn](https://github.com/base-org/webauthn-sol/blob/main/src/WebAuthn.sol).
 
-### Signature/Storage approvals with lazy caching
+### Signature approvals with lazy caching
 
-Users approve permissions by signing over the hash of a `struct Permission`. A signature-first approach enables users to approve without spending any gas upfront and delaying gas fees until the point of transaction. This helps create an environment where users feel more comfortable approving permissions by removing an immediate cost to them. However, doing a signature validation onchain is expensive so Permission Manager implements a lazy caching mechanism that saves the approval in storage during first use. On future use of the same permission, a signature validation can be skipped by reading this storage, substantially improving gas efficiency.
+Users approve permissions by signing over the hash of a `struct Permission`. A signature-first approach enables users to approve without spending any gas upfront and delaying gas fees until the point of transaction. This helps create an environment where users feel more comfortable approving permissions by removing an immediate cost to them. However, doing a signature validation onchain is expensive so Permission Manager implements a lazy caching mechanism that saves the approval in storage during first use. On future use of the same permission, a signature validation can be skipped by reading this storage, substantially improving gas efficiency. The storage for appovals is a doubly-nested mapping where the final key is the account address to enable valid access in the ERC-4337 validation phase.
 
-A storage-based approval system also enables Permission Manager to expose an `approvePermission` function that unlocks important UX primitives like batch approvals and atomic updates. The storage for appovals is a doubly-nested mapping where the final key is the account address to enable valid access in the ERC-4337 validation phase.
+### Transaction approvals
+
+A storage-based approval system also enables Permission Manager to expose an `approvePermission` function that unlocks important UX primitives like [batch approvals](./diagrams/onchain/batchApprovePermissions.md) and [atomic updates](./diagrams/onchain/batchUpdatePermissions.md).
 
 ### Permission revocations
 
@@ -57,4 +59,4 @@ On this same theme, we prevent apps from secretly adding calls to `PermissionMan
 
 ### Required Cosigner
 
-All permissioned user operations require additional offchain validation through another signature from a Coinbase-owned key. This cosigner is our final line of protection to filter out user operations that might negatively impact users. It's logic is outlined further [here](./Cosigner.md).
+All permissioned user operations require additional offchain validation through another signature from a Coinbase-owned key. This cosigner is our final line of protection to filter out user operations that might negatively impact users. It's logic is outlined further [here](./Cosigner.md) and is recommended to read after covering the Permission Contract's mechanisms: [recurring allowances](./RecurringAllowance.md), [permissioned calls](./PermissionedCall.md), and [required paymasters](./PaymasterRequirement.md).

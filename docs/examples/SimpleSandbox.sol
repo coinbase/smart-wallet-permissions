@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import {PermissionCallable} from "../mixins/PermissionCallable.sol";
+import {PermissionCallable} from "smart-wallet-permissions/mixins/PermissionCallable.sol";
 
 /// @title SimpleSandbox
 ///

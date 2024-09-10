@@ -8,7 +8,7 @@ import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 /// @notice A last-resort utility to irreversibly brick a contract against an adversarial environment.
 ///
 /// @dev Signature authorization designed to enable brick transactions even if brick authorizer key compromised.
-/// @dev Brick message is chain-invariant to enable cross-chain replay even if brick authorizer key becomes unavailable.
+/// @dev Brick message is optionally chain-invariant to enable cross-chain replay if authorizer key becomes unavailable.
 ///
 /// @author Coinbase
 contract Brickable {
@@ -29,6 +29,9 @@ contract Brickable {
 
     /// @notice Bricked status is enforced.
     error EnforcedBrick();
+
+    /// @notice Brick request chainId is non-zero and not this chain.
+    error InvalidChainId();
 
     /// @notice Brick request is unauthorized.
     error UnauthorizedBrick();
@@ -59,13 +62,17 @@ contract Brickable {
     /// @dev Signature authorization was chosen because we assume an adversarial environment where authorizer key
     ///      may also be compromised and struggle to submit transactions due to automated draining transactions.
     ///
+    /// @param chainId Id for the brick message that allows chain-specificity (non-zero) or chain-invariance (zero).
     /// @param signature Bytes signed over the constant brick message.
-    function brick(bytes calldata signature) external {
+    function brick(uint256 chainId, bytes calldata signature) external {
         // early return if already bricked
         if (bricked()) return;
 
+        // check chainId is all chains or this chain
+        if (chainId != 0 && chainId != block.chainid) revert InvalidChainId();
+
         // check if brick signature is authorized
-        if (!SignatureCheckerLib.isValidSignatureNow(brickAuthorizer, _eip712Hash(), signature)) {
+        if (!SignatureCheckerLib.isValidSignatureNow(brickAuthorizer, _eip712Hash(chainId), signature)) {
             revert UnauthorizedBrick();
         }
 
@@ -88,9 +95,15 @@ contract Brickable {
     /// @notice Compute the constant hash for brick authorization signatures.
     ///
     /// @return hash EIP-712 hash of the brick message.
-    function _eip712Hash() private view returns (bytes32) {
-        bytes32 domainSeparator =
-            keccak256(abi.encode(keccak256("EIP712Domain(string name,bytes32 salt)"), nameHash, chainInvariantSalt));
+    function _eip712Hash(uint256 chainId) private view returns (bytes32) {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,uint256 chainId,bytes32 salt)"),
+                nameHash,
+                chainId,
+                chainInvariantSalt
+            )
+        );
         bytes32 hashStruct = keccak256(abi.encode(keccak256("Brick()")));
 
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator, hashStruct));

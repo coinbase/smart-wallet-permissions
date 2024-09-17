@@ -41,9 +41,9 @@ Additionally, reentrancy calls to the Permission Manager are also negated to pre
 
 To retain compliance, Permission Manager moves these checks to execution phase by enforcing that the first call in a batch is to `PermissionManager.beforeCalls`. This function implements the checks that cannot be done in validation phase and if it reverts, the user operation fails and no intended calls execute. The bundler will still get paid in this scenario because this is happening after validation phase.
 
-### Enabled Permission Contracts and Paymasters
+### Enabled Permission Contracts
 
-Part of these execution phase checks include verifying the attempted Permission Contract and Paymaster are enabled. The `owner` is responsible for maintaining this storage by adding new Permission Contracts as new functionality is rolled out, potentially disabling them later on if a compromise is found, and supporting ecosystem partners in adding their Paymasters to this allowlist.
+Part of these execution phase checks include verifying the attempted Permission Contract is enabled. The `owner` is responsible for maintaining this storage by adding new Permission Contracts as new functionality is rolled out, potentially disabling them later on if a compromise is found.
 
 ### Permission initialization
 
@@ -60,3 +60,5 @@ On this same theme, we prevent apps from secretly adding calls to `PermissionMan
 ### Required Cosigner
 
 All permissioned user operations require additional offchain validation through another signature from a Coinbase-owned key. This cosigner is our final line of protection to filter out user operations that might negatively impact users. It's logic is outlined further [here](./Cosigner.md) and is recommended to read after covering the Permission Contract's mechanisms: [recurring allowances](./RecurringAllowance.md), [permissioned calls](./PermissionedCall.md), and [required paymasters](./PaymasterRequirement.md).
+
+The cosigner is immutable so that we can verify permissioned user operation cosignatures in the validation phase to mitigate attacks involving paymasters that can burn user funds on failed user operations.

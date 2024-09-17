@@ -317,7 +317,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param userOpAuth Authentication data for this permissioned user operation.
     function isValidSignature(bytes32 userOpHash, bytes calldata userOpAuth) external view returns (bytes4 result) {
         (PermissionedUserOperation memory data) = abi.decode(userOpAuth, (PermissionedUserOperation));
-        bytes32 permissionHash = hashPermission(data.permission);
 
         // check userOperation sender matches account;
         if (data.userOp.sender != data.permission.account) {
@@ -372,7 +371,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         // validate permission-specific logic
         IPermissionContract(data.permission.permissionContract).validatePermission(
-            permissionHash, data.permission.permissionValues, data.userOp
+            hashPermission(data.permission), data.permission.permissionValues, data.userOp
         );
 
         // return back to account to complete owner signature verification of userOpHash

@@ -5,6 +5,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {Errors} from "openzeppelin-contracts/contracts/utils/Errors.sol";
 
 import {PermissionCallable} from "../../../../src/mixins/PermissionCallable.sol";
+import {CallErrors} from "../../../../src/utils/CallErrors.sol";
 
 import {MockPermissionCallable} from "../../../mocks/MockPermissionCallable.sol";
 
@@ -17,7 +18,7 @@ contract PermissionedCallTest is Test {
 
     function test_permissionedCall_revert_InvalidCallLength(bytes memory call) public {
         vm.assume(call.length < 4);
-        vm.expectRevert(abi.encodeWithSelector(PermissionCallable.InvalidCallLength.selector));
+        vm.expectRevert(abi.encodeWithSelector(CallErrors.InvalidCallLength.selector));
         mockPermissionCallable.permissionedCall(call);
     }
 

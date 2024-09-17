@@ -121,8 +121,11 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         // end index at callsLen - 2 to ignore useRecurringAllowance call, enforced after loop as self-call
         for (uint256 i = 1; i < callsLen - 1; i++) {
             CoinbaseSmartWallet.Call memory call = calls[i];
-            bytes4 selector = bytes4(call.data);
 
+            // require call length at least 4 bytes to mitigate unintentional fallback
+            if (call.data.length < 4) revert CallErrors.InvalidCallLength();
+
+            bytes4 selector = bytes4(call.data);
             if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
                 if (call.target != values.allowedContract) revert CallErrors.TargetNotAllowed(call.target);

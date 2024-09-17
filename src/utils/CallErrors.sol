@@ -21,4 +21,7 @@ library CallErrors {
     ///
     /// @param value Value of a call.
     error ValueNotAllowed(uint256 value);
+
+    /// @notice Call length under 4 bytes.
+    error InvalidCallLength();
 }

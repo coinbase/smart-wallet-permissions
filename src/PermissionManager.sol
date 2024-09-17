@@ -60,11 +60,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @dev Storage not keyable by account, can only be accessed in execution phase.
     mapping(address permissionContract => bool enabled) public isPermissionContractEnabled;
 
-    /// @notice Track if paymasters are enabled.
-    ///
-    /// @dev Storage not keyable by account, can only be accessed in execution phase.
-    mapping(address paymaster => bool enabled) public isPaymasterEnabled;
-
     /// @notice Track if permissions are revoked by accounts.
     ///
     /// @dev Keying storage by account in deepest mapping enables us to pass 4337 storage access limitations.
@@ -104,11 +99,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param permissionContract The contract resposible for checking permission logic.
     error DisabledPermissionContract(address permissionContract);
 
-    /// @notice Paymaster contract not enabled.
-    ///
-    /// @param paymaster ERC-4337 paymaster contract.
-    error DisabledPaymaster(address paymaster);
-
     /// @notice Invalid cosigner.
     ///
     /// @param cosigner Address of the cosigner.
@@ -122,12 +112,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param permissionContract The contract resposible for checking permission logic.
     /// @param enabled The new setting allowing/preventing use.
     event PermissionContractUpdated(address indexed permissionContract, bool enabled);
-
-    /// @notice Paymaster setting updated.
-    ///
-    /// @param paymaster ERC-4337 paymaster contract.
-    /// @param enabled The new setting allowing/preventing use.
-    event PaymasterUpdated(address indexed paymaster, bool enabled);
 
     /// @notice Permission was revoked prematurely by account.
     ///
@@ -157,12 +141,9 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     ///      * Manager paused state
     ///      * Expiry TIMESTAMP opcode
     ///      * Enabled permission contract state
-    ///      * Enabled paymaster state
-    ///      * Cosigner and pendingCosigner state
     ///
     /// @param permission Details of the permission.
-    /// @param paymaster Paymaster contract address.
-    function beforeCalls(Permission calldata permission, address paymaster) external whenNotPaused {
+    function beforeCalls(Permission calldata permission) external whenNotPaused {
         // check permission not expired
         if (permission.expiry < block.timestamp) revert ExpiredPermission(permission.expiry);
 
@@ -170,9 +151,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         if (!isPermissionContractEnabled[permission.permissionContract]) {
             revert DisabledPermissionContract(permission.permissionContract);
         }
-
-        // check paymaster enabled
-        if (!isPaymasterEnabled[paymaster]) revert DisabledPaymaster(paymaster);
 
         // approve permission to cache storage for cheaper execution on future use
         approvePermission(permission);
@@ -232,17 +210,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     function setPermissionContractEnabled(address permissionContract, bool enabled) external onlyOwner {
         isPermissionContractEnabled[permissionContract] = enabled;
         emit PermissionContractUpdated(permissionContract, enabled);
-    }
-
-    /// @notice Set paymaster enabled status.
-    ///
-    /// @dev Must explicitly set address(0) as enabled to support no-paymaster userOps.
-    ///
-    /// @param paymaster ERC-4337 paymaster contract.
-    /// @param enabled True if the contract is enabled.
-    function setPaymasterEnabled(address paymaster, bool enabled) external onlyOwner {
-        isPaymasterEnabled[paymaster] = enabled;
-        emit PaymasterUpdated(paymaster, enabled);
     }
 
     /// @notice Pause the manager contract from processing any userOps.
@@ -306,12 +273,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
             abi.decode(BytesLib.trimSelector(data.userOp.callData), (CoinbaseSmartWallet.Call[]));
 
         // prepare beforeCalls data
-        bytes memory beforeCallsData = abi.encodeWithSelector(
-            PermissionManager.beforeCalls.selector,
-            data.permission,
-            address(bytes20(data.userOp.paymasterAndData)),
-            userOpCosigner
-        );
+        bytes memory beforeCallsData = abi.encodeWithSelector(PermissionManager.beforeCalls.selector, data.permission);
 
         // check first call is valid `self.beforeCalls`
         if (calls[0].target != address(this) || !BytesLib.eq(calls[0].data, beforeCallsData)) {

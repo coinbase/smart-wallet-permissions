@@ -24,7 +24,7 @@ A storage-based approval system also enables Permission Manager to expose an `ap
 
 ### Permission revocations
 
-Permission Manager also exposes a `revokePermission` function to enable revocations. The storage for revocations is a doubly-nested mapping where the final key is the account address to enable valid access in the ERC-4337 validation phase. Permission revocation is always available to users in their Smart Wallet settings and in the future, potentially exposed to apps.
+Permission Manager also exposes a `revokePermission` function to enable revocations. The storage for revocations is a doubly-nested mapping where the final key is the account address to enable valid access in the ERC-4337 validation phase. Permission revocation is always available to users in their Smart Wallet settings and in the future, potentially exposed to apps. Revoking a permission cannot be undone, but users can approve a new, similar permission.
 
 ### Reentrancy protection
 

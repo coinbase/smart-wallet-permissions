@@ -50,7 +50,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     }
 
     /// @dev bytes4(keccak256("isValidSignature(bytes32,bytes)"))
-    bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
+    bytes4 internal constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
 
     /// @notice Second-factor signer required to approve every permissioned userOp.
     address public cosigner;

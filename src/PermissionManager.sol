@@ -88,6 +88,9 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param sender Account that the user operation is made from.
     error InvalidUserOperationSender(address sender);
 
+    /// @notice UserOperation does not use a paymaster
+    error InvalidUserOperationPaymaster();
+
     /// @notice Permission is unauthorized by either revocation or lack of approval.
     error UnauthorizedPermission();
 
@@ -330,6 +333,9 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         if (UserOperationLib.getUserOpHash(data.userOp) != userOpHash) {
             revert InvalidUserOperationHash(UserOperationLib.getUserOpHash(data.userOp));
         }
+
+        // check userOp uses a paymaster
+        if (bytes20(data.userOp.paymasterAndData) == bytes20(0)) revert InvalidUserOperationPaymaster();
 
         // check permission authorized (approved and not yet revoked)
         if (!isPermissionAuthorized(data.permission)) revert UnauthorizedPermission();

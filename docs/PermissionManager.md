@@ -12,7 +12,7 @@ Some security mechanisms require storing state external to Smart Wallets. Given 
 
 ### Ethereum address and `secp256r1` signers
 
-Just like Smart Wallet V1, Session Keys supports both Ethereum address and `secp256r1` signers. Ethereum addresses are split into validating EOA signatures with `ecrecover` and contract signatures with [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) `isValidSignature`. The `secp256r1` curve supports both Passkey and [CryptoKey](./CryptoKey.md) signature validation through [WebAuthn](https://github.com/base-org/webauthn-sol/blob/main/src/WebAuthn.sol).
+Just like Smart Wallet V1, Session Keys supports both Ethereum address and `secp256r1` signers. Ethereum addresses are split into validating EOA signatures with `ecrecover` and contract signatures with [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) `isValidSignature`. The `secp256r1` curve supports both Passkey and [CryptoKey](./CryptoKey.md) signature validation through [WebAuthn](https://github.com/base-org/webauthn-sol/blob/main/src/WebAuthn.sol). Note that contract signers cannot violate [ERC-7562](https://eips.ethereum.org/EIPS/eip-7562) "associated storage" constraints, e.g. using a Coinbase Smart Wallet as a signer for another Smart Wallet.
 
 ### Signature approvals with lazy caching
 

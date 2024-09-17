@@ -20,7 +20,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         permissionManager.pause();
 
         vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
     }
 
     function test_beforeCalls_revert_expired(uint48 expiry, address paymaster) public {
@@ -31,7 +31,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
 
         vm.warp(expiry + 1);
         vm.expectRevert(abi.encodeWithSelector(PermissionManager.ExpiredPermission.selector, expiry));
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
     }
 
     function test_beforeCalls_revert_disabledPermissionContract(address permissionContract, address paymaster) public {
@@ -45,7 +45,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         vm.expectRevert(
             abi.encodeWithSelector(PermissionManager.DisabledPermissionContract.selector, permissionContract)
         );
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
     }
 
     function test_beforeCalls_revert_disabledPaymaster(address paymaster) public {
@@ -56,43 +56,18 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         permissionManager.setPaymasterEnabled(paymaster, false);
 
         vm.expectRevert(abi.encodeWithSelector(PermissionManager.DisabledPaymaster.selector, paymaster));
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
     }
 
     function test_beforeCalls_revert_noPaymaster() public {
+        address paymaster = address(0);
         PermissionManager.Permission memory permission = _createPermission();
 
         vm.startPrank(owner);
         permissionManager.setPermissionContractEnabled(permission.permissionContract, true);
 
-        vm.expectRevert(abi.encodeWithSelector(PermissionManager.DisabledPaymaster.selector, address(0)));
-        permissionManager.beforeCalls(permission, address(0), cosigner);
-    }
-
-    function test_beforeCalls_revert_zeroCosigner(address paymaster) public {
-        address userOpCosigner = address(0);
-
-        PermissionManager.Permission memory permission = _createPermission();
-
-        vm.startPrank(owner);
-        permissionManager.setPermissionContractEnabled(permission.permissionContract, true);
-        permissionManager.setPaymasterEnabled(paymaster, true);
-
-        vm.expectRevert(abi.encodeWithSelector(PermissionManager.InvalidCosigner.selector, userOpCosigner));
-        permissionManager.beforeCalls(permission, paymaster, userOpCosigner);
-    }
-
-    function test_beforeCalls_revert_invalidCosigner(address paymaster, address userOpCosigner) public {
-        vm.assume(cosigner != userOpCosigner);
-
-        PermissionManager.Permission memory permission = _createPermission();
-
-        vm.startPrank(owner);
-        permissionManager.setPermissionContractEnabled(permission.permissionContract, true);
-        permissionManager.setPaymasterEnabled(paymaster, true);
-
-        vm.expectRevert(abi.encodeWithSelector(PermissionManager.InvalidCosigner.selector, userOpCosigner));
-        permissionManager.beforeCalls(permission, paymaster, userOpCosigner);
+        vm.expectRevert(abi.encodeWithSelector(PermissionManager.DisabledPaymaster.selector, paymaster));
+        permissionManager.beforeCalls(permission, paymaster);
     }
 
     function test_beforeCalls_revert_unauthorizedPermission(address paymaster) public {
@@ -106,7 +81,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         permissionManager.setPaymasterEnabled(paymaster, true);
 
         vm.expectRevert(abi.encodeWithSelector(PermissionManager.UnauthorizedPermission.selector));
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
     }
 
     function test_beforeCalls_success_senderIsAccount(address paymaster) public {
@@ -120,7 +95,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         vm.stopPrank();
 
         vm.prank(permission.account);
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
 
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
         permission.approval = hex"";
@@ -141,7 +116,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         vm.prank(permission.account);
         vm.expectEmit(address(permissionManager));
         emit PermissionManager.PermissionApproved(address(account), permissionHash);
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
     }
 
     function test_beforeCalls_success_validApprovalSignature(address sender, address paymaster) public {
@@ -164,7 +139,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         permission.approval = approval;
 
         vm.prank(sender);
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
 
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
         permission.approval = hex"";
@@ -182,27 +157,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         vm.stopPrank();
 
         vm.prank(permission.account);
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
-
-        vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
-        permission.approval = hex"";
-        vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
-    }
-
-    function test_beforeCalls_success_pendingCosigner(address paymaster, address newCosigner) public {
-        vm.assume(paymaster != address(0));
-        vm.assume(newCosigner != address(0));
-
-        PermissionManager.Permission memory permission = _createPermission();
-
-        vm.startPrank(owner);
-        permissionManager.setPermissionContractEnabled(permission.permissionContract, true);
-        permissionManager.setPaymasterEnabled(paymaster, true);
-        permissionManager.setPendingCosigner(newCosigner);
-        vm.stopPrank();
-
-        vm.prank(permission.account);
-        permissionManager.beforeCalls(permission, paymaster, newCosigner);
+        permissionManager.beforeCalls(permission, paymaster);
 
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
         permission.approval = hex"";
@@ -220,7 +175,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         vm.stopPrank();
 
         vm.prank(permission.account);
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
 
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
         permission.approval = hex"";
@@ -228,7 +183,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
 
         // replay without calling from account or approval signature
         permission.approval = hex"";
-        permissionManager.beforeCalls(permission, paymaster, cosigner);
+        permissionManager.beforeCalls(permission, paymaster);
 
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
         permission.approval = hex"";

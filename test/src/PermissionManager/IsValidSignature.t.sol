@@ -133,6 +133,32 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
     }
 
+    function test_isValidSignature_revert_invalidCosigner(uint128 userOpCosignerPk) public {
+        vm.assume(userOpCosignerPk != 0);
+        address userOpCosigner = vm.addr(userOpCosignerPk);
+        vm.assume(userOpCosigner != cosigner);
+
+        PermissionManager.Permission memory permission = _createPermission();
+        UserOperation memory userOp = _createUserOperation();
+
+        bytes32 userOpHash = UserOperationLib.getUserOpHash(userOp);
+        bytes memory userOpSignature = _sign(permmissionSignerPk, userOpHash);
+        bytes memory userOpCosignature = _sign(userOpCosignerPk, userOpHash);
+
+        PermissionManager.PermissionedUserOperation memory pUserOp = PermissionManager.PermissionedUserOperation({
+            permission: permission,
+            userOp: userOp,
+            userOpSignature: userOpSignature,
+            userOpCosignature: userOpCosignature
+        });
+
+        vm.prank(address(account));
+        permissionManager.approvePermission(permission);
+
+        vm.expectRevert(abi.encodeWithSelector(PermissionManager.InvalidCosigner.selector, userOpCosigner));
+        permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
+    }
+
     function test_isValidSignature_revert_notExecuteBatchCallData() public {
         PermissionManager.Permission memory permission = _createPermission();
         UserOperation memory userOp = _createUserOperation();

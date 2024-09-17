@@ -53,10 +53,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
 
     /// @notice Second-factor signer required to approve every permissioned userOp.
-    address public cosigner;
-
-    /// @notice Pending cosigner for a two-step rotation to limit failed userOps during rotation.
-    address public pendingCosigner;
+    address public immutable cosigner;
 
     /// @notice Track if permission contracts are enabled.
     ///
@@ -117,9 +114,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param cosigner Address of the cosigner.
     error InvalidCosigner(address cosigner);
 
-    /// @notice Tried to rotate cosigner to zero address.
-    error PendingCosignerIsZeroAddress();
-
     /// @notice Renouncing ownership attempted but not allowed.
     error CannotRenounceOwnership();
 
@@ -147,27 +141,14 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param permissionHash The unique hash representing the permission.
     event PermissionApproved(address indexed account, bytes32 indexed permissionHash);
 
-    /// @notice Pending cosigner set, initiating rotation.
-    ///
-    /// @param newCosigner Address of the new cosigner.
-    event PendingCosignerSet(address indexed newCosigner);
-
-    /// @notice Cosigner was updated to a new address.
-    ///
-    /// @dev Pending cosigner storage reset on rotation.
-    ///
-    /// @param oldCosigner Address of the old cosigner.
-    /// @param newCosigner Address of the new cosigner.
-    event CosignerRotated(address indexed oldCosigner, address indexed newCosigner);
-
     /// @notice Constructor.
     ///
     /// @param initialOwner Owner responsible for managing security controls.
-    /// @param initialCosigner EOA responsible for cosigning user operations for abuse mitigation.
-    constructor(address initialOwner, address initialCosigner) Ownable(initialOwner) Pausable() {
+    /// @param cosigner_ EOA responsible for cosigning user operations for abuse mitigation.
+    constructor(address initialOwner, address cosigner_) Ownable(initialOwner) Pausable() {
         // check cosigner non-zero
-        if (initialCosigner == address(0)) revert PendingCosignerIsZeroAddress();
-        _setCosigner(initialCosigner);
+        if (cosigner_ == address(0)) revert InvalidCosigner(cosigner_);
+        cosigner = cosigner_;
     }
 
     /// @notice Check permission constraints not allowed during userOp validation phase as first call in batch.
@@ -181,11 +162,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     ///
     /// @param permission Details of the permission.
     /// @param paymaster Paymaster contract address.
-    /// @param userOpCosigner Address of recovered cosigner from cosignature in validation phase.
-    function beforeCalls(Permission calldata permission, address paymaster, address userOpCosigner)
-        external
-        whenNotPaused
-    {
+    function beforeCalls(Permission calldata permission, address paymaster) external whenNotPaused {
         // check permission not expired
         if (permission.expiry < block.timestamp) revert ExpiredPermission(permission.expiry);
 
@@ -196,11 +173,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         // check paymaster enabled
         if (!isPaymasterEnabled[paymaster]) revert DisabledPaymaster(paymaster);
-
-        // check userOpCosigner is non-zero and is cosigner or pendingCosigner
-        if (userOpCosigner == address(0) || (userOpCosigner != cosigner && userOpCosigner != pendingCosigner)) {
-            revert InvalidCosigner(userOpCosigner);
-        }
 
         // approve permission to cache storage for cheaper execution on future use
         approvePermission(permission);
@@ -273,26 +245,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         emit PaymasterUpdated(paymaster, enabled);
     }
 
-    /// @notice Add pending cosigner.
-    ///
-    /// @param newCosigner Address of new cosigner to rotate to.
-    function setPendingCosigner(address newCosigner) external onlyOwner {
-        if (newCosigner == address(0)) revert PendingCosignerIsZeroAddress();
-        _setPendingCosigner(newCosigner);
-    }
-
-    /// @notice Reset pending cosigner to zero address.
-    function resetPendingCosigner() external onlyOwner {
-        _setPendingCosigner(address(0));
-    }
-
-    /// @notice Set cosigner to pending cosigner and reset pending cosigner.
-    function rotateCosigner() external onlyOwner {
-        if (pendingCosigner == address(0)) revert PendingCosignerIsZeroAddress();
-        _setCosigner(pendingCosigner);
-        delete pendingCosigner;
-    }
-
     /// @notice Pause the manager contract from processing any userOps.
     function pause() external onlyOwner {
         _pause();
@@ -341,6 +293,9 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         // parse cosigner from cosignature
         address userOpCosigner = ECDSA.recover(userOpHash, data.userOpCosignature);
+
+        // check userOpCosigner is cosigner
+        if (userOpCosigner != cosigner) revert InvalidCosigner(userOpCosigner);
 
         // check userOp.callData is `executeBatch`
         if (bytes4(data.userOp.callData) != CoinbaseSmartWallet.executeBatch.selector) {
@@ -422,23 +377,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         // fallback check permission approved via signature
         return _isValidApprovalSignature(permission.account, permissionHash, permission.approval);
-    }
-
-    /// @notice Set new pending cosigner.
-    ///
-    /// @param newCosigner New cosigner to set as pending.
-    function _setPendingCosigner(address newCosigner) internal {
-        pendingCosigner = newCosigner;
-        emit PendingCosignerSet(newCosigner);
-    }
-
-    /// @notice Set new cosigner.
-    ///
-    /// @param newCosigner New cosigner to set to.
-    function _setCosigner(address newCosigner) internal {
-        address oldCosigner = cosigner;
-        cosigner = newCosigner;
-        emit CosignerRotated(oldCosigner, cosigner);
     }
 
     /// @notice Check if a permission approval signature is valid.

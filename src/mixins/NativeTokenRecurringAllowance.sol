@@ -54,7 +54,7 @@ abstract contract NativeTokenRecurringAllowance {
     /// @param allowance Allowance value that was exceeded.
     error ExceededRecurringAllowance(uint256 spend, uint256 allowance);
 
-    /// @notice Register native token spend for a permission
+    /// @notice Register native token allowance for a permission.
     ///
     /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
@@ -178,7 +178,7 @@ abstract contract NativeTokenRecurringAllowance {
     /// @notice Get current cycle usage.
     ///
     /// @dev Reverts if recurring allowance has not started.
-    /// @dev Cycle boundaries are fixed intervals of recurringAllowance.start + n * recurringAllowance.period
+    /// @dev Cycles start at recurringAllowance.start + n * recurringAllowance.period.
     ///
     /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.

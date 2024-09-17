@@ -93,7 +93,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
     /// @notice Validate the permission to execute a userOp.
     ///
-    /// @dev Offchain userOp construction should append useRecurringAllowance call to calls array if spending value.
+    /// @dev Offchain userOp construction should append useRecurringAllowance call to calls array.
     /// @dev Recurring native token spend accounting does not protect against re-entrancy where an external call could
     ///      trigger an authorized call back to the account to spend more ETH.
     ///

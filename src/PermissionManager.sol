@@ -240,8 +240,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
     /// @notice Revoke a permission to disable its use indefinitely.
     ///
-    /// @dev Depending on permission contract implementation, permissions can revoke other permissions.
-    ///
     /// @param permissionHash hash of the permission to revoke
     function revokePermission(bytes32 permissionHash) external {
         // early return if permission is already revoked
@@ -312,7 +310,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
     /// @notice Validates a permission via EIP-1271.
     ///
-    /// @dev Assume `userOp.calldata` calls CoinbaseSmartWallet.executeBatch`.
+    /// @dev Verifies that `userOp.calldata` calls CoinbaseSmartWallet.executeBatch`.
     /// @dev All accessed storage must be nested by account address to pass ERC-4337 constraints.
     ///
     /// @param userOpHash Hash of the user operation.

@@ -199,7 +199,7 @@ abstract contract NativeTokenRecurringAllowance {
         // return last cycle if still active, otherwise compute new active cycle start time with no spend
         CycleUsage memory lastCycleUsage = _lastCycleUsages[account][permissionHash];
 
-        // last cycle exists if start, end, and spend are non-zero
+        // last cycle exists if start, end, and spend are non-zero, i.e. a non-zero start implies that end and spend are also non-zero
         bool lastCycleExists = lastCycleUsage.start != 0;
 
         // last cycle still active if current time within [start, end) range, i.e. start-inclusive and end-exclusive

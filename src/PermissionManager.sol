@@ -334,12 +334,8 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
             abi.decode(BytesLib.trimSelector(data.userOp.callData), (CoinbaseSmartWallet.Call[]));
 
         // prepare beforeCalls data
-        bytes memory beforeCallsData = abi.encodeWithSelector(
-            PermissionManager.beforeCalls.selector,
-            data.permission,
-            address(bytes20(data.userOp.paymasterAndData)),
-            userOpCosigner
-        );
+        bytes memory beforeCallsData =
+            abi.encodeWithSelector(PermissionManager.beforeCalls.selector, data.permission, userOpCosigner);
 
         // check first call is valid `self.beforeCalls`
         if (calls[0].target != address(this) || !BytesLib.eq(calls[0].data, beforeCallsData)) {

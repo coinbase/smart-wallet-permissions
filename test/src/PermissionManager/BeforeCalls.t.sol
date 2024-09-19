@@ -60,7 +60,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         permissionManager.beforeCalls(permission, userOpCosigner);
     }
 
-    function test_beforeCalls_revert_invalidCosigner(address paymaster, address userOpCosigner) public {
+    function test_beforeCalls_revert_invalidCosigner(address userOpCosigner) public {
         vm.assume(cosigner != userOpCosigner);
 
         PermissionManager.Permission memory permission = _createPermission();
@@ -151,8 +151,7 @@ contract BeforeCallsTest is Test, PermissionManagerBase {
         vm.assertEq(permissionManager.isPermissionAuthorized(permission), true);
     }
 
-    function test_beforeCalls_success_pendingCosigner(address paymaster, address newCosigner) public {
-        vm.assume(paymaster != address(0));
+    function test_beforeCalls_success_pendingCosigner(address newCosigner) public {
         vm.assume(newCosigner != address(0));
 
         PermissionManager.Permission memory permission = _createPermission();

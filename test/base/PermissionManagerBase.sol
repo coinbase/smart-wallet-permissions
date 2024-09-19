@@ -40,9 +40,7 @@ contract PermissionManagerBase is Test, Base {
         view
         returns (bytes memory)
     {
-        return abi.encodeWithSelector(
-            PermissionManager.beforeCalls.selector, permission, address(bytes20(userOp.paymasterAndData)), cosigner
-        );
+        return abi.encodeWithSelector(PermissionManager.beforeCalls.selector, permission, cosigner);
     }
 
     function _signPermission(PermissionManager.Permission memory permission) internal view returns (bytes memory) {

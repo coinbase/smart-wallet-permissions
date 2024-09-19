@@ -7,7 +7,7 @@ import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 import {Ownable, Ownable2Step} from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
-import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
+import {FixedPointMathLib as Math} from "solady/utils/FixedPointMathLib.sol";
 
 /// @title SessionPaymaster
 ///
@@ -29,6 +29,8 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
         uint48 validUntil;
         /// @dev Earliest time the sponsorship signature is valid.
         uint48 validAfter;
+        /// @dev Optionally check if bundler is on sponsor's allowlist.
+        bool checkAllowedBundler;
     }
 
     /// @notice Context passed from validation to postOp.
@@ -45,6 +47,8 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
         uint256 maxFeePerGas;
         /// @dev `UserOperation.maxPriorityFeePerGas`
         uint256 maxPriorityFeePerGas;
+        /// @dev Optionally check if bundler is on sponsor's allowlist.
+        bool checkAllowedBundler;
     }
 
     /// @notice ERC-4337 EntryPoint.
@@ -54,7 +58,7 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
     uint256 public constant POST_OP_GAS = 69420;
 
     /// @notice Bytes offset of paymaster data before signature.
-    uint256 internal constant PAYMASTER_SIGNATURE_OFFSET = 52;
+    uint256 internal constant PAYMASTER_SIGNATURE_OFFSET = 69;
 
     /// @notice Per-sponsor native token deposits.
     mapping(address sponsor => uint256 balance) internal _sponsorDeposits;
@@ -62,11 +66,17 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
     /// @notice Per-sponsor signer allowlist for issuing sponsorship signatures.
     mapping(address sponsor => mapping(address signer => bool allowed)) public isAllowedSigner;
 
+    /// @notice Per-sponsor bundler allowlist for submitting sponsored user operations.
+    mapping(address sponsor => mapping(address bundler => bool allowed)) public isAllowedBundler;
+
     /// @notice Sender not EntryPoint.
     error SenderNotEntryPoint(address sender);
 
     /// @notice Attempted withdraw greater than deposit balance.
     error InsufficientDepositBalance(uint256 withdraw);
+
+    /// @notice Attempted user operation with bundler not allowed by sponsor.
+    error BundlerNotAllowed(address bundler);
 
     /// @notice Native token deposited for sponsor.
     ///
@@ -88,6 +98,13 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
     /// @param signer Entity signing paymaster sponsorship requests.
     /// @param allowed True if signer is allowed for sponsor.
     event SignerUpdated(address indexed sponsor, address indexed signer, bool allowed);
+
+    /// @notice Bundler updated for sponsor.
+    ///
+    /// @param sponsor Entity sponsoring user operations.
+    /// @param bundler Entity submitting sponsored user operations.
+    /// @param allowed True if signer is allowed for sponsor.
+    event BundlerUpdated(address indexed sponsor, address indexed bundler, bool allowed);
 
     /// @notice User operation sponsored.
     ///
@@ -139,6 +156,15 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
     function updateSigner(address signer, bool allowed) external {
         isAllowedSigner[msg.sender][signer] = allowed;
         emit SignerUpdated(msg.sender, signer, allowed);
+    }
+
+    /// @notice Update bundler allowed status for sponsor.
+    ///
+    /// @param bundler Entity submitting sponsored user operations.
+    /// @param allowed True if signer is allowed for sponsor.
+    function updateBundler(address bundler, bool allowed) external {
+        isAllowedBundler[msg.sender][bundler] = allowed;
+        emit BundlerUpdated(msg.sender, bundler, allowed);
     }
 
     /// @notice Deposit native token on behalf of a sponsor.
@@ -209,7 +235,8 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
                 userOpHash: userOpHash,
                 maxGasCost: maxGasCost,
                 maxFeePerGas: userOp.maxFeePerGas,
-                maxPriorityFeePerGas: userOp.maxPriorityFeePerGas
+                maxPriorityFeePerGas: userOp.maxPriorityFeePerGas,
+                checkAllowedBundler: data.checkAllowedBundler
             })
         );
         validationData =
@@ -221,19 +248,24 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
     /// @notice Handle user operation post-execution.
     ///
     /// @param mode Enum for user operation status (success/fail) or failed postOp.
-    /// @param context Data prepared in validation phase.
+    /// @param contextBytes Data prepared in validation phase.
     /// @param actualGasCost Gas cost excluding gas fee for this function execution.
-    function postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost) external onlyEntryPoint {
-        PostOpContext memory ctx = abi.decode(context, (PostOpContext));
+    function postOp(PostOpMode mode, bytes calldata contextBytes, uint256 actualGasCost) external onlyEntryPoint {
+        PostOpContext memory context = abi.decode(contextBytes, (PostOpContext));
+
+        // conditionally check if bundler is allowed by sponsor, reverts whole bundle without refund as penalty
+        if (context.checkAllowedBundler && !isAllowedBundler[context.sponsor][tx.origin]) {
+            revert BundlerNotAllowed(tx.origin);
+        }
 
         if (mode != PostOpMode.postOpReverted) {
-            uint256 feePerGas = FixedPointMathLib.min(ctx.maxFeePerGas, ctx.maxPriorityFeePerGas + block.basefee);
+            uint256 feePerGas = Math.min(context.maxFeePerGas, context.maxPriorityFeePerGas + block.basefee);
             uint256 totalGasCost = actualGasCost + POST_OP_GAS * feePerGas;
-            if (totalGasCost < ctx.maxGasCost) {
-                _sponsorDeposits[ctx.sponsor] += (ctx.maxGasCost - totalGasCost);
+            if (totalGasCost < context.maxGasCost) {
+                _sponsorDeposits[context.sponsor] += (context.maxGasCost - totalGasCost);
             }
 
-            emit UserOperationSponsored(ctx.sponsor, ctx.uuid, ctx.userOpHash);
+            emit UserOperationSponsored(context.sponsor, context.uuid, context.userOpHash);
         }
     }
 
@@ -289,8 +321,10 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
         returns (PaymasterData memory data, bytes calldata signature)
     {
         data.sponsor = address(bytes20(paymasterAndData[20:40]));
-        data.validUntil = uint48(bytes6(paymasterAndData[40:46]));
-        data.validAfter = uint48(bytes6(paymasterAndData[46:52]));
+        data.uuid = uint128(bytes16(paymasterAndData[40:56]));
+        data.validUntil = uint48(bytes6(paymasterAndData[56:62]));
+        data.validAfter = uint48(bytes6(paymasterAndData[62:68]));
+        data.checkAllowedBundler = bool(bytes1(paymasterAndData[68]) > 0);
         signature = paymasterAndData[PAYMASTER_SIGNATURE_OFFSET:];
     }
 }

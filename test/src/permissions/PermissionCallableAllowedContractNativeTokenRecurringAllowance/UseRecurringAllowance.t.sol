@@ -13,12 +13,17 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         _initializePermissionContract();
     }
 
-    function test_useRecurringAllowance_revert_invalidInitialization(bytes32 permissionHash, uint256 spend) public {
+    function test_useRecurringAllowance_revert_invalidInitialization(
+        bytes32 permissionHash,
+        uint256 spend,
+        uint256 maxGasCost,
+        address sponsor
+    ) public {
         vm.assume(spend > 0);
 
         vm.expectRevert(NativeTokenRecurringAllowance.InvalidInitialization.selector);
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
     }
 
     function test_useRecurringAllowance_revert_beforeRecurringAllowanceStart(
@@ -27,7 +32,9 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint48 period,
         uint160 allowance,
         address allowedContract,
-        uint256 spend
+        uint256 spend,
+        uint256 maxGasCost,
+        address sponsor
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
@@ -46,7 +53,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
             abi.encodeWithSelector(NativeTokenRecurringAllowance.BeforeRecurringAllowanceStart.selector, start)
         );
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
     }
 
     function test_useRecurringAllowance_revert_spendValueOverflow(
@@ -55,7 +62,9 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint48 period,
         uint160 allowance,
         address allowedContract,
-        uint256 spend
+        uint256 spend,
+        uint256 maxGasCost,
+        address sponsor
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
@@ -72,7 +81,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         vm.warp(start);
         vm.expectRevert(abi.encodeWithSelector(NativeTokenRecurringAllowance.SpendValueOverflow.selector, spend));
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
     }
 
     function test_useRecurringAllowance_revert_exceededRecurringAllowance(
@@ -81,7 +90,9 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint48 period,
         uint160 allowance,
         address allowedContract,
-        uint160 spend
+        uint160 spend,
+        uint256 maxGasCost,
+        address sponsor
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
@@ -101,7 +112,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
             abi.encodeWithSelector(NativeTokenRecurringAllowance.ExceededRecurringAllowance.selector, spend, allowance)
         );
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
     }
 
     function test_useRecurringAllowance_revert_exceededRecurringAllowance_accruedSpend(
@@ -109,7 +120,9 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint48 start,
         uint48 period,
         uint160 allowance,
-        address allowedContract
+        address allowedContract,
+        uint256 maxGasCost,
+        address sponsor
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
@@ -127,7 +140,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         vm.warp(start);
         // first spend ok, within allowance
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
         // second spend not ok, exceeds allowance
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -135,13 +148,15 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
             )
         );
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, 1);
+        permissionContract.useRecurringAllowance(permissionHash, 1, maxGasCost, sponsor);
     }
 
-    function test_useRecurringAllowance_success_noSpend(bytes32 permissionHash) public {
+    function test_useRecurringAllowance_success_noSpend(bytes32 permissionHash, uint256 maxGasCost, address sponsor)
+        public
+    {
         uint256 spend = 0;
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
     }
 
     function test_useRecurringAllowance_success_emitsEvent(
@@ -150,7 +165,9 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint48 period,
         uint160 allowance,
         address allowedContract,
-        uint160 spend
+        uint160 spend,
+        uint256 maxGasCost,
+        address sponsor
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
@@ -173,7 +190,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
             permissionHash,
             NativeTokenRecurringAllowance.CycleUsage({start: start, end: _safeAdd(start, period), spend: spend})
         );
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
     }
 
     function test_useRecurringAllowance_success_setsState(
@@ -182,7 +199,9 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint48 period,
         uint160 allowance,
         address allowedContract,
-        uint160 spend
+        uint160 spend,
+        uint256 maxGasCost,
+        address sponsor
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
@@ -198,7 +217,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
 
         vm.warp(start);
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);
         assertEq(usage.start, start);
@@ -211,7 +230,9 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint48 start,
         uint48 period,
         uint160 allowance,
-        address allowedContract
+        address allowedContract,
+        uint256 maxGasCost,
+        address sponsor
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
@@ -227,7 +248,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
 
         vm.warp(start);
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);
         assertEq(usage.start, start);
@@ -241,7 +262,9 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint48 period,
         uint160 allowance,
         address allowedContract,
-        uint8 n
+        uint8 n,
+        uint256 maxGasCost,
+        address sponsor
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
@@ -261,7 +284,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint256 totalSpend = 0;
         for (uint256 i = 0; i < n; i++) {
             vm.prank(address(account));
-            permissionContract.useRecurringAllowance(permissionHash, spend);
+            permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
             totalSpend += spend;
             NativeTokenRecurringAllowance.CycleUsage memory usage =
                 permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);
@@ -280,7 +303,9 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         uint48 period,
         uint160 allowance,
         address allowedContract,
-        uint160 spend
+        uint160 spend,
+        uint256 maxGasCost,
+        address sponsor
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
@@ -298,7 +323,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
 
         vm.warp(start);
         vm.prank(address(account));
-        permissionContract.useRecurringAllowance(permissionHash, spend);
+        permissionContract.useRecurringAllowance(permissionHash, spend, maxGasCost, sponsor);
         NativeTokenRecurringAllowance.CycleUsage memory usage =
             permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);
         assertEq(usage.start, start);
@@ -315,7 +340,7 @@ contract UseRecurringAllowanceTest is Test, PermissionContractBase {
         );
 
         vm.startPrank(otherSender);
-        permissionContract.useRecurringAllowance(permissionHash, spend - 1);
+        permissionContract.useRecurringAllowance(permissionHash, spend - 1, maxGasCost, sponsor);
 
         // original recurring allowance usage untouched
         usage = permissionContract.getRecurringAllowanceUsage(address(account), permissionHash);

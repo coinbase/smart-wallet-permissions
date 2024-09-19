@@ -173,6 +173,9 @@ contract SessionPaymaster is IPaymaster, Ownable2Step {
     ///
     /// @param sponsor Entity sponsoring user operations.
     function deposit(address sponsor) external payable {
+        // early return for no value
+        if (msg.value == 0) return;
+
         // increase deposit balance
         _sponsorDeposits[sponsor] += msg.value;
 

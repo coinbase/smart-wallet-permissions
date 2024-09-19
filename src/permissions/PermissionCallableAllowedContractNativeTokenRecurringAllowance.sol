@@ -5,6 +5,7 @@ import {MagicSpend} from "magic-spend/MagicSpend.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
 import {PermissionManager} from "../PermissionManager.sol";
+import {SessionPaymaster} from "../SessionPaymaster.sol";
 import {IPermissionCallable} from "../interfaces/IPermissionCallable.sol";
 import {IPermissionContract} from "../interfaces/IPermissionContract.sol";
 import {NativeTokenRecurringAllowance} from "../mixins/NativeTokenRecurringAllowance.sol";
@@ -34,6 +35,9 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         address allowedContract;
     }
 
+    /// @notice SessionPaymaster singleton.
+    address public immutable sessionPaymaster;
+
     /// @notice PermissionManager singleton.
     address public immutable permissionManager;
 
@@ -59,7 +63,13 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     /// @param permissionManager_ Contract address for PermissionManager.
     /// @param magicSpend_ Contract address for MagicSpend.
     constructor(address permissionManager_, address magicSpend_) {
-        if (permissionManager_ == address(0) || magicSpend_ == address(0)) revert ZeroAddress();
+        if (permissionManager_ == address(0) || magicSpend_ == address(0)) {
+            revert ZeroAddress();
+        }
+
+        sessionPaymaster = PermissionManager(permissionManager_).sessionPaymaster();
+        if (sessionPaymaster == address(0)) revert ZeroAddress();
+
         permissionManager = permissionManager_;
         magicSpend = magicSpend_;
     }
@@ -87,8 +97,21 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
     ///
     /// @param permissionHash Hash of the permission.
     /// @param callsSpend Value of native token spent on calls.
-    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend) external {
-        _useRecurringAllowance({account: msg.sender, permissionHash: permissionHash, spend: callsSpend});
+    /// @param maxGasCost Maximum gas cost for the current user operation.
+    /// @param sponsor Address of the sponsor to refund.
+    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend, uint256 maxGasCost, address sponsor)
+        external
+        payable
+    {
+        // check value does not exist max gas cost
+        if (msg.value > maxGasCost) revert CallErrors.ValueNotAllowed(msg.value);
+
+        _useRecurringAllowance({account: msg.sender, permissionHash: permissionHash, spend: callsSpend + msg.value});
+
+        // refund SessionPaymaster if value provided
+        if (msg.value > 0) {
+            SessionPaymaster(sessionPaymaster).deposit{value: msg.value}(sponsor);
+        }
     }
 
     /// @notice Validate the permission to execute a userOp.
@@ -104,8 +127,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         external
         view
     {
-        address paymaster = address(bytes20(userOp.paymasterAndData));
-        if (paymaster == address(0) || paymaster == magicSpend) revert GasSponsorshipRequired();
+        // assumes PermissionManager verifies paymaster is SessionPaymaster
 
         (PermissionValues memory values) = abi.decode(permissionValues, (PermissionValues));
 
@@ -150,7 +172,9 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         bytes memory useRecurringAllowanceData = abi.encodeWithSelector(
             PermissionCallableAllowedContractNativeTokenRecurringAllowance.useRecurringAllowance.selector,
             permissionHash,
-            callsSpend
+            callsSpend,
+            UserOperationLib.getRequiredPrefund(userOp), // maxGasCost
+            userOp.paymasterAndData[20:40] // sponsor
         );
 
         // check last call is valid `this.useRecurringAllowance`

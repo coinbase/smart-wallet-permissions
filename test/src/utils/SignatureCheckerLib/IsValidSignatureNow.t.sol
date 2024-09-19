@@ -10,7 +10,7 @@ import {MockContractSigner} from "../../../mocks/MockContractSigner.sol";
 
 contract IsValidSignatureNowTest is Test, Base {
     function setUp() public {
-        _initialize();
+        _initializeBase();
     }
 
     function test_isValidSignatureNow_revert_InvalidSignerBytesLength(

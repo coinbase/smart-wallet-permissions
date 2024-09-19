@@ -5,6 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
+import {SessionPaymaster} from "../src/SessionPaymaster.sol";
 import {PermissionCallableAllowedContractNativeTokenRecurringAllowance as PermissionContract} from
     "../src/permissions/PermissionCallableAllowedContractNativeTokenRecurringAllowance.sol";
 
@@ -25,8 +26,9 @@ contract Deploy is Script {
     // address public constant MANAGER = 0x384E8b4617886C7070ABd6037c4D5AbeC5B1d14d;
     // address public constant MANAGER = 0xc81ff7b47839c957Afd1C9CFac82a94B0625550F;
 
-    PermissionManager permissionManager;
-    PermissionContract permissionContract;
+    SessionPaymaster public sessionPaymaster;
+    PermissionManager public permissionManager;
+    PermissionContract public permissionContract;
 
     function run() public {
         vm.startBroadcast();
@@ -35,14 +37,15 @@ contract Deploy is Script {
         deploy();
 
         permissionManager.setPermissionContractEnabled(address(permissionContract), true);
-        permissionManager.setPaymasterEnabled(CDP_PAYMASTER, true);
-        permissionManager.setPaymasterEnabled(CDP_PAYMASTER_PUBLIC, true);
 
         vm.stopBroadcast();
     }
 
     function deploy() internal {
-        permissionManager = new PermissionManager{salt: 0}(OWNER, COSIGNER);
+        sessionPaymaster = new SessionPaymaster{salt: 0}(OWNER);
+        logAddress("SessionPaymaster", address(sessionPaymaster));
+
+        permissionManager = new PermissionManager{salt: 0}(address(sessionPaymaster), OWNER, COSIGNER);
         logAddress("PermissionManager", address(permissionManager));
 
         permissionContract = new PermissionContract{salt: 0}(address(permissionManager), MAGIC_SPEND);

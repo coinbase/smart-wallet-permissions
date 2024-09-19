@@ -10,6 +10,8 @@ import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 import {MockCoinbaseSmartWallet} from "../mocks/MockCoinbaseSmartWallet.sol";
 import {MockContractSigner} from "../mocks/MockContractSigner.sol";
 
+import {SessionPaymaster} from "../../src/SessionPaymaster.sol";
+
 contract Base is Test {
     string public constant BASE_SEPOLIA_RPC = "https://sepolia.base.org";
     address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
@@ -23,8 +25,11 @@ contract Base is Test {
         hex"1c05286fe694493eae33312f2d2e0d0abeda8db76238b7a204be1fb87f54ce4228fef61ef4ac300f631657635c28e59bfb2fe71bce1634c81c65642042f6dc4d";
     MockContractSigner permissionSignerContract;
     MockCoinbaseSmartWallet account;
+    SessionPaymaster sessionPaymaster;
 
-    function _initialize() internal {
+    function _initializeBase() internal {
+        sessionPaymaster = new SessionPaymaster(owner);
+
         permissionSignerContract = new MockContractSigner(permissionSigner);
 
         account = new MockCoinbaseSmartWallet();
@@ -44,7 +49,7 @@ contract Base is Test {
             preVerificationGas: 0,
             maxFeePerGas: 0,
             maxPriorityFeePerGas: 0,
-            paymasterAndData: hex"",
+            paymasterAndData: abi.encodePacked(address(sessionPaymaster)),
             signature: hex""
         });
     }

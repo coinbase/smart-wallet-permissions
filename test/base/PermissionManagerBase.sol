@@ -17,9 +17,9 @@ contract PermissionManagerBase is Test, Base {
     MockPermissionContract failPermissionContract;
 
     function _initializePermissionManager() internal {
-        _initialize();
+        _initializeBase();
 
-        permissionManager = new PermissionManager(owner, cosigner);
+        permissionManager = new PermissionManager(address(sessionPaymaster), owner, cosigner);
         successPermissionContract = new MockPermissionContract(false);
         failPermissionContract = new MockPermissionContract(true);
     }

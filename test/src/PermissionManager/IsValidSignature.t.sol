@@ -21,6 +21,23 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         permissionManager.isValidSignature(userOpHash, hex"");
     }
 
+    function test_isValidSignature_revert_invalidPaymaster(address paymaster) public {
+        PermissionManager.Permission memory permission = _createPermission();
+
+        UserOperation memory userOp = _createUserOperation();
+        userOp.paymasterAndData = abi.encodePacked(paymaster);
+
+        PermissionManager.PermissionedUserOperation memory pUserOp = PermissionManager.PermissionedUserOperation({
+            permission: permission,
+            userOp: userOp,
+            userOpSignature: hex"",
+            userOpCosignature: hex""
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(PermissionManager.InvalidPaymaster.selector, paymaster));
+        permissionManager.isValidSignature(UserOperationLib.getUserOpHash(userOp), abi.encode(pUserOp));
+    }
+
     function test_isValidSignature_revert_invalidUserOperationSender(address sender) public {
         PermissionManager.Permission memory permission = _createPermission();
         vm.assume(sender != permission.account);

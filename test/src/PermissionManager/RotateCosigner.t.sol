@@ -23,7 +23,7 @@ contract RotateCosignerTest is Test, PermissionManagerBase {
 
     function test_setPendingCosigner_revert_zeroAddress() public {
         vm.startPrank(owner);
-        vm.expectRevert(abi.encodeWithSelector(PermissionManager.PendingCosignerIsZeroAddress.selector));
+        vm.expectRevert(abi.encodeWithSelector(PermissionManager.ZeroAddress.selector));
         permissionManager.setPendingCosigner(address(0));
     }
 
@@ -82,7 +82,7 @@ contract RotateCosignerTest is Test, PermissionManagerBase {
     function test_rotateCosigner_revert_zeroAddress() public {
         vm.startPrank(owner);
         permissionManager.resetPendingCosigner();
-        vm.expectRevert(abi.encodeWithSelector(PermissionManager.PendingCosignerIsZeroAddress.selector));
+        vm.expectRevert(abi.encodeWithSelector(PermissionManager.ZeroAddress.selector));
         permissionManager.rotateCosigner();
     }
 

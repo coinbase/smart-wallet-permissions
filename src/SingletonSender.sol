@@ -145,7 +145,6 @@ contract SingletonSender is IAccount, Ownable2Step, Pausable {
         (SignatureData memory data) = abi.decode(userOp.signature, (SignatureData));
 
         // check cosigner is enabled
-        // note at risk of accidental DOS if cosigner disabled before awaiting mempool to clear
         // note must be in validation phase to quickly respond to DOS attacks
         bytes32 permissionHash = hashPermission(data.permission);
         bytes32 pUserOpHash = hashPermissionedUserOp(permissionHash, userOpHash);
@@ -153,7 +152,6 @@ contract SingletonSender is IAccount, Ownable2Step, Pausable {
         if (!isCosignerEnabled[cosigner]) return SIG_FAILED;
 
         // check pausable
-        // note at risk of accidental DOS
         if (paused()) return SIG_FAILED;
 
         bytes32 hash;
@@ -218,12 +216,10 @@ contract SingletonSender is IAccount, Ownable2Step, Pausable {
         }
 
         // check permission contract enabled
-        // note at risk of accidental DOS if state disabled without first censoring on cosigner side
-        // note must be in validation phase to prevent DOS attack
         if (!isPermissionContractEnabled[data.permission.permissionContract]) return SIG_FAILED;
 
         // validate permission-specific logic
-        // note at risk of accidental DOS
+        // note DOS risk
         try IPermissionContract(data.permission.permissionContract).validatePermission(
             permissionHash, data.permission.permissionValues, userOp
         ) {} catch {

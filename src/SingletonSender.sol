@@ -17,19 +17,18 @@ import {CallErrors} from "./utils/CallErrors.sol";
 import {SignatureCheckerLib} from "./utils/SignatureCheckerLib.sol";
 import {UserOperation, UserOperationLib} from "./utils/UserOperationLib.sol";
 
-/// @title SessionKeySender
+/// @title SingletonSender (will rename, just naming the pattern for now)
 ///
-/// @notice A dynamic permission system built into an EIP-1271 module designed for Coinbase Smart Wallet
-///         (https://github.com/coinbase/smart-wallet).
+/// @notice A staked ERC-4337 account that all Session Key User Operations will flow through.
 ///
-/// @dev This is a staked ERC-4337 account that all Session Key User Operations will flow through.
-/// @dev Staked accounts can submit unlimited User Operations
+/// @dev Designed for Coinbase Smart Wallet (https://github.com/coinbase/smart-wallet).
+/// @dev Staked accounts can submit unlimited User Operations.
 /// @dev ERC-7562 [EREP-030] holds staked accounts accountable for failures in other entities (paymaster, aggregator)
 ///      even if they are staked (https://eips.ethereum.org/EIPS/eip-7562#entity-specific-rules). This means that we
 ///      have DOS risk if paymasters or aggregators are failing via triggering throttling of this sender.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-contract SessionKeySender is IAccount, Ownable2Step, Pausable {
+contract SingletonSender is IAccount, Ownable2Step, Pausable {
     /// @notice A limited permission for an external signer to use an account.
     struct Permission {
         /// @dev Smart account this permission is valid for.
@@ -257,21 +256,12 @@ contract SessionKeySender is IAccount, Ownable2Step, Pausable {
         return _packValidationData({sigFailed: false, validUntil: data.permission.expiry, validAfter: 0});
     }
 
-    /// @notice Create Smart Wallet and then call `executeBatch` on it.
-    ///
-    /// @dev Must deploy account in execution phase because ERC-7562 [OP-031] only allows CREATE2 for sender in
-    ///      deployment phase (https://eips.ethereum.org/EIPS/eip-7562#opcode-rules) and ERC-7562 [COD-010] prevents
-    ///      EXTCODEHASH changes between deployment and validation phases so we cannot deploy in validateUserOp
-    ///      (https://eips.ethereum.org/EIPS/eip-7562#code-rules).
-    function createAccountAndExecuteBatch(
+    /// @notice Call `CoinbaseSmartWallet.executeBatch` with calls.
+    function executeBatch(
         bytes32 permissionHash,
-        bytes[] calldata owners,
-        uint256 nonce,
+        CoinbaseSmartWallet account,
         CoinbaseSmartWallet.Call[] calldata calls
-    ) external {
-        // deploy account
-        CoinbaseSmartWallet account = factory.createAccount(owners, nonce);
-
+    ) external onlyEntryPoint {
         // require permission not revoked
         _requireNotRevoked(permissionHash, address(account));
 
@@ -279,12 +269,22 @@ contract SessionKeySender is IAccount, Ownable2Step, Pausable {
         account.executeBatch(calls);
     }
 
-    /// @notice Call `CoinbaseSmartWallet.executeBatch` with calls.
-    function executeBatch(
+    /// @notice Create Smart Wallet and then call `executeBatch` on it.
+    ///
+    /// @dev Must deploy account in execution phase because ERC-7562 [OP-031] only allows CREATE2 for sender in
+    ///      deployment phase (https://eips.ethereum.org/EIPS/eip-7562#opcode-rules) and ERC-7562 [COD-010] prevents
+    ///      EXTCODEHASH changes between deployment and validation phases so we cannot deploy in validateUserOp
+    ///      (https://eips.ethereum.org/EIPS/eip-7562#code-rules).
+    /// @dev This contract must be in owners initialization array.
+    function createAccountAndExecuteBatch(
         bytes32 permissionHash,
-        CoinbaseSmartWallet account,
+        bytes[] calldata owners,
+        uint256 nonce,
         CoinbaseSmartWallet.Call[] calldata calls
-    ) external {
+    ) external onlyEntryPoint {
+        // deploy account
+        CoinbaseSmartWallet account = factory.createAccount(owners, nonce);
+
         // require permission not revoked
         _requireNotRevoked(permissionHash, address(account));
 
@@ -409,7 +409,7 @@ contract SessionKeySender is IAccount, Ownable2Step, Pausable {
         return keccak256(abi.encode(permissionHash, userOpHash));
     }
 
-    /// @notice Approve an initialize a permission.
+    /// @notice Approve and initialize a permission.
     ///
     /// @param permission Struct containing permission details.
     function _approvePermission(Permission memory permission) internal {

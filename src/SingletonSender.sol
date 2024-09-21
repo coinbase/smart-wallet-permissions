@@ -261,6 +261,10 @@ contract SingletonSender is IAccount, Ownable2Step, Pausable {
         // require permission not revoked
         _requireNotRevoked(permissionHash, address(account));
 
+        // require permission approved
+
+        // approve permission if not already
+
         // execute calls batch on account
         account.executeBatch(calls);
     }
@@ -283,6 +287,10 @@ contract SingletonSender is IAccount, Ownable2Step, Pausable {
 
         // require permission not revoked
         _requireNotRevoked(permissionHash, address(account));
+
+        // require permission approved
+
+        // approve permission if not already
 
         // execute calls batch on account
         account.executeBatch(calls);

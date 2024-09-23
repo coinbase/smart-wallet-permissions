@@ -80,46 +80,30 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         _initializeRecurringAllowance(account, permissionHash, values.recurringAllowance);
     }
 
-    /// @notice Register a spend of native token for a given permission.
-    ///
-    /// @dev Accounts can call this even if they did not actually spend anything, so there is a self-DOS vector.
-    ///      Users can only impact themselves though because storage for allowances is keyed by account (msg.sender).
-    ///
-    /// @param permissionHash Hash of the permission.
-    /// @param callsSpend Value of native token spent on calls.
-    function useRecurringAllowance(bytes32 permissionHash, uint256 callsSpend) external {
-        _useRecurringAllowance({account: msg.sender, permissionHash: permissionHash, spend: callsSpend});
-    }
-
     /// @notice Validate the permission to execute a userOp.
     ///
     /// @dev Offchain userOp construction should append useRecurringAllowance call to calls array if spending value.
     /// @dev Recurring native token spend accounting does not protect against re-entrancy where an external call could
     ///      trigger an authorized call back to the account to spend more ETH.
     ///
+    /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
     /// @param permissionValues Permission-specific values for this permission contract.
-    /// @param userOp User operation to validate permission for.
-    function validatePermission(bytes32 permissionHash, bytes calldata permissionValues, UserOperation calldata userOp)
-        external
-        view
-    {
-        address paymaster = address(bytes20(userOp.paymasterAndData));
-        if (paymaster == address(0) || paymaster == magicSpend) revert GasSponsorshipRequired();
-
+    /// @param calls Calls to batch execute.
+    function validatePermissionedBatch(
+        address account,
+        bytes32 permissionHash,
+        bytes calldata permissionValues,
+        CoinbaseSmartWallet.Call[] calldata calls
+    ) external {
         (PermissionValues memory values) = abi.decode(permissionValues, (PermissionValues));
-
-        // parse user operation call data as `executeBatch` arguments (call array)
-        CoinbaseSmartWallet.Call[] memory calls = abi.decode(userOp.callData[4:], (CoinbaseSmartWallet.Call[]));
-        uint256 callsLen = calls.length;
 
         // initialize loop accumulators
         uint256 callsSpend = 0;
 
         // loop over calls to validate native token spend and allowed contracts
-        // start index at 1 to ignore beforeCalls call, enforced by PermissionManager as self-call
-        // end index at callsLen - 2 to ignore useRecurringAllowance call, enforced after loop as self-call
-        for (uint256 i = 1; i < callsLen - 1; i++) {
+        uint256 callsLen = calls.length;
+        for (uint256 i = 0; i < callsLen; i++) {
             CoinbaseSmartWallet.Call memory call = calls[i];
             bytes4 selector = bytes4(call.data);
 
@@ -146,17 +130,13 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
             callsSpend += call.value;
         }
 
-        // prepare expected call data for useRecurringAllowance
-        bytes memory useRecurringAllowanceData = abi.encodeWithSelector(
-            PermissionCallableAllowedContractNativeTokenRecurringAllowance.useRecurringAllowance.selector,
-            permissionHash,
-            callsSpend
-        );
-
-        // check last call is valid `this.useRecurringAllowance`
-        CoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
-        if (lastCall.target != address(this) || !BytesLib.eq(lastCall.data, useRecurringAllowanceData)) {
-            revert InvalidUseRecurringAllowanceCall();
-        }
+        _useRecurringAllowance({account: account, permissionHash: permissionHash, spend: callsSpend});
     }
+
+    function validatePermission(bytes32 permissionHash, bytes calldata permissionValues, UserOperation calldata userOp)
+        external
+        view
+    {}
+
+    function useRecurringAllowance(bytes32 permissionHash, uint256 spend) external {}
 }

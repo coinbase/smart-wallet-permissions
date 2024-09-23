@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
+import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
 /// @title IPermissionContract
 ///
@@ -18,6 +19,19 @@ interface IPermissionContract {
     function validatePermission(bytes32 permissionHash, bytes calldata permissionValues, UserOperation calldata userOp)
         external
         view;
+
+    /// @notice Validate the permission to execute a userOp.
+    ///
+    /// @param account Account of the permission.
+    /// @param permissionHash Hash of the permission.
+    /// @param permissionValues Additional arguments for validation.
+    /// @param calls Calls to batch execute.
+    function validatePermissionedBatch(
+        address account,
+        bytes32 permissionHash,
+        bytes calldata permissionValues,
+        CoinbaseSmartWallet.Call[] calldata calls
+    ) external;
 
     /// @notice Initialize a permission with its verified values.
     ///

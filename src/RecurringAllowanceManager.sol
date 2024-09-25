@@ -153,6 +153,10 @@ contract RecurringAllowanceManager {
         emit RecurringAllowanceRevoked(hash, recurringAllowance.account, recurringAllowance);
     }
 
+    /// @notice Withdraw tokens using a recurring allowance.
+    ///
+    /// @param recurringAllowance Recurring allowance details.
+    /// @param spend Amount of token attempting to withdraw (wei).
     function withdraw(RecurringAllowance calldata recurringAllowance, uint160 spend) external {
         // early return if no value spent
         if (spend == 0) return;

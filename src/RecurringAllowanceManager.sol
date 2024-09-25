@@ -198,7 +198,7 @@ contract RecurringAllowanceManager {
 
         // call account to transfer tokens
         _withdraw({
-            account: recurringAllowance.account,
+            owner: recurringAllowance.account,
             recipient: recurringAllowance.spender,
             token: recurringAllowance.token,
             value: value
@@ -301,12 +301,12 @@ contract RecurringAllowanceManager {
 
     /// @notice Withdraw tokens from account.
     ///
-    /// @param account Account to withdraw tokens from.
+    /// @param owner Account to withdraw tokens from.
     /// @param recipient Account to withdraw tokens to.
     /// @param token Address of token (either ether or ERC20 contract).
     /// @param value Amount of tokens to withdraw (wei).
-    function _withdraw(address account, address recipient, address token, uint256 value) internal virtual {
-        CoinbaseSmartWallet account = CoinbaseSmartWallet(payable(account));
+    function _withdraw(address owner, address recipient, address token, uint256 value) internal virtual {
+        CoinbaseSmartWallet account = CoinbaseSmartWallet(payable(owner));
 
         if (token == ETHER) {
             account.execute({target: recipient, value: value, data: hex""});

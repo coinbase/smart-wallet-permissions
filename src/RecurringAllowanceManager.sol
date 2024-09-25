@@ -118,6 +118,8 @@ contract RecurringAllowanceManager {
 
     /// @notice Approve a recurringAllowance via a direct call from the account.
     ///
+    /// @dev Prevent phishing approvals by rejecting simulated transactions with the approval event.
+    ///
     /// @param recurringAllowance Details of the recurringAllowance.
     function approve(RecurringAllowance calldata recurringAllowance) external {
         // check sender is recurringAllowance account
@@ -154,16 +156,11 @@ contract RecurringAllowanceManager {
         // require sender is spender
         if (msg.sender != recurringAllowance.spender) revert Unauthorized();
 
-        bytes32 hash = getHash(recurringAllowance);
-
-        // require not revoked
-        if (_isRecurringAllowanceRevoked[hash][recurringAllowance.account]) revert Unauthorized();
-
-        // require approved
-        if (!_isRecurringAllowanceApproved[hash][recurringAllowance.account]) revert Unauthorized();
+        // require recurring allowance is approved and not revoked
+        if (!isAuthorized(recurringAllowance)) revert Unauthorized();
 
         // get active cycle start and spend, check if recurring allowance has started
-        CycleUsage memory currentCycle = getCycleUsage(recurringAllowance);
+        CycleUsage memory currentCycle = getCurrentCycle(recurringAllowance);
 
         uint256 totalSpend = value + currentCycle.spend;
 
@@ -177,6 +174,7 @@ contract RecurringAllowanceManager {
 
         // save new accrued spend for active cycle
         currentCycle.spend = uint160(totalSpend);
+        bytes32 hash = getHash(recurringAllowance);
         _lastCycleUsages[hash][recurringAllowance.account] = currentCycle;
 
         emit RecurringAllowanceWithdrawn(
@@ -198,13 +196,13 @@ contract RecurringAllowanceManager {
 
     /// @notice Get current cycle usage.
     ///
-    /// @dev Reverts if recurring allowance has not started.
-    /// @dev Cycle boundaries are fixed intervals of recurringAllowance.start + n * recurringAllowance.period
+    /// @dev Reverts if recurring allowance has not started or has already ended.
+    /// @dev Cycle boundaries are fixed intervals of recurringAllowance.start + n * recurringAllowance.period.
     ///
     /// @param recurringAllowance Details of the recurringAllowance.
     ///
     /// @return currentCycle Currently active cycle with spend usage (struct).
-    function getCycleUsage(RecurringAllowance calldata recurringAllowance) public view returns (CycleUsage memory) {
+    function getCurrentCycle(RecurringAllowance calldata recurringAllowance) public view returns (CycleUsage memory) {
         // check recurring allowance has started
         uint48 currentTimestamp = uint48(block.timestamp);
         if (currentTimestamp < recurringAllowance.start) {
@@ -246,11 +244,25 @@ contract RecurringAllowanceManager {
         }
     }
 
-    /// @notice Hash a RecurringAllowance struct for signing.
-    ///
-    /// @dev Important that this hash cannot be phished via EIP-191/712 or other method.
+    /// @notice Return if recurring allowance is authorized i.e. approved and not revoked.
     ///
     /// @param recurringAllowance Details of the recurringAllowance.
+    ///
+    /// @return authorized True if recurring allowance is approved and not revoked.
+    function isAuthorized(RecurringAllowance calldata recurringAllowance) public view returns (bool) {
+        bytes32 hash = getHash(recurringAllowance);
+
+        return !_isRecurringAllowanceRevoked[hash][recurringAllowance.account]
+            && _isRecurringAllowanceApproved[hash][recurringAllowance.account];
+    }
+
+    /// @notice Hash a RecurringAllowance struct for signing.
+    ///
+    /// @dev Prevent phishing permits by making the hash incompatible with EIP-191/712.
+    ///
+    /// @param recurringAllowance Details of the recurringAllowance.
+    ///
+    /// @return hash Hash of the recurring allowance and replay protection parameters.
     function getHash(RecurringAllowance memory recurringAllowance) public view returns (bytes32) {
         return keccak256(
             abi.encode(

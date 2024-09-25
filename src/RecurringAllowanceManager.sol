@@ -162,7 +162,7 @@ contract RecurringAllowanceManager {
     ///
     /// @param recurringAllowance Details of the recurring allowance.
     /// @param value Amount of token attempting to withdraw (wei).
-    function withdraw(RecurringAllowance calldata recurringAllowance, uint160 value)
+    function withdraw(RecurringAllowance calldata recurringAllowance, address recipient, uint160 value)
         external
         requireSender(recurringAllowance.spender)
     {
@@ -196,12 +196,7 @@ contract RecurringAllowanceManager {
         );
 
         // call account to transfer tokens
-        _withdraw({
-            owner: recurringAllowance.account,
-            recipient: recurringAllowance.spender,
-            token: recurringAllowance.token,
-            value: value
-        });
+        _withdraw(recurringAllowance.account, recipient, recurringAllowance.token, value);
     }
 
     /// @notice Hash a RecurringAllowance struct for signing.
@@ -287,16 +282,15 @@ contract RecurringAllowanceManager {
     ///
     /// @dev Function is virtual for easy overriding to support other account implementations.
     ///
-    /// @param owner Account to withdraw tokens from.
+    /// @param account Account to withdraw tokens from.
     /// @param recipient Account to withdraw tokens to.
     /// @param token Address of token (either ether or ERC20 contract).
     /// @param value Amount of tokens to withdraw (wei).
-    function _withdraw(address owner, address recipient, address token, uint256 value) internal virtual {
-        CoinbaseSmartWallet account = CoinbaseSmartWallet(payable(owner));
+    function _withdraw(address account, address recipient, address token, uint256 value) internal virtual {
         if (token == ETHER) {
-            account.execute({target: recipient, value: value, data: hex""});
+            CoinbaseSmartWallet(payable(account)).execute({target: recipient, value: value, data: hex""});
         } else {
-            account.execute({
+            CoinbaseSmartWallet(payable(account)).execute({
                 target: token,
                 value: 0,
                 data: abi.encodeWithSelector(IERC20.transfer.selector, recipient, value)

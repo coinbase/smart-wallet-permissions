@@ -19,7 +19,7 @@ contract RecurringAllowanceManager {
         address account;
         /// @dev Entity that can spend user funds.
         address spender;
-        /// @dev Token address.
+        /// @dev Token address (ERC-7528 ether address or ERC-20 contract).
         address token;
         /// @dev Timestamp this recurring allowance is valid after (unix seconds).
         uint48 start;
@@ -104,8 +104,11 @@ contract RecurringAllowanceManager {
     ///
     /// @param hash Hash of the recurring allowance.
     /// @param account Account that spent native token via a recurring allowance.
+    /// @param token Account that spent native token via a recurring allowance.
     /// @param newUsage Start and end of the current cycle with new spend usage (struct).
-    event RecurringAllowanceWithdrawn(bytes32 indexed hash, address indexed account, CycleUsage newUsage);
+    event RecurringAllowanceWithdrawn(
+        bytes32 indexed hash, address indexed account, address indexed token, CycleUsage newUsage
+    );
 
     /// @notice Require a specific sender for an external call,
     ///
@@ -182,11 +185,14 @@ contract RecurringAllowanceManager {
 
         bytes32 hash = getHash(recurringAllowance);
 
-        // save new accrued spend for active cycle
+        // save new withdraw for active cycle
         currentCycle.spend = uint160(totalSpend);
         _lastUpdatedCycle[hash][recurringAllowance.account] = currentCycle;
         emit RecurringAllowanceWithdrawn(
-            hash, recurringAllowance.account, CycleUsage(currentCycle.start, currentCycle.end, uint160(value))
+            hash,
+            recurringAllowance.account,
+            recurringAllowance.token,
+            CycleUsage(currentCycle.start, currentCycle.end, uint160(value))
         );
 
         // call account to transfer tokens

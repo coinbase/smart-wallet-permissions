@@ -39,7 +39,7 @@ contract RecurringAllowanceManagerTest is Test, Base {
         manager.withdraw(recurringAllowance, 1 ether / 2);
     }
 
-    function _createRecurringAllowance() internal returns (RecurringAllowanceManager.RecurringAllowance memory) {
+    function _createRecurringAllowance() internal view returns (RecurringAllowanceManager.RecurringAllowance memory) {
         return RecurringAllowanceManager.RecurringAllowance({
             account: address(account),
             spender: owner,
@@ -47,8 +47,7 @@ contract RecurringAllowanceManagerTest is Test, Base {
             start: 0,
             end: 1758791693, // 1 year from now
             period: 86400, // 1 day
-            allowance: 1 ether,
-            approval: hex""
+            allowance: 1 ether
         });
     }
 }

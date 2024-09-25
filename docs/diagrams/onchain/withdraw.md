@@ -1,4 +1,8 @@
-# Withdraw from Recurring Allowance
+# Withdraw from Recurring Allowance Manager
+
+## Withdraw with permit approval
+
+The first time using a recurring allowance, the spender needs to pack an additional `permit` call before withdrawing to validate and store the approval.
 
 ```mermaid
 sequenceDiagram
@@ -7,16 +11,13 @@ sequenceDiagram
     participant M as Recurring Allowance Manager
     participant A as Smart Wallet
     participant ERC20
-    participant EC as External Contract
 
-    S->>M: withdraw(recurringAllowance, spend)
-    Note over S,M: withdraw tokens using recurring allowance
-    opt approval not in storage
-        M->>A: isValidSignature(hash, signature)
-        Note over M,A: validate signature and lazy approve
-    end
-    M->>A: executeBatch(calls)
-    Note over M,A: transfer native or ERC20 tokens to spender
+    S->>M: permit(recurringAllowance, signature)
+    Note over M: validate signature and store approval
+    S->>M: withdraw(recurringAllowance, value)
+    Note over M: validate recurring allowance authorized <br> and withdraw value within allowance
+    M->>A: execute(target, value, data)
+    Note over M,A: transfer tokens
     alt token is address(e)
         A->>S: call{value}()
         Note over A,S: transfer native token to spender
@@ -24,8 +25,29 @@ sequenceDiagram
         A->>ERC20: transfer(spender, value)
         Note over A,ERC20: transfer ERC20 to spender
     end
-    loop
-        S->>EC: call{value}(data)
-        Note over S,EC: arbitrary contract calls
+```
+
+## Withdraw with stored approval
+
+After a recurring allowance has been approved, the spender only needs to call `withdraw` to transfer tokens from the Smart Wallet.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Spender
+    participant M as Recurring Allowance Manager
+    participant A as Smart Wallet
+    participant ERC20
+
+    S->>M: withdraw(recurringAllowance, value)
+    Note over M: validate recurring allowance authorized <br> and withdraw value within allowance
+    M->>A: execute(target, value, data)
+    Note over M,A: transfer tokens
+    alt token is address(e)
+        A->>S: call{value}()
+        Note over A,S: transfer native token to spender
+    else else is ERC20 contract
+        A->>ERC20: transfer(spender, value)
+        Note over A,ERC20: transfer ERC20 to spender
     end
 ```

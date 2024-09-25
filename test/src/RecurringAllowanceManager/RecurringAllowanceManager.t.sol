@@ -21,7 +21,7 @@ contract RecurringAllowanceManagerTest is Test, Base {
         account.addOwnerAddress(address(manager));
     }
 
-    function tes_approve() public {
+    function test_approve() public {
         RecurringAllowanceManager.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
 
         vm.prank(address(account));

@@ -13,17 +13,17 @@ import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-recurringAllowances)
 contract RecurringAllowanceManager {
-    /// @notice A limited recurringAllowance for an external signer to use an account.
+    /// @notice A recurring allowance for an external spender to withdraw an account's tokens.
     struct RecurringAllowance {
-        /// @dev Smart account this recurringAllowance is valid for.
+        /// @dev Smart account this recurring allowance is valid for.
         address account;
         /// @dev Entity that can spend user funds.
         address spender;
         /// @dev Token address.
         address token;
-        /// @dev Start time of the recurring allowance's first cycle (unix seconds).
+        /// @dev Timestamp this recurring allowance is valid after (unix seconds).
         uint48 start;
-        /// @dev Timestamp this recurringAllowance is valid until (unix seconds).
+        /// @dev Timestamp this recurring allowance is valid until (unix seconds).
         uint48 end;
         /// @dev Time duration for resetting spend on a recurring basis (seconds).
         uint48 period;
@@ -163,7 +163,7 @@ contract RecurringAllowanceManager {
         if (!_isRecurringAllowanceApproved[hash][recurringAllowance.account]) revert Unauthorized();
 
         // get active cycle start and spend, check if recurring allowance has started
-        CycleUsage memory currentCycle = getSpend(recurringAllowance);
+        CycleUsage memory currentCycle = getCycleUsage(recurringAllowance);
 
         uint256 totalSpend = value + currentCycle.spend;
 
@@ -184,17 +184,16 @@ contract RecurringAllowanceManager {
         );
 
         // send call to Smart Wallet to transfer token
-        CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
+        CoinbaseSmartWallet account = CoinbaseSmartWallet(payable(recurringAllowance.account));
         if (recurringAllowance.token == ETHER) {
-            calls[0] = CoinbaseSmartWallet.Call({target: recurringAllowance.spender, value: value, data: hex""});
+            account.execute({target: recurringAllowance.spender, value: value, data: hex""});
         } else {
-            calls[0] = CoinbaseSmartWallet.Call({
+            account.execute({
                 target: recurringAllowance.token,
                 value: 0,
                 data: abi.encodeWithSelector(IERC20.transfer.selector, recurringAllowance.spender, value)
             });
         }
-        CoinbaseSmartWallet(payable(recurringAllowance.account)).executeBatch(calls);
     }
 
     /// @notice Get current cycle usage.
@@ -205,7 +204,7 @@ contract RecurringAllowanceManager {
     /// @param recurringAllowance Details of the recurringAllowance.
     ///
     /// @return currentCycle Currently active cycle with spend usage (struct).
-    function getSpend(RecurringAllowance calldata recurringAllowance) public view returns (CycleUsage memory) {
+    function getCycleUsage(RecurringAllowance calldata recurringAllowance) public view returns (CycleUsage memory) {
         // check recurring allowance has started
         uint48 currentTimestamp = uint48(block.timestamp);
         if (currentTimestamp < recurringAllowance.start) {

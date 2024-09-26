@@ -28,7 +28,7 @@ contract RecurringAllowanceManagerTest is Test, Base {
         manager.approve(recurringAllowance);
     }
 
-    function test_withdraw() public {
+    function test_withdraw(address recipient) public {
         RecurringAllowanceManager.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
 
         vm.prank(address(account));
@@ -36,7 +36,7 @@ contract RecurringAllowanceManagerTest is Test, Base {
 
         vm.deal(address(account), 1 ether);
         vm.prank(owner);
-        manager.withdraw(recurringAllowance, 1 ether / 2);
+        manager.withdraw(recurringAllowance, recipient, 1 ether / 2);
     }
 
     function _createRecurringAllowance() internal view returns (RecurringAllowanceManager.RecurringAllowance memory) {

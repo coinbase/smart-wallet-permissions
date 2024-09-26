@@ -118,22 +118,6 @@ contract RecurringAllowanceManager {
         _;
     }
 
-    /// @notice Approve a recurring allowance via a signature from the account.
-    ///
-    /// @param recurringAllowance Details of the recurring allowance.
-    /// @param signature Signed hash of the recurring allowance data.
-    function permit(RecurringAllowance calldata recurringAllowance, bytes calldata signature) external {
-        // validate signature over recurring allowance data
-        if (
-            IERC1271(recurringAllowance.account).isValidSignature(getHash(recurringAllowance), signature)
-                != IERC1271.isValidSignature.selector
-        ) {
-            revert Unauthorized();
-        }
-
-        _approve(recurringAllowance);
-    }
-
     /// @notice Approve a recurring allowance via a direct call from the account.
     ///
     /// @dev Prevent phishing approvals by rejecting simulated transactions with the approval event.
@@ -158,12 +142,42 @@ contract RecurringAllowanceManager {
         emit RecurringAllowanceRevoked(hash, recurringAllowance.account, recurringAllowance);
     }
 
+    /// @notice Withdraw tokens using a recurring allowance and approval signature.
+    ///
+    /// @dev Convenience function for offchain preparation from apps that have an ERC-7715 permissions context.
+    ///
+    /// @param context Flat bytes value representing an approved recurring allowance.
+    /// @param recipient Address to withdraw tokens to.
+    /// @param value Amount of token attempting to withdraw (wei).
+    function withdraw(bytes calldata context, address recipient, uint160 value) external {
+        (RecurringAllowance memory recurringAllowance, bytes memory signature) = decodeContext(context);
+        permit(recurringAllowance, signature);
+        withdraw(recurringAllowance, recipient, value);
+    }
+
+    /// @notice Approve a recurring allowance via a signature from the account.
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param signature Signed hash of the recurring allowance data.
+    function permit(RecurringAllowance memory recurringAllowance, bytes memory signature) public {
+        // validate signature over recurring allowance data
+        if (
+            IERC1271(recurringAllowance.account).isValidSignature(getHash(recurringAllowance), signature)
+                != IERC1271.isValidSignature.selector
+        ) {
+            revert Unauthorized();
+        }
+
+        _approve(recurringAllowance);
+    }
+
     /// @notice Withdraw tokens using a recurring allowance.
     ///
     /// @param recurringAllowance Details of the recurring allowance.
+    /// @param recipient Address to withdraw tokens to.
     /// @param value Amount of token attempting to withdraw (wei).
-    function withdraw(RecurringAllowance calldata recurringAllowance, address recipient, uint160 value)
-        external
+    function withdraw(RecurringAllowance memory recurringAllowance, address recipient, uint160 value)
+        public
         requireSender(recurringAllowance.spender)
     {
         // early return if no value spent
@@ -216,7 +230,7 @@ contract RecurringAllowanceManager {
     /// @param recurringAllowance Details of the recurring allowance.
     ///
     /// @return authorized True if recurring allowance is approved and not revoked.
-    function isAuthorized(RecurringAllowance calldata recurringAllowance) public view returns (bool) {
+    function isAuthorized(RecurringAllowance memory recurringAllowance) public view returns (bool) {
         bytes32 hash = getHash(recurringAllowance);
         return !_isRevoked[hash][recurringAllowance.account] && _isApproved[hash][recurringAllowance.account];
     }
@@ -229,7 +243,7 @@ contract RecurringAllowanceManager {
     /// @param recurringAllowance Details of the recurring allowance.
     ///
     /// @return currentCycle Currently active cycle with spend usage (struct).
-    function getCurrentCycle(RecurringAllowance calldata recurringAllowance) public view returns (CycleUsage memory) {
+    function getCurrentCycle(RecurringAllowance memory recurringAllowance) public view returns (CycleUsage memory) {
         // check current timestamp is within recurring allowance time range
         uint48 currentTimestamp = uint48(block.timestamp);
         if (currentTimestamp < recurringAllowance.start) {
@@ -269,10 +283,24 @@ contract RecurringAllowanceManager {
         }
     }
 
+    /// @notice Decode flat bytes context into a recurring allowance and approval signature.
+    ///
+    /// @param context Flat bytes value representing an approved recurring allowance.
+    ///
+    /// @return recurringAllowance Details of the recurring allowance.
+    /// @return signature Signed hash of the recurring allowance data.
+    function decodeContext(bytes memory context)
+        public
+        pure
+        returns (RecurringAllowance memory recurringAllowance, bytes memory signature)
+    {
+        (recurringAllowance, signature) = abi.decode(context, (RecurringAllowance, bytes));
+    }
+
     /// @notice Approve recurring allowance.
     ///
     /// @param recurringAllowance Details of the recurring allowance.
-    function _approve(RecurringAllowance calldata recurringAllowance) internal {
+    function _approve(RecurringAllowance memory recurringAllowance) internal {
         bytes32 hash = getHash(recurringAllowance);
         _isApproved[hash][recurringAllowance.account] = true;
         emit RecurringAllowanceApproved(hash, recurringAllowance.account, recurringAllowance);

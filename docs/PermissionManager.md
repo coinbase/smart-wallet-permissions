@@ -12,7 +12,7 @@ Some security mechanisms require storing state external to Smart Wallets. Given 
 
 ### Ethereum address and `secp256r1` signers
 
-Just like Smart Wallet V1, Session Keys supports both Ethereum address and `secp256r1` signers. Ethereum addresses are split into validating EOA signatures with `ecrecover` and contract signatures with [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) `isValidSignature`. The `secp256r1` curve supports both Passkey and [CryptoKey](./CryptoKey.md) signature validation through [WebAuthn](https://github.com/base-org/webauthn-sol/blob/main/src/WebAuthn.sol).
+Just like Smart Wallet V1, Session Keys supports both Ethereum address and `secp256r1` signers. Ethereum addresses are split into validating EOA signatures with `ecrecover` and contract signatures with [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) `isValidSignature`. The `secp256r1` curve supports both Passkey and [CryptoKey](./CryptoKey.md) signature validation through [WebAuthn](https://github.com/base-org/webauthn-sol/blob/main/src/WebAuthn.sol). Note that contract signers cannot violate [ERC-7562](https://eips.ethereum.org/EIPS/eip-7562) "associated storage" constraints, e.g. using a Coinbase Smart Wallet as a signer for another Smart Wallet.
 
 ### Signature approvals with lazy caching
 
@@ -24,7 +24,7 @@ A storage-based approval system also enables Permission Manager to expose an `ap
 
 ### Permission revocations
 
-Permission Manager also exposes a `revokePermission` function to enable revocations. The storage for revocations is a doubly-nested mapping where the final key is the account address to enable valid access in the ERC-4337 validation phase. Permission revocation is always available to users in their Smart Wallet settings and in the future, potentially exposed to apps.
+Permission Manager also exposes a `revokePermission` function to enable revocations. The storage for revocations is a doubly-nested mapping where the final key is the account address to enable valid access in the ERC-4337 validation phase. Permission revocation is always available to users in their Smart Wallet settings and in the future, potentially exposed to apps. Revoking a permission cannot be undone, but users can approve a new, similar permission.
 
 ### Reentrancy protection
 

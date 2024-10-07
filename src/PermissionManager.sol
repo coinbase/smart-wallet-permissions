@@ -50,7 +50,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     }
 
     /// @dev bytes4(keccak256("isValidSignature(bytes32,bytes)"))
-    bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
+    bytes4 internal constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
 
     /// @notice Second-factor signer required to approve every permissioned userOp.
     address public cosigner;
@@ -243,8 +243,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
     /// @notice Revoke a permission to disable its use indefinitely.
     ///
-    /// @dev Depending on permission contract implementation, permissions can revoke other permissions.
-    ///
     /// @param permissionHash hash of the permission to revoke
     function revokePermission(bytes32 permissionHash) external {
         // early return if permission is already revoked
@@ -315,14 +313,13 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
     /// @notice Validates a permission via EIP-1271.
     ///
-    /// @dev Assume `userOp.calldata` calls CoinbaseSmartWallet.executeBatch`.
+    /// @dev Verifies that `userOp.calldata` calls CoinbaseSmartWallet.executeBatch`.
     /// @dev All accessed storage must be nested by account address to pass ERC-4337 constraints.
     ///
     /// @param userOpHash Hash of the user operation.
     /// @param userOpAuth Authentication data for this permissioned user operation.
     function isValidSignature(bytes32 userOpHash, bytes calldata userOpAuth) external view returns (bytes4 result) {
         (PermissionedUserOperation memory data) = abi.decode(userOpAuth, (PermissionedUserOperation));
-        bytes32 permissionHash = hashPermission(data.permission);
 
         // check userOperation sender matches account;
         if (data.userOp.sender != data.permission.account) {
@@ -365,7 +362,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         );
 
         // check first call is valid `self.beforeCalls`
-        if (calls[0].target != address(this) || !BytesLib.eq(calls[0].data, beforeCallsData)) {
+        if (calls[0].target != address(this) || !BytesLib.eq(calls[0].data, beforeCallsData) || calls[0].value != 0) {
             revert InvalidBeforeCallsCall();
         }
 
@@ -380,7 +377,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         // validate permission-specific logic
         IPermissionContract(data.permission.permissionContract).validatePermission(
-            permissionHash, data.permission.permissionValues, data.userOp
+            hashPermission(data.permission), data.permission.permissionValues, data.userOp
         );
 
         // return back to account to complete owner signature verification of userOpHash

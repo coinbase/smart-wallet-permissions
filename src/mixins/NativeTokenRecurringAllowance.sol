@@ -54,7 +54,7 @@ abstract contract NativeTokenRecurringAllowance {
     /// @param allowance Allowance value that was exceeded.
     error ExceededRecurringAllowance(uint256 spend, uint256 allowance);
 
-    /// @notice Register native token spend for a permission
+    /// @notice Register native token allowance for a permission.
     ///
     /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
@@ -178,7 +178,7 @@ abstract contract NativeTokenRecurringAllowance {
     /// @notice Get current cycle usage.
     ///
     /// @dev Reverts if recurring allowance has not started.
-    /// @dev Cycle boundaries are fixed intervals of recurringAllowance.start + n * recurringAllowance.period
+    /// @dev Cycles start at recurringAllowance.start + n * recurringAllowance.period.
     ///
     /// @param account Account of the permission.
     /// @param permissionHash Hash of the permission.
@@ -199,8 +199,8 @@ abstract contract NativeTokenRecurringAllowance {
         // return last cycle if still active, otherwise compute new active cycle start time with no spend
         CycleUsage memory lastCycleUsage = _lastCycleUsages[account][permissionHash];
 
-        // last cycle exists if start, end, and spend are non-zero
-        bool lastCycleExists = lastCycleUsage.start != 0 && lastCycleUsage.end != 0 && lastCycleUsage.spend != 0;
+        // last cycle exists if start, end, and spend are non-zero, i.e. a non-zero start implies that end and spend are also non-zero
+        bool lastCycleExists = lastCycleUsage.start != 0;
 
         // last cycle still active if current time within [start, end) range, i.e. start-inclusive and end-exclusive
         bool lastCycleStillActive =

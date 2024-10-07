@@ -5,6 +5,8 @@ import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
+import {EIP712} from "./EIP712.sol";
+
 /// @title RecurringAllowanceManager
 ///
 /// @notice Allow spending native and ERC20 tokens with a recurring allowance.
@@ -12,7 +14,7 @@ import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 /// @dev Allowance and spend values capped at uint160 ~ 1e48.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-contract RecurringAllowanceManager {
+contract RecurringAllowanceManager is EIP712 {
     /// @notice A recurring allowance for an external spender to withdraw an account's tokens.
     struct RecurringAllowance {
         /// @dev Smart account this recurring allowance is valid for.
@@ -40,6 +42,11 @@ contract RecurringAllowanceManager {
         /// @dev Accumulated spend amount for cycle.
         uint160 spend;
     }
+
+    /// @notice Hash of EIP-712 message type
+    bytes32 private constant _MESSAGE_TYPEHASH = keccak256(
+        "RecurringAllowance(address account,address spender,address token,uint48 start,uint48 end,uint48 period,uint160 allowance)"
+    );
 
     /// @notice ERC-7528 address convention for ether (https://eips.ethereum.org/EIPS/eip-7528).
     address public constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -181,7 +188,18 @@ contract RecurringAllowanceManager {
         requireSender(recurringAllowance.spender)
     {
         _useRecurringAllowance(recurringAllowance, value);
-        _transferFrom(recurringAllowance.account, recipient, recurringAllowance.token, value);
+
+        // transfer tokens from account to recipient
+        if (recurringAllowance.token == ETHER) {
+            _execute({account: recurringAllowance.account, target: recipient, value: value, data: hex""});
+        } else {
+            _execute({
+                account: recurringAllowance.account,
+                target: recurringAllowance.token,
+                value: 0,
+                data: abi.encodeWithSelector(IERC20.transfer.selector, recipient, value)
+            });
+        }
     }
 
     /// @notice Use a recurring allowance.
@@ -228,7 +246,7 @@ contract RecurringAllowanceManager {
     ///
     /// @return hash Hash of the recurring allowance and replay protection parameters.
     function getHash(RecurringAllowance memory recurringAllowance) public view returns (bytes32) {
-        return keccak256(abi.encode(recurringAllowance, block.chainid, address(this)));
+        return _eip712Hash(keccak256(abi.encode(_MESSAGE_TYPEHASH, recurringAllowance)));
     }
 
     /// @notice Return if recurring allowance is authorized i.e. approved and not revoked.
@@ -312,27 +330,6 @@ contract RecurringAllowanceManager {
         emit RecurringAllowanceApproved(hash, recurringAllowance.account, recurringAllowance);
     }
 
-    /// @notice Withdraw tokens from account.
-    ///
-    /// @dev Function is virtual for easy overriding to support other account implementations.
-    ///
-    /// @param account Account to withdraw tokens from.
-    /// @param recipient Account to withdraw tokens to.
-    /// @param token Address of token (either ether or ERC20 contract).
-    /// @param value Amount of tokens to withdraw (wei).
-    function _transferFrom(address account, address recipient, address token, uint256 value) internal {
-        if (token == ETHER) {
-            _execute({account: account, target: recipient, value: value, data: hex""});
-        } else {
-            _execute({
-                account: account,
-                target: token,
-                value: 0,
-                data: abi.encodeWithSelector(IERC20.transfer.selector, recipient, value)
-            });
-        }
-    }
-
     /// @notice Execute a single call on an account.
     ///
     /// @param account Address of the user account.
@@ -341,5 +338,13 @@ contract RecurringAllowanceManager {
     /// @param data Bytes data to send in call.
     function _execute(address account, address target, uint256 value, bytes memory data) internal virtual {
         CoinbaseSmartWallet(payable(account)).execute({target: target, value: value, data: data});
+    }
+
+    /// @notice Returns the domain name and version to use when creating EIP-712 signatures.
+    ///
+    /// @return name    The user readable name of signing domain.
+    /// @return version The current major version of the signing domain.
+    function _domainNameAndVersion() internal pure override returns (string memory name, string memory version) {
+        return ("SpendPermissions", "1");
     }
 }

@@ -59,7 +59,7 @@ contract RecurringAllowanceManager {
     error InvalidSender(address sender);
 
     /// @notice Unauthorized recurring allowance.
-    error Unauthorized();
+    error UnauthorizedRecurringAllowance();
 
     /// @notice Recurring cycle has not started yet.
     ///
@@ -165,7 +165,7 @@ contract RecurringAllowanceManager {
             IERC1271(recurringAllowance.account).isValidSignature(getHash(recurringAllowance), signature)
                 != IERC1271.isValidSignature.selector
         ) {
-            revert Unauthorized();
+            revert UnauthorizedRecurringAllowance();
         }
 
         _approve(recurringAllowance);
@@ -180,14 +180,23 @@ contract RecurringAllowanceManager {
         public
         requireSender(recurringAllowance.spender)
     {
+        _useRecurringAllowance(recurringAllowance, value);
+        _transferFrom(recurringAllowance.account, recipient, recurringAllowance.token, value);
+    }
+
+    /// @notice Use a recurring allowance.
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param value Amount of token attempting to withdraw (wei).
+    function _useRecurringAllowance(RecurringAllowance memory recurringAllowance, uint160 value) internal {
         // early return if no value spent
         if (value == 0) return;
 
         // require recurring allowance is approved and not revoked
-        if (!isAuthorized(recurringAllowance)) revert Unauthorized();
+        if (!isAuthorized(recurringAllowance)) revert UnauthorizedRecurringAllowance();
 
         CycleUsage memory currentCycle = getCurrentCycle(recurringAllowance);
-        uint256 totalSpend = value + currentCycle.spend;
+        uint256 totalSpend = uint256(value) + uint256(currentCycle.spend);
 
         // check total spend value does not overflow max value
         if (totalSpend > type(uint160).max) revert WithdrawValueOverflow(totalSpend);
@@ -208,9 +217,6 @@ contract RecurringAllowanceManager {
             recurringAllowance.token,
             CycleUsage(currentCycle.start, currentCycle.end, uint160(value))
         );
-
-        // call account to transfer tokens
-        _withdraw(recurringAllowance.account, recipient, recurringAllowance.token, value);
     }
 
     /// @notice Hash a RecurringAllowance struct for signing.
@@ -314,7 +320,7 @@ contract RecurringAllowanceManager {
     /// @param recipient Account to withdraw tokens to.
     /// @param token Address of token (either ether or ERC20 contract).
     /// @param value Amount of tokens to withdraw (wei).
-    function _withdraw(address account, address recipient, address token, uint256 value) internal virtual {
+    function _transferFrom(address account, address recipient, address token, uint256 value) internal virtual {
         if (token == ETHER) {
             CoinbaseSmartWallet(payable(account)).execute({target: recipient, value: value, data: hex""});
         } else {

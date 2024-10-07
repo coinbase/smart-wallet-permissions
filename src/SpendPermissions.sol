@@ -85,7 +85,8 @@ contract SpendPermissions is RecurringAllowanceManager, Ownable2Step, IPaymaster
 
         // pull funds from account into paymaster
         _unlockDeposit();
-        CoinbaseSmartWallet(payable(recurringAllowance.account)).execute({
+        _execute({
+            account: recurringAllowance.account,
             target: address(this),
             value: withdrawAmount,
             data: abi.encodeWithSelector(this.paymasterDeposit.selector, maxGasCost, userOp.sender)

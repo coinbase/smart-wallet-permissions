@@ -53,6 +53,35 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         permissionContract.validatePermission(permissionHash, permissionValues, userOp);
     }
 
+    function test_validatePermission_revert_InvalidCallLength(
+        address paymaster,
+        uint160 allowance,
+        address allowedContract,
+        address target,
+        bytes3 data,
+        uint256 spend
+    ) public {
+        vm.assume(paymaster != address(0));
+        vm.assume(paymaster != address(magicSpend));
+
+        PermissionManager.Permission memory permission = _createPermission();
+        bytes32 permissionHash = permissionManager.hashPermission(permission);
+        UserOperation memory userOp = _createUserOperation();
+        userOp.paymasterAndData = abi.encodePacked(paymaster);
+
+        CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](3);
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[1] = _createCall(target, spend, abi.encodePacked(data));
+        calls[2] = _createUseRecurringAllowanceCall(address(permissionContract), permissionHash, spend);
+        bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
+        userOp.callData = callData;
+
+        vm.expectRevert(CallErrors.InvalidCallLength.selector);
+        permissionContract.validatePermission(
+            permissionHash, abi.encode(_createPermissionValues(allowance, allowedContract)), userOp
+        );
+    }
+
     function test_validatePermission_revert_permissionedCall_TargetNotAllowed(
         address paymaster,
         uint160 allowance,

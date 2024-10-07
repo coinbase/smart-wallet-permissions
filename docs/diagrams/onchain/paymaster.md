@@ -17,14 +17,16 @@ sequenceDiagram
     U->>SP: paymasterDeposit
     SP->>E: deposit
     Note over SP,E: Deposit required prefund
-    opt
-        SP->>S: call{value}()
-        Note over SP,S: Forward gas excess
-    end
     Note over E: Execution phase
     E->>S: executeBatch
+    opt
+        S->>SP: withdrawGasExcess
+        SP->>S: call{value}()
+    end
     E->>SP: postOp
-    SP->>E: withdrawTo
-    E->>S: call{value}()
-    Note over E,S: Refund unused gas
+    opt
+        SP->>E: withdrawTo
+        E->>S: call{value}()
+        Note over E,S: Refund unused gas
+    end
 ```

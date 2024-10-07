@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.23;
 
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
@@ -17,23 +17,23 @@ import {RecurringAllowanceManager} from "./RecurringAllowanceManager.sol";
 ///
 /// @dev Supports withdrawing tokens through direct call or spending gas as an ERC-4337 Paymaster.
 contract SpendPermissions is RecurringAllowanceManager, Ownable2Step, IPaymaster {
-    /// @notice Slot for transient storage lock for paymaster deposits.
-    bytes32 private constant DEPOSIT_LOCK_SLOT = 0;
+    /// @notice Track the amount of native asset available to be withdrawn per user.
+    mapping(address user => uint256 amount) internal _withdrawable;
 
     /// @notice Thrown during validation in the context of ERC4337, when the withdraw request amount is insufficient
     ///         to sponsor the transaction gas.
     ///
     /// @param withdraw The withdraw request amount.
     /// @param maxGasCost The max gas cost required by the Entrypoint.
-    error WithdrawLessThanGasMaxCost(uint256 withdraw, uint256 maxGasCost);
+    error LessThanGasMaxCost(uint256 withdraw, uint256 maxGasCost);
 
     /// @notice Thrown when the withdraw request `asset` is not ETH (zero address).
     ///
     /// @param asset The requested asset.
     error UnsupportedPaymasterAsset(address asset);
 
-    /// @notice Depositing is locked.
-    error DepositLocked();
+    /// @notice Thrown when trying to withdraw funds but nothing is available.
+    error NoExcess();
 
     /// @notice Thrown when `postOp()` is called a second time with `PostOpMode.postOpReverted`.
     ///
@@ -59,7 +59,7 @@ contract SpendPermissions is RecurringAllowanceManager, Ownable2Step, IPaymaster
 
         // require withdraw amount not less than max gas cost
         if (withdrawAmount < maxGasCost) {
-            revert WithdrawLessThanGasMaxCost(withdrawAmount, maxGasCost);
+            revert LessThanGasMaxCost(withdrawAmount, maxGasCost);
         }
 
         // require recurring allowance token is ether
@@ -84,7 +84,6 @@ contract SpendPermissions is RecurringAllowanceManager, Ownable2Step, IPaymaster
         _useRecurringAllowance(recurringAllowance, uint160(withdrawAmount));
 
         // pull funds from account into paymaster
-        _unlockDeposit();
         _execute({
             account: recurringAllowance.account,
             target: address(this),
@@ -105,9 +104,7 @@ contract SpendPermissions is RecurringAllowanceManager, Ownable2Step, IPaymaster
     /// @param maxGasCost Amount of native token to deposit into the Entrypoint for required prefund.
     /// @param gasExcessRecipient Address to send native token in excess of gas cost to.
     function paymasterDeposit(uint256 maxGasCost, address gasExcessRecipient) external payable {
-        // read transient storage to check if deposit has been unlocked and if so re-lock it
-        if (!_isDepositUnlocked()) revert DepositLocked();
-        else _lockDeposit();
+        if (msg.value < maxGasCost) revert LessThanGasMaxCost(msg.value, maxGasCost);
 
         // deposit into Entrypoint for required prefund
         SafeTransferLib.safeTransferETH(entryPoint(), maxGasCost);
@@ -115,10 +112,21 @@ contract SpendPermissions is RecurringAllowanceManager, Ownable2Step, IPaymaster
         // transfer withdraw amount exceeding gas cost to account
         uint256 gasExcess = msg.value - maxGasCost;
         if (gasExcess > 0) {
-            SafeTransferLib.forceSafeTransferETH(
-                gasExcessRecipient, gasExcess, SafeTransferLib.GAS_STIPEND_NO_STORAGE_WRITES
-            );
+            _withdrawable[gasExcessRecipient] += gasExcess;
         }
+    }
+
+    /// @notice Allows the sender to withdraw any available funds associated with their account.
+    ///
+    /// @dev Can be called back during the `UserOperation` execution to sponsor funds for non-gas related
+    ///      use cases (e.g., swap or mint).
+    function withdrawGasExcess() external {
+        uint256 amount = _withdrawable[msg.sender];
+        // we could allow 0 value transfers, but prefer to be explicit
+        if (amount == 0) revert NoExcess();
+
+        delete _withdrawable[msg.sender];
+        SafeTransferLib.safeTransferETH(msg.sender, amount);
     }
 
     /// @inheritdoc IPaymaster
@@ -139,6 +147,15 @@ contract SpendPermissions is RecurringAllowanceManager, Ownable2Step, IPaymaster
 
         // Send unused gas to the user accout.
         IEntryPoint(entryPoint()).withdrawTo(account, maxGasCost - actualGasCost);
+
+        // Compute the total remaining funds available for the user accout.
+        uint256 withdrawable = _withdrawable[account];
+
+        // Send the all remaining funds to the user accout.
+        delete _withdrawable[account];
+        if (withdrawable > 0) {
+            SafeTransferLib.forceSafeTransferETH(account, withdrawable, SafeTransferLib.GAS_STIPEND_NO_STORAGE_WRITES);
+        }
     }
 
     /// @notice Adds stake to the EntryPoint.
@@ -173,28 +190,5 @@ contract SpendPermissions is RecurringAllowanceManager, Ownable2Step, IPaymaster
     /// @notice Returns the canonical ERC-4337 EntryPoint v0.6 contract.
     function entryPoint() public pure returns (address) {
         return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
-    }
-
-    /// @notice Unlock deposits from accounts into the paymaster
-    function _unlockDeposit() internal {
-        assembly {
-            tstore(DEPOSIT_LOCK_SLOT, 1)
-        }
-    }
-
-    /// @notice Lock deposits from accounts into the paymaster
-    function _lockDeposit() internal {
-        assembly {
-            tstore(DEPOSIT_LOCK_SLOT, 0)
-        }
-    }
-
-    /// @notice Read if deposits are unlocked from accounts into the paymaster
-    ///
-    /// @return unlocked true if deposit is unlocked
-    function _isDepositUnlocked() internal view returns (bool unlocked) {
-        assembly {
-            unlocked := tload(DEPOSIT_LOCK_SLOT)
-        }
     }
 }

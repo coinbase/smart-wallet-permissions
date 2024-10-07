@@ -60,8 +60,8 @@ contract IntegrationTest is Test, Base {
             spendPermissions.validatePaymasterUserOp(userOp, bytes32(0), maxGasCost);
 
         vm.assertEq(ENTRY_POINT_V06.balance, maxGasCost);
-        vm.assertEq(address(spendPermissions).balance, 0);
-        vm.assertEq(recurringAllowance.spender.balance, allowance - maxGasCost);
+        vm.assertEq(address(spendPermissions).balance, allowance - maxGasCost);
+        vm.assertEq(recurringAllowance.spender.balance, 0);
 
         vm.prank(ENTRY_POINT_V06);
         spendPermissions.postOp(IPaymaster.PostOpMode.opSucceeded, postOpContext, maxGasCost - 1);

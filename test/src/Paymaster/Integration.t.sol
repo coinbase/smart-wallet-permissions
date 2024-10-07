@@ -6,8 +6,8 @@ import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 import {Test, console2} from "forge-std/Test.sol";
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 
-import {Paymaster} from "../../../src/Paymaster.sol";
 import {RecurringAllowanceManager} from "../../../src/RecurringAllowanceManager.sol";
+import {SpendPermissions} from "../../../src/SpendPermissions.sol";
 
 import {Base} from "../../base/Base.sol";
 import {Static} from "../../base/Static.sol";
@@ -15,16 +15,16 @@ import {Static} from "../../base/Static.sol";
 contract IntegrationTest is Test, Base {
     address constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    Paymaster recurringAllowanceManager;
+    SpendPermissions spendPermissions;
 
     function setUp() public {
         _initialize();
         vm.etch(ENTRY_POINT_V06, Static.ENTRY_POINT_BYTES);
 
-        recurringAllowanceManager = new Paymaster(owner);
+        spendPermissions = new SpendPermissions(owner);
 
         vm.prank(owner);
-        account.addOwnerAddress(address(recurringAllowanceManager));
+        account.addOwnerAddress(address(spendPermissions));
     }
 
     function test_validatePaymasterUserOp_success(uint160 allowance, uint160 maxGasCost) public {
@@ -43,7 +43,7 @@ contract IntegrationTest is Test, Base {
         userOp.maxFeePerGas = 1;
         userOp.maxPriorityFeePerGas = 1;
 
-        bytes32 hash = recurringAllowanceManager.getHash(recurringAllowance);
+        bytes32 hash = spendPermissions.getHash(recurringAllowance);
         bytes32 replaySafeHash = account.replaySafeHash(hash);
         bytes memory signature = _applySignatureWrapper(0, _sign(ownerPk, replaySafeHash));
 
@@ -52,19 +52,19 @@ contract IntegrationTest is Test, Base {
         bytes memory context = abi.encode(recurringAllowance, signature);
         bytes memory paymasterData = abi.encode(context, allowance);
 
-        userOp.paymasterAndData = abi.encodePacked(address(recurringAllowanceManager), paymasterData);
+        userOp.paymasterAndData = abi.encodePacked(address(spendPermissions), paymasterData);
 
         vm.deal(recurringAllowance.account, allowance);
         vm.prank(ENTRY_POINT_V06);
         (bytes memory postOpContext, uint256 validationData) =
-            recurringAllowanceManager.validatePaymasterUserOp(userOp, bytes32(0), maxGasCost);
+            spendPermissions.validatePaymasterUserOp(userOp, bytes32(0), maxGasCost);
 
         vm.assertEq(ENTRY_POINT_V06.balance, maxGasCost);
-        vm.assertEq(address(recurringAllowanceManager).balance, 0);
+        vm.assertEq(address(spendPermissions).balance, 0);
         vm.assertEq(recurringAllowance.spender.balance, allowance - maxGasCost);
 
         vm.prank(ENTRY_POINT_V06);
-        recurringAllowanceManager.postOp(IPaymaster.PostOpMode.opSucceeded, postOpContext, maxGasCost - 1);
+        spendPermissions.postOp(IPaymaster.PostOpMode.opSucceeded, postOpContext, maxGasCost - 1);
 
         vm.assertEq(recurringAllowance.spender.balance, allowance - maxGasCost + 1);
     }
@@ -75,19 +75,19 @@ contract IntegrationTest is Test, Base {
         RecurringAllowanceManager.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
         recurringAllowance.allowance = allowance;
 
-        bytes32 hash = recurringAllowanceManager.getHash(recurringAllowance);
+        bytes32 hash = spendPermissions.getHash(recurringAllowance);
         bytes32 replaySafeHash = account.replaySafeHash(hash);
         bytes memory signature = _applySignatureWrapper(0, _sign(ownerPk, replaySafeHash));
 
         vm.assertEq(account.isValidSignature(hash, signature), IERC1271.isValidSignature.selector);
 
-        recurringAllowanceManager.permit(recurringAllowance, signature);
+        spendPermissions.permit(recurringAllowance, signature);
 
-        vm.assertTrue(recurringAllowanceManager.isAuthorized(recurringAllowance));
+        vm.assertTrue(spendPermissions.isAuthorized(recurringAllowance));
 
         vm.deal(recurringAllowance.account, allowance);
         vm.prank(recurringAllowance.spender);
-        recurringAllowanceManager.withdraw(recurringAllowance, recurringAllowance.spender, 1);
+        spendPermissions.withdraw(recurringAllowance, recurringAllowance.spender, 1);
 
         vm.assertEq(recurringAllowance.spender.balance, 1);
     }

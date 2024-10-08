@@ -99,7 +99,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](3);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createPermissionedCall(target, spend, hex"");
         calls[2] = _createUseRecurringAllowanceCall(address(permissionContract), permissionHash, spend);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
@@ -130,7 +130,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](3);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createWithdrawCall(target, asset, amount);
         calls[2] = _createUseRecurringAllowanceCall(address(permissionContract), permissionHash, spend);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
@@ -160,7 +160,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](3);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createWithdrawCall(address(magicSpend), asset, amount);
         calls[2] = _createUseRecurringAllowanceCall(address(permissionContract), permissionHash, spend);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
@@ -192,7 +192,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](3);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createCall(target, value, abi.encode(selector));
         calls[2] = _createUseRecurringAllowanceCall(address(permissionContract), permissionHash, spend);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
@@ -220,7 +220,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
 
@@ -246,7 +246,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](2);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createUseRecurringAllowanceCall(target, permissionHash, 0);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
@@ -276,7 +276,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](2);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createUseRecurringAllowanceCall(address(permissionContract), invalidPermissionHash, spend);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
@@ -303,7 +303,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](2);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createUseRecurringAllowanceCall(address(permissionContract), permissionHash, invalidSpend);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
@@ -331,7 +331,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](3);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createPermissionedCall(allowedContract, spend, hex"");
         calls[2] = _createUseRecurringAllowanceCall(address(permissionContract), permissionHash, invalidSpend);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
@@ -358,7 +358,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](3);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createPermissionedCall(allowedContract, spend, hex"");
         calls[2] = _createUseRecurringAllowanceCall(address(permissionContract), permissionHash, spend);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
@@ -386,7 +386,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
         userOp.paymasterAndData = abi.encodePacked(paymaster);
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](3);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createWithdrawCall(address(magicSpend), asset, withdrawAmount);
         calls[2] = _createUseRecurringAllowanceCall(address(permissionContract), permissionHash, spend);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
@@ -418,7 +418,7 @@ contract ValidatePermissionTest is Test, PermissionContractBase {
 
         uint256 callsLen = 4 + uint16(n); // beforeCalls + withdraw + (n + 1) * permissionedCall + useRecurringAllowance
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](callsLen);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createWithdrawCall(address(magicSpend), withdrawAsset, withdrawAmount);
         // add n permissionedCalls for a portion of totalSpend
         for (uint256 i = 0; i < n; i++) {

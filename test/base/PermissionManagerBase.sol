@@ -35,14 +35,12 @@ contract PermissionManagerBase is Test, Base {
         });
     }
 
-    function _createBeforeCallsData(PermissionManager.Permission memory permission, UserOperation memory userOp)
+    function _createBeforeCallsData(PermissionManager.Permission memory permission)
         internal
-        view
+        pure
         returns (bytes memory)
     {
-        return abi.encodeWithSelector(
-            PermissionManager.beforeCalls.selector, permission, address(bytes20(userOp.paymasterAndData)), cosigner
-        );
+        return abi.encodeWithSelector(PermissionManager.beforeCalls.selector, permission);
     }
 
     function _signPermission(PermissionManager.Permission memory permission) internal view returns (bytes memory) {

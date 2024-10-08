@@ -35,8 +35,6 @@ contract Deploy is Script {
         deploy();
 
         permissionManager.setPermissionContractEnabled(address(permissionContract), true);
-        permissionManager.setPaymasterEnabled(CDP_PAYMASTER, true);
-        permissionManager.setPaymasterEnabled(CDP_PAYMASTER_PUBLIC, true);
 
         vm.stopBroadcast();
     }

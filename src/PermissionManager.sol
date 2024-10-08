@@ -53,20 +53,12 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     bytes4 internal constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
 
     /// @notice Second-factor signer required to approve every permissioned userOp.
-    address public cosigner;
-
-    /// @notice Pending cosigner for a two-step rotation to limit failed userOps during rotation.
-    address public pendingCosigner;
+    address public immutable cosigner;
 
     /// @notice Track if permission contracts are enabled.
     ///
     /// @dev Storage not keyable by account, can only be accessed in execution phase.
     mapping(address permissionContract => bool enabled) public isPermissionContractEnabled;
-
-    /// @notice Track if paymasters are enabled.
-    ///
-    /// @dev Storage not keyable by account, can only be accessed in execution phase.
-    mapping(address paymaster => bool enabled) public isPaymasterEnabled;
 
     /// @notice Track if permissions are revoked by accounts.
     ///
@@ -110,18 +102,10 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param permissionContract The contract resposible for checking permission logic.
     error DisabledPermissionContract(address permissionContract);
 
-    /// @notice Paymaster contract not enabled.
-    ///
-    /// @param paymaster ERC-4337 paymaster contract.
-    error DisabledPaymaster(address paymaster);
-
     /// @notice Invalid cosigner.
     ///
     /// @param cosigner Address of the cosigner.
     error InvalidCosigner(address cosigner);
-
-    /// @notice Tried to rotate cosigner to zero address.
-    error PendingCosignerIsZeroAddress();
 
     /// @notice Renouncing ownership attempted but not allowed.
     error CannotRenounceOwnership();
@@ -131,12 +115,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param permissionContract The contract resposible for checking permission logic.
     /// @param enabled The new setting allowing/preventing use.
     event PermissionContractUpdated(address indexed permissionContract, bool enabled);
-
-    /// @notice Paymaster setting updated.
-    ///
-    /// @param paymaster ERC-4337 paymaster contract.
-    /// @param enabled The new setting allowing/preventing use.
-    event PaymasterUpdated(address indexed paymaster, bool enabled);
 
     /// @notice Permission was revoked prematurely by account.
     ///
@@ -150,27 +128,14 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     /// @param permissionHash The unique hash representing the permission.
     event PermissionApproved(address indexed account, bytes32 indexed permissionHash);
 
-    /// @notice Pending cosigner set, initiating rotation.
-    ///
-    /// @param newCosigner Address of the new cosigner.
-    event PendingCosignerSet(address indexed newCosigner);
-
-    /// @notice Cosigner was updated to a new address.
-    ///
-    /// @dev Pending cosigner storage reset on rotation.
-    ///
-    /// @param oldCosigner Address of the old cosigner.
-    /// @param newCosigner Address of the new cosigner.
-    event CosignerRotated(address indexed oldCosigner, address indexed newCosigner);
-
     /// @notice Constructor.
     ///
     /// @param initialOwner Owner responsible for managing security controls.
-    /// @param initialCosigner EOA responsible for cosigning user operations for abuse mitigation.
-    constructor(address initialOwner, address initialCosigner) Ownable(initialOwner) Pausable() {
+    /// @param cosigner_ EOA responsible for cosigning user operations for abuse mitigation.
+    constructor(address initialOwner, address cosigner_) Ownable(initialOwner) Pausable() {
         // check cosigner non-zero
-        if (initialCosigner == address(0)) revert PendingCosignerIsZeroAddress();
-        _setCosigner(initialCosigner);
+        if (cosigner_ == address(0)) revert InvalidCosigner(cosigner_);
+        cosigner = cosigner_;
     }
 
     /// @notice Check permission constraints not allowed during userOp validation phase as first call in batch.
@@ -179,30 +144,15 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
     ///      * Manager paused state
     ///      * Expiry TIMESTAMP opcode
     ///      * Enabled permission contract state
-    ///      * Enabled paymaster state
-    ///      * Cosigner and pendingCosigner state
     ///
     /// @param permission Details of the permission.
-    /// @param paymaster Paymaster contract address.
-    /// @param userOpCosigner Address of recovered cosigner from cosignature in validation phase.
-    function beforeCalls(Permission calldata permission, address paymaster, address userOpCosigner)
-        external
-        whenNotPaused
-    {
+    function beforeCalls(Permission calldata permission) external whenNotPaused {
         // check permission not expired
         if (permission.expiry < block.timestamp) revert ExpiredPermission(permission.expiry);
 
         // check permission contract enabled
         if (!isPermissionContractEnabled[permission.permissionContract]) {
             revert DisabledPermissionContract(permission.permissionContract);
-        }
-
-        // check paymaster enabled
-        if (!isPaymasterEnabled[paymaster]) revert DisabledPaymaster(paymaster);
-
-        // check userOpCosigner is non-zero and is cosigner or pendingCosigner
-        if (userOpCosigner == address(0) || (userOpCosigner != cosigner && userOpCosigner != pendingCosigner)) {
-            revert InvalidCosigner(userOpCosigner);
         }
 
         // approve permission to cache storage for cheaper execution on future use
@@ -263,37 +213,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         emit PermissionContractUpdated(permissionContract, enabled);
     }
 
-    /// @notice Set paymaster enabled status.
-    ///
-    /// @dev Must explicitly set address(0) as enabled to support no-paymaster userOps.
-    ///
-    /// @param paymaster ERC-4337 paymaster contract.
-    /// @param enabled True if the contract is enabled.
-    function setPaymasterEnabled(address paymaster, bool enabled) external onlyOwner {
-        isPaymasterEnabled[paymaster] = enabled;
-        emit PaymasterUpdated(paymaster, enabled);
-    }
-
-    /// @notice Add pending cosigner.
-    ///
-    /// @param newCosigner Address of new cosigner to rotate to.
-    function setPendingCosigner(address newCosigner) external onlyOwner {
-        if (newCosigner == address(0)) revert PendingCosignerIsZeroAddress();
-        _setPendingCosigner(newCosigner);
-    }
-
-    /// @notice Reset pending cosigner to zero address.
-    function resetPendingCosigner() external onlyOwner {
-        _setPendingCosigner(address(0));
-    }
-
-    /// @notice Set cosigner to pending cosigner and reset pending cosigner.
-    function rotateCosigner() external onlyOwner {
-        if (pendingCosigner == address(0)) revert PendingCosignerIsZeroAddress();
-        _setCosigner(pendingCosigner);
-        delete pendingCosigner;
-    }
-
     /// @notice Pause the manager contract from processing any userOps.
     function pause() external onlyOwner {
         _pause();
@@ -345,6 +264,9 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
         // parse cosigner from cosignature
         address userOpCosigner = ECDSA.recover(userOpHash, data.userOpCosignature);
 
+        // check userOpCosigner is cosigner
+        if (userOpCosigner != cosigner) revert InvalidCosigner(userOpCosigner);
+
         // check userOp.callData is `executeBatch`
         if (bytes4(data.userOp.callData) != CoinbaseSmartWallet.executeBatch.selector) {
             revert CallErrors.SelectorNotAllowed(bytes4(data.userOp.callData));
@@ -354,12 +276,7 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
             abi.decode(BytesLib.trimSelector(data.userOp.callData), (CoinbaseSmartWallet.Call[]));
 
         // prepare beforeCalls data
-        bytes memory beforeCallsData = abi.encodeWithSelector(
-            PermissionManager.beforeCalls.selector,
-            data.permission,
-            address(bytes20(data.userOp.paymasterAndData)),
-            userOpCosigner
-        );
+        bytes memory beforeCallsData = abi.encodeWithSelector(PermissionManager.beforeCalls.selector, data.permission);
 
         // check first call is valid `self.beforeCalls`
         if (calls[0].target != address(this) || !BytesLib.eq(calls[0].data, beforeCallsData) || calls[0].value != 0) {
@@ -425,23 +342,6 @@ contract PermissionManager is IERC1271, Ownable2Step, Pausable {
 
         // fallback check permission approved via signature
         return _isValidApprovalSignature(permission.account, permissionHash, permission.approval);
-    }
-
-    /// @notice Set new pending cosigner.
-    ///
-    /// @param newCosigner New cosigner to set as pending.
-    function _setPendingCosigner(address newCosigner) internal {
-        pendingCosigner = newCosigner;
-        emit PendingCosignerSet(newCosigner);
-    }
-
-    /// @notice Set new cosigner.
-    ///
-    /// @param newCosigner New cosigner to set to.
-    function _setCosigner(address newCosigner) internal {
-        address oldCosigner = cosigner;
-        cosigner = newCosigner;
-        emit CosignerRotated(oldCosigner, cosigner);
     }
 
     /// @notice Check if a permission approval signature is valid.

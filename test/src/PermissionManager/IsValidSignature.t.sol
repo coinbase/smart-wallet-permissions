@@ -149,6 +149,32 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
     }
 
+    function test_isValidSignature_revert_invalidCosigner(uint128 userOpCosignerPk) public {
+        vm.assume(userOpCosignerPk != 0);
+        address userOpCosigner = vm.addr(userOpCosignerPk);
+        vm.assume(userOpCosigner != cosigner);
+
+        PermissionManager.Permission memory permission = _createPermission();
+        UserOperation memory userOp = _createUserOperation();
+
+        bytes32 userOpHash = UserOperationLib.getUserOpHash(userOp);
+        bytes memory userOpSignature = _sign(permmissionSignerPk, userOpHash);
+        bytes memory userOpCosignature = _sign(userOpCosignerPk, userOpHash);
+
+        PermissionManager.PermissionedUserOperation memory pUserOp = PermissionManager.PermissionedUserOperation({
+            permission: permission,
+            userOp: userOp,
+            userOpSignature: userOpSignature,
+            userOpCosignature: userOpCosignature
+        });
+
+        vm.prank(address(account));
+        permissionManager.approvePermission(permission);
+
+        vm.expectRevert(abi.encodeWithSelector(PermissionManager.InvalidCosigner.selector, userOpCosigner));
+        permissionManager.isValidSignature(userOpHash, abi.encode(pUserOp));
+    }
+
     function test_isValidSignature_revert_notExecuteBatchCallData() public {
         PermissionManager.Permission memory permission = _createPermission();
         UserOperation memory userOp = _createUserOperation();
@@ -203,7 +229,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
-        calls[0] = _createCall(target, 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(target, 0, _createBeforeCallsData(permission));
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
 
@@ -230,7 +256,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         PermissionManager.Permission memory permission = _createPermission();
         UserOperation memory userOp = _createUserOperation();
 
-        vm.assume(keccak256(beforeCallsData) != keccak256(_createBeforeCallsData(permission, userOp)));
+        vm.assume(keccak256(beforeCallsData) != keccak256(_createBeforeCallsData(permission)));
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
         calls[0] = _createCall(address(permissionManager), 0, beforeCallsData);
@@ -261,7 +287,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](2);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createCall(address(account), 0, reentrancyData);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
@@ -289,7 +315,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](2);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         calls[1] = _createCall(address(permissionManager), 0, reentrancyData);
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
@@ -318,7 +344,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
 
@@ -345,7 +371,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
 
@@ -375,7 +401,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
 
@@ -402,7 +428,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
 
@@ -430,7 +456,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
 
@@ -458,7 +484,7 @@ contract IsValidSignatureTest is Test, PermissionManagerBase {
         UserOperation memory userOp = _createUserOperation();
 
         CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](1);
-        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission, userOp));
+        calls[0] = _createCall(address(permissionManager), 0, _createBeforeCallsData(permission));
         bytes memory callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeBatch.selector, calls);
         userOp.callData = callData;
 

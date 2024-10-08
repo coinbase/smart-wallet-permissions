@@ -54,6 +54,11 @@ contract SpendPermissionsSignatures is SpendPermissions {
     }
 
     function withdraw(WithdrawRequest memory withdrawRequest) public {
+        // check timestamp
+        if (withdrawRequest.expiry > uint48(block.timestamp)) {
+            revert();
+        }
+
         // use nonce
         if (_nonceUsed[withdrawRequest.nonce][withdrawRequest.recurringAllowance.spender]) {
             revert();

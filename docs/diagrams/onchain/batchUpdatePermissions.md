@@ -1,27 +1,25 @@
 ## Batch Update Permissions
 
-Accounts can batch-update permissions via batching `revokePermission` and `approvePermission` calls to `PermissionManager`.
+Accounts can batch-revoke/approve/update permissions via batching `revoke` and `approve` calls to `SpendPermissions`.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant E as Entrypoint
     participant A as Account
-    participant M as Permission Manager
-    participant P as Permission Contract
+    participant SP as Spend Permissions
 
     E->>A: validateUserOp
-    Note left of E: Validation phase
+    Note over E: Validation phase
     A-->>E: validation data
     E->>A: executeBatch
-    Note left of E: Execution phase
+    Note over E: Execution phase
     loop
-        A->>M: revokePermission
-        Note over A,M: bytes32 permissionHash
+        A->>SP: revoke
+        Note over A,SP: recurring allowance data
     end
     loop
-        A->>M: approvePermission
-        Note over A,M: permission struct
-        M->>P: initializePermission
+        A->>SP: approve
+        Note over A,SP: recurring allowance data
     end
 ```

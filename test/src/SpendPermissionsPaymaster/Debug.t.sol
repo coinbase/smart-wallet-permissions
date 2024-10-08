@@ -19,7 +19,7 @@ contract DebugTest is Test, Base {
 
     function setUp() public {
         _initialize();
-        vm.etch(ENTRY_POINT_V06, Static.ENTRY_POINT_BYTES);
+        vm.etch(ENTRY_POINT_V06, Static.ENTRY_POINT_V06_BYTES);
 
         spendPermissions = new SpendPermissionsPaymaster(owner);
 
@@ -55,8 +55,7 @@ contract DebugTest is Test, Base {
 
         vm.deal(recurringAllowance.account, allowance);
         vm.prank(ENTRY_POINT_V06);
-        (bytes memory postOpContext, uint256 validationData) =
-            spendPermissions.validatePaymasterUserOp(userOp, bytes32(0), maxGasCost);
+        (bytes memory postOpContext,) = spendPermissions.validatePaymasterUserOp(userOp, bytes32(0), maxGasCost);
 
         vm.assertEq(ENTRY_POINT_V06.balance, maxGasCost);
         vm.assertEq(address(spendPermissions).balance, allowance - maxGasCost);

@@ -5,6 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {PermissionManager} from "../src/PermissionManager.sol";
+import {SpendPermissions} from "../src/SpendPermissions.sol";
 import {PermissionCallableAllowedContractNativeTokenRecurringAllowance as PermissionContract} from
     "../src/permissions/PermissionCallableAllowedContractNativeTokenRecurringAllowance.sol";
 
@@ -21,33 +22,18 @@ contract Deploy is Script {
     address public constant CDP_PAYMASTER = 0xC484bCD10aB8AD132843872DEb1a0AdC1473189c; // limiting paymaster
     address public constant CDP_PAYMASTER_PUBLIC = 0xf5d253B62543C6Ef526309D497f619CeF95aD430; // public
 
-    // recent deploys
-    // address public constant MANAGER = 0x384E8b4617886C7070ABd6037c4D5AbeC5B1d14d;
-    // address public constant MANAGER = 0xc81ff7b47839c957Afd1C9CFac82a94B0625550F;
-
     PermissionManager permissionManager;
     PermissionContract permissionContract;
 
     function run() public {
         vm.startBroadcast();
 
-        // permissionManager = PermissionManager(MANAGER);
         deploy();
-
-        permissionManager.setPermissionContractEnabled(address(permissionContract), true);
-        permissionManager.setPaymasterEnabled(CDP_PAYMASTER, true);
-        permissionManager.setPaymasterEnabled(CDP_PAYMASTER_PUBLIC, true);
 
         vm.stopBroadcast();
     }
 
-    function deploy() internal {
-        permissionManager = new PermissionManager{salt: 0}(OWNER, COSIGNER);
-        logAddress("PermissionManager", address(permissionManager));
-
-        permissionContract = new PermissionContract{salt: 0}(address(permissionManager), MAGIC_SPEND);
-        logAddress("PermissionContract", address(permissionContract));
-    }
+    function deploy() internal {}
 
     function logAddress(string memory name, address addr) internal pure {
         console2.logString(string.concat(name, ": ", Strings.toHexString(addr)));

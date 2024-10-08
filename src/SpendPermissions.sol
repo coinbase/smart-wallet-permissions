@@ -1,194 +1,350 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.0;
 
-import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
-import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
-import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
-import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
-import {Ownable2Step} from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
+import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
-import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
-import {RecurringAllowanceManager} from "./RecurringAllowanceManager.sol";
+import {EIP712} from "./EIP712.sol";
 
 /// @title SpendPermissions
 ///
-/// @notice A recurring alowance mechanism for native and ERC-20 tokens for Coinbase Smart Wallet.
+/// @notice Allow spending native and ERC20 tokens with a recurring allowance.
 ///
-/// @dev Supports withdrawing tokens through direct call or spending gas as an ERC-4337 Paymaster.
-contract SpendPermissions is RecurringAllowanceManager, Ownable2Step, IPaymaster {
-    /// @notice Track the amount of native asset available to be withdrawn per user.
-    mapping(address user => uint256 amount) internal _withdrawable;
+/// @dev Allowance and spend values capped at uint160 ~ 1e48.
+///
+/// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
+contract SpendPermissions is EIP712 {
+    /// @notice A recurring allowance for an external spender to withdraw an account's tokens.
+    struct RecurringAllowance {
+        /// @dev Smart account this recurring allowance is valid for.
+        address account;
+        /// @dev Entity that can spend user funds.
+        address spender;
+        /// @dev Token address (ERC-7528 ether address or ERC-20 contract).
+        address token;
+        /// @dev Timestamp this recurring allowance is valid after (unix seconds).
+        uint48 start;
+        /// @dev Timestamp this recurring allowance is valid until (unix seconds).
+        uint48 end;
+        /// @dev Time duration for resetting used allowance on a recurring basis (seconds).
+        uint48 period;
+        /// @dev Maximum allowed value to spend within a recurring cycle.
+        uint160 allowance;
+    }
 
-    /// @notice Thrown during validation in the context of ERC4337, when the withdraw request amount is insufficient
-    ///         to sponsor the transaction gas.
+    /// @notice Cycle parameters and spend usage.
+    struct CycleUsage {
+        /// @dev Start time of the cycle (unix seconds).
+        uint48 start;
+        /// @dev End time of the cycle (unix seconds).
+        uint48 end;
+        /// @dev Accumulated spend amount for cycle.
+        uint160 spend;
+    }
+
+    /// @notice Hash of EIP-712 message type
+    bytes32 private constant _MESSAGE_TYPEHASH = keccak256(
+        "RecurringAllowance(address account,address spender,address token,uint48 start,uint48 end,uint48 period,uint160 allowance)"
+    );
+
+    /// @notice ERC-7528 address convention for ether (https://eips.ethereum.org/EIPS/eip-7528).
+    address public constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    /// @notice Recurring allowance is revoked.
+    mapping(bytes32 hash => mapping(address account => bool revoked)) internal _isRevoked;
+
+    /// @notice Recurring allowance is approved.
+    mapping(bytes32 hash => mapping(address account => bool approved)) internal _isApproved;
+
+    /// @notice Last updated cycle for a recurring allowance.
+    mapping(bytes32 hash => mapping(address account => CycleUsage)) internal _lastUpdatedCycle;
+
+    /// @notice Invalid sender for the external call.
     ///
-    /// @param withdraw The withdraw request amount.
-    /// @param maxGasCost The max gas cost required by the Entrypoint.
-    error LessThanGasMaxCost(uint256 withdraw, uint256 maxGasCost);
+    /// @param sender Expected sender to be valid.
+    error InvalidSender(address sender);
 
-    /// @notice Thrown when the withdraw request `asset` is not ETH (zero address).
+    /// @notice Unauthorized recurring allowance.
+    error UnauthorizedRecurringAllowance();
+
+    /// @notice Recurring cycle has not started yet.
     ///
-    /// @param asset The requested asset.
-    error UnsupportedPaymasterAsset(address asset);
+    /// @param start Timestamp this recurring allowance is valid after (unix seconds).
+    error BeforeRecurringAllowanceStart(uint48 start);
 
-    /// @notice Thrown when trying to withdraw funds but nothing is available.
-    error NoExcess();
-
-    /// @notice Thrown when `postOp()` is called a second time with `PostOpMode.postOpReverted`.
+    /// @notice Recurring cycle has not started yet.
     ///
-    /// @dev This should only really occur if, for unknown reasons, the transfer of the withdrawable
-    ///      funds to the user account failed (i.e. this contract's ETH balance is insufficient or
-    ///      the user account refused the funds or ran out of gas on receive).
-    error UnexpectedPostOpRevertedMode();
+    /// @param end Timestamp this recurring allowance is valid until (unix seconds).
+    error AfterRecurringAllowanceEnd(uint48 end);
 
-    /// @notice Constructor
+    /// @notice Withdraw value exceeds max size of uint160.
     ///
-    /// @param initialOwner address of the owner who can manage Entrypoint stake
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    /// @param value Spend value that triggered overflow.
+    error WithdrawValueOverflow(uint256 value);
 
-    /// @inheritdoc IPaymaster
-    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32, uint256 maxGasCost)
+    /// @notice Spend value exceeds recurring allowance.
+    ///
+    /// @param value Spend value that exceeded allowance.
+    /// @param allowance Allowance value that was exceeded.
+    error ExceededRecurringAllowance(uint256 value, uint256 allowance);
+
+    /// @notice RecurringAllowance was approved via transaction.
+    ///
+    /// @param hash The unique hash representing the recurring allowance.
+    /// @param account The smart contract account the recurring allowance controls.
+    /// @param recurringAllowance Details of the recurring allowance.
+    event RecurringAllowanceApproved(
+        bytes32 indexed hash, address indexed account, RecurringAllowance recurringAllowance
+    );
+
+    /// @notice RecurringAllowance was revoked prematurely by account.
+    ///
+    /// @param hash The unique hash representing the recurring allowance.
+    /// @param account The smart contract account the recurring allowance controlled.
+    /// @param recurringAllowance Details of the recurring allowance.
+    event RecurringAllowanceRevoked(
+        bytes32 indexed hash, address indexed account, RecurringAllowance recurringAllowance
+    );
+
+    /// @notice Register native token spend for a recurring allowance cycle.
+    ///
+    /// @param hash Hash of the recurring allowance.
+    /// @param account Account that spent native token via a recurring allowance.
+    /// @param token Account that spent native token via a recurring allowance.
+    /// @param newUsage Start and end of the current cycle with new spend usage (struct).
+    event RecurringAllowanceWithdrawn(
+        bytes32 indexed hash, address indexed account, address indexed token, CycleUsage newUsage
+    );
+
+    /// @notice Require a specific sender for an external call,
+    ///
+    /// @param sender Expected sender for call to be valid.
+    modifier requireSender(address sender) {
+        if (msg.sender != sender) revert InvalidSender(sender);
+        _;
+    }
+
+    /// @notice Approve a recurring allowance via a direct call from the account.
+    ///
+    /// @dev Prevent phishing approvals by rejecting simulated transactions with the approval event.
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    function approve(RecurringAllowance calldata recurringAllowance)
         external
-        requireSender(entryPoint())
-        returns (bytes memory postOpContext, uint256 validationData)
+        requireSender(recurringAllowance.account)
     {
-        // todo allow passing signature for first-time allowance use
-        (bytes memory context, uint256 withdrawAmount) = abi.decode(userOp.paymasterAndData[20:], (bytes, uint256));
+        _approve(recurringAllowance);
+    }
+
+    /// @notice Revoke a recurring allowance to disable its use indefinitely.
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    function revoke(RecurringAllowance calldata recurringAllowance)
+        external
+        requireSender(recurringAllowance.account)
+    {
+        bytes32 hash = getHash(recurringAllowance);
+        _isRevoked[hash][recurringAllowance.account] = true;
+        emit RecurringAllowanceRevoked(hash, recurringAllowance.account, recurringAllowance);
+    }
+
+    /// @notice Withdraw tokens using a recurring allowance and approval signature.
+    ///
+    /// @dev Convenience function for offchain preparation from apps that have an ERC-7715 permissions context.
+    ///
+    /// @param context Flat bytes value representing an approved recurring allowance.
+    /// @param recipient Address to withdraw tokens to.
+    /// @param value Amount of token attempting to withdraw (wei).
+    function withdraw(bytes calldata context, address recipient, uint160 value) external {
         (RecurringAllowance memory recurringAllowance, bytes memory signature) = decodeContext(context);
+        permit(recurringAllowance, signature);
+        withdraw(recurringAllowance, recipient, value);
+    }
 
-        // require withdraw amount not less than max gas cost
-        if (withdrawAmount < maxGasCost) {
-            revert LessThanGasMaxCost(withdrawAmount, maxGasCost);
+    /// @notice Approve a recurring allowance via a signature from the account.
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param signature Signed hash of the recurring allowance data.
+    function permit(RecurringAllowance memory recurringAllowance, bytes memory signature) public {
+        // validate signature over recurring allowance data
+        if (
+            IERC1271(recurringAllowance.account).isValidSignature(getHash(recurringAllowance), signature)
+                != IERC1271.isValidSignature.selector
+        ) {
+            revert UnauthorizedRecurringAllowance();
         }
 
-        // require recurring allowance token is ether
-        if (recurringAllowance.token != ETHER) {
-            revert UnsupportedPaymasterAsset(recurringAllowance.token);
-        }
+        _approve(recurringAllowance);
+    }
 
-        // require userOp sender is the recurring allowance spender
-        if (userOp.sender != recurringAllowance.spender) {
-            revert InvalidSender(userOp.sender);
-        }
+    /// @notice Withdraw tokens using a recurring allowance.
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param recipient Address to withdraw tokens to.
+    /// @param value Amount of token attempting to withdraw (wei).
+    function withdraw(RecurringAllowance memory recurringAllowance, address recipient, uint160 value)
+        public
+        requireSender(recurringAllowance.spender)
+    {
+        _useRecurringAllowance(recurringAllowance, value);
 
-        // apply permit if signature length non-zero
-        if (signature.length > 0) {
-            permit(recurringAllowance, signature);
+        // transfer tokens from account to recipient
+        if (recurringAllowance.token == ETHER) {
+            _execute({account: recurringAllowance.account, target: recipient, value: value, data: hex""});
+        } else {
+            _execute({
+                account: recurringAllowance.account,
+                target: recurringAllowance.token,
+                value: 0,
+                data: abi.encodeWithSelector(IERC20.transfer.selector, recipient, value)
+            });
         }
+    }
+
+    /// @notice Use a recurring allowance.
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param value Amount of token attempting to withdraw (wei).
+    function _useRecurringAllowance(RecurringAllowance memory recurringAllowance, uint160 value) internal {
+        // early return if no value spent
+        if (value == 0) return;
+
+        // require recurring allowance is approved and not revoked
+        if (!isAuthorized(recurringAllowance)) revert UnauthorizedRecurringAllowance();
+
+        CycleUsage memory currentCycle = getCurrentCycle(recurringAllowance);
+        uint256 totalSpend = uint256(value) + uint256(currentCycle.spend);
 
         // check total spend value does not overflow max value
-        if (withdrawAmount > type(uint160).max) revert WithdrawValueOverflow(withdrawAmount);
+        if (totalSpend > type(uint160).max) revert WithdrawValueOverflow(totalSpend);
 
-        // use recurring allowance for withdraw amount
-        _useRecurringAllowance(recurringAllowance, uint160(withdrawAmount));
+        // check total spend value does not exceed recurring allowance
+        if (totalSpend > recurringAllowance.allowance) {
+            revert ExceededRecurringAllowance(totalSpend, recurringAllowance.allowance);
+        }
 
-        // pull funds from account into paymaster
-        _execute({
-            account: recurringAllowance.account,
-            target: address(this),
-            value: withdrawAmount,
-            data: abi.encodeWithSelector(this.paymasterDeposit.selector, maxGasCost, userOp.sender)
-        });
+        bytes32 hash = getHash(recurringAllowance);
 
-        postOpContext = abi.encode(maxGasCost, userOp.sender);
-        validationData = (uint256(recurringAllowance.end) << 160) | (uint256(recurringAllowance.start) << 208);
-        return (postOpContext, validationData);
+        // save new withdraw for active cycle
+        currentCycle.spend = uint160(totalSpend);
+        _lastUpdatedCycle[hash][recurringAllowance.account] = currentCycle;
+        emit RecurringAllowanceWithdrawn(
+            hash,
+            recurringAllowance.account,
+            recurringAllowance.token,
+            CycleUsage(currentCycle.start, currentCycle.end, uint160(value))
+        );
     }
 
-    /// @notice Deposit native token into the paymaster for gas sponsorship.
+    /// @notice Hash a RecurringAllowance struct for signing.
     ///
-    /// @dev Called within `this.validatePaymasterUserOp` execution.
-    /// @dev `this.validatePaymasterUserOp` enforces `msg.value` will always be greater than `maxGasCost`.
+    /// @dev Prevent phishing permits by making the hash incompatible with EIP-191/712.
+    /// @dev Include chainId and contract address in hash for cross-chain and cross-contract replay protection.
     ///
-    /// @param maxGasCost Amount of native token to deposit into the Entrypoint for required prefund.
-    /// @param gasExcessRecipient Address to send native token in excess of gas cost to.
-    function paymasterDeposit(uint256 maxGasCost, address gasExcessRecipient) external payable {
-        if (msg.value < maxGasCost) revert LessThanGasMaxCost(msg.value, maxGasCost);
+    /// @param recurringAllowance Details of the recurring allowance.
+    ///
+    /// @return hash Hash of the recurring allowance and replay protection parameters.
+    function getHash(RecurringAllowance memory recurringAllowance) public view returns (bytes32) {
+        return _eip712Hash(keccak256(abi.encode(_MESSAGE_TYPEHASH, recurringAllowance)));
+    }
 
-        // deposit into Entrypoint for required prefund
-        SafeTransferLib.safeTransferETH(entryPoint(), maxGasCost);
+    /// @notice Return if recurring allowance is authorized i.e. approved and not revoked.
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    ///
+    /// @return authorized True if recurring allowance is approved and not revoked.
+    function isAuthorized(RecurringAllowance memory recurringAllowance) public view returns (bool) {
+        bytes32 hash = getHash(recurringAllowance);
+        return !_isRevoked[hash][recurringAllowance.account] && _isApproved[hash][recurringAllowance.account];
+    }
 
-        // transfer withdraw amount exceeding gas cost to account
-        uint256 gasExcess = msg.value - maxGasCost;
-        if (gasExcess > 0) {
-            _withdrawable[gasExcessRecipient] += gasExcess;
+    /// @notice Get current cycle usage.
+    ///
+    /// @dev Reverts if recurring allowance has not started or has already ended.
+    /// @dev Cycle boundaries are at fixed intervals of [start + n * period, start + (n + 1) * period - 1].
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    ///
+    /// @return currentCycle Currently active cycle with spend usage (struct).
+    function getCurrentCycle(RecurringAllowance memory recurringAllowance) public view returns (CycleUsage memory) {
+        // check current timestamp is within recurring allowance time range
+        uint48 currentTimestamp = uint48(block.timestamp);
+        if (currentTimestamp < recurringAllowance.start) {
+            revert BeforeRecurringAllowanceStart(recurringAllowance.start);
+        } else if (currentTimestamp > recurringAllowance.end) {
+            revert AfterRecurringAllowanceEnd(recurringAllowance.end);
+        }
+
+        // return last cycle if still active, otherwise compute new active cycle start time with no spend
+        CycleUsage memory lastUpdatedCycle = _lastUpdatedCycle[getHash(recurringAllowance)][recurringAllowance.account];
+
+        // last cycle exists if spend is non-zero
+        bool lastCycleExists = lastUpdatedCycle.spend != 0;
+
+        // last cycle still active if current timestamp within [start, end - 1] range.
+        bool lastCycleStillActive =
+            currentTimestamp < uint256(lastUpdatedCycle.start) + uint256(recurringAllowance.period);
+
+        if (lastCycleExists && lastCycleStillActive) {
+            return lastUpdatedCycle;
+        } else {
+            // last active cycle does not exist or is outdated, determine current cycle
+
+            // current cycle progress is remainder of time since first recurring cycle mod reset period
+            uint48 currentCycleProgress = (currentTimestamp - recurringAllowance.start) % recurringAllowance.period;
+
+            // current cycle start is progress duration before current time
+            uint48 start = currentTimestamp - currentCycleProgress;
+
+            // current cycle end will overflow if period is sufficiently large
+            bool endOverflow = uint256(start) + uint256(recurringAllowance.period) > type(uint48).max;
+
+            // end is one period after start or maximum uint48 if overflow
+            uint48 end = endOverflow ? type(uint48).max : start + recurringAllowance.period;
+
+            return CycleUsage({start: start, end: end, spend: 0});
         }
     }
 
-    /// @notice Allows the sender to withdraw any available funds associated with their account.
+    /// @notice Decode flat bytes context into a recurring allowance and approval signature.
     ///
-    /// @dev Can be called back during the `UserOperation` execution to sponsor funds for non-gas related
-    ///      use cases (e.g., swap or mint).
-    function withdrawGasExcess() external {
-        uint256 amount = _withdrawable[msg.sender];
-        // we could allow 0 value transfers, but prefer to be explicit
-        if (amount == 0) revert NoExcess();
-
-        delete _withdrawable[msg.sender];
-        SafeTransferLib.safeTransferETH(msg.sender, amount);
-    }
-
-    /// @inheritdoc IPaymaster
-    function postOp(IPaymaster.PostOpMode mode, bytes calldata context, uint256 actualGasCost)
-        external
-        requireSender(entryPoint())
+    /// @param context Flat bytes value representing an approved recurring allowance.
+    ///
+    /// @return recurringAllowance Details of the recurring allowance.
+    /// @return signature Signed hash of the recurring allowance data.
+    function decodeContext(bytes memory context)
+        public
+        pure
+        returns (RecurringAllowance memory recurringAllowance, bytes memory signature)
     {
-        // `PostOpMode.postOpReverted` should never happen.
-        // The flow here can only revert if there are > maxWithdrawDenominator
-        // withdraws in the same transaction, which should be highly unlikely.
-        // If the ETH transfer fails, the entire bundle will revert due an issue in the EntryPoint
-        // https://github.com/eth-infinitism/account-abstraction/pull/293
-        if (mode == PostOpMode.postOpReverted) {
-            revert UnexpectedPostOpRevertedMode();
-        }
-
-        (uint256 maxGasCost, address payable account) = abi.decode(context, (uint256, address));
-
-        // Send unused gas to the user accout.
-        IEntryPoint(entryPoint()).withdrawTo(account, maxGasCost - actualGasCost);
-
-        // Compute the total remaining funds available for the user accout.
-        uint256 withdrawable = _withdrawable[account];
-
-        // Send the all remaining funds to the user accout.
-        delete _withdrawable[account];
-        if (withdrawable > 0) {
-            SafeTransferLib.forceSafeTransferETH(account, withdrawable, SafeTransferLib.GAS_STIPEND_NO_STORAGE_WRITES);
-        }
+        (recurringAllowance, signature) = abi.decode(context, (RecurringAllowance, bytes));
     }
 
-    /// @notice Adds stake to the EntryPoint.
+    /// @notice Approve recurring allowance.
     ///
-    /// @dev Reverts if not called by the owner of the contract. Calling this while an unstake
-    ///      is pending will first cancel the pending unstake.
-    ///
-    /// @param amount              The amount to stake in the Entrypoint.
-    /// @param unstakeDelaySeconds The duration for which the stake cannot be withdrawn. Must be
-    ///                            equal to or greater than the current unstake delay.
-    function entryPointAddStake(uint256 amount, uint32 unstakeDelaySeconds) external payable onlyOwner {
-        IEntryPoint(entryPoint()).addStake{value: amount}(unstakeDelaySeconds);
+    /// @param recurringAllowance Details of the recurring allowance.
+    function _approve(RecurringAllowance memory recurringAllowance) internal {
+        bytes32 hash = getHash(recurringAllowance);
+        _isApproved[hash][recurringAllowance.account] = true;
+        emit RecurringAllowanceApproved(hash, recurringAllowance.account, recurringAllowance);
     }
 
-    /// @notice Unlocks stake in the EntryPoint.
+    /// @notice Execute a single call on an account.
     ///
-    /// @dev Reverts if not called by the owner of the contract.
-    function entryPointUnlockStake() external onlyOwner {
-        IEntryPoint(entryPoint()).unlockStake();
+    /// @param account Address of the user account.
+    /// @param target Address of the target contract.
+    /// @param value Amount of native token to send in call.
+    /// @param data Bytes data to send in call.
+    function _execute(address account, address target, uint256 value, bytes memory data) internal virtual {
+        CoinbaseSmartWallet(payable(account)).execute({target: target, value: value, data: data});
     }
 
-    /// @notice Withdraws stake from the EntryPoint.
+    /// @notice Returns the domain name and version to use when creating EIP-712 signatures.
     ///
-    /// @dev Reverts if not called by the owner of the contract. Only call this after the unstake delay
-    ///      has passed since the last `entryPointUnlockStake` call.
-    ///
-    /// @param to The beneficiary address.
-    function entryPointWithdrawStake(address payable to) external onlyOwner {
-        IEntryPoint(entryPoint()).withdrawStake(to);
-    }
-
-    /// @notice Returns the canonical ERC-4337 EntryPoint v0.6 contract.
-    function entryPoint() public pure returns (address) {
-        return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+    /// @return name    The user readable name of signing domain.
+    /// @return version The current major version of the signing domain.
+    function _domainNameAndVersion() internal pure override returns (string memory name, string memory version) {
+        return ("SpendPermissions", "1");
     }
 }

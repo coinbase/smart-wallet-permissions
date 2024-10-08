@@ -6,22 +6,22 @@ import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 import {Test, console2} from "forge-std/Test.sol";
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 
-import {RecurringAllowanceManager} from "../../../src/RecurringAllowanceManager.sol";
 import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionsPaymaster} from "../../../src/SpendPermissionsPaymaster.sol";
 
 import {Base} from "../../base/Base.sol";
 import {Static} from "../../base/Static.sol";
 
-contract IntegrationTest is Test, Base {
+contract DebugTest is Test, Base {
     address constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    SpendPermissions spendPermissions;
+    SpendPermissionsPaymaster spendPermissions;
 
     function setUp() public {
         _initialize();
         vm.etch(ENTRY_POINT_V06, Static.ENTRY_POINT_BYTES);
 
-        spendPermissions = new SpendPermissions(owner);
+        spendPermissions = new SpendPermissionsPaymaster(owner);
 
         vm.prank(owner);
         account.addOwnerAddress(address(spendPermissions));
@@ -32,7 +32,7 @@ contract IntegrationTest is Test, Base {
         vm.assume(maxGasCost < type(uint112).max);
         vm.assume(allowance > maxGasCost);
 
-        RecurringAllowanceManager.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
+        SpendPermissions.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
         recurringAllowance.allowance = allowance;
 
         UserOperation memory userOp = _createUserOperation();
@@ -72,7 +72,7 @@ contract IntegrationTest is Test, Base {
     function test_withdraw_success(uint160 allowance) public {
         vm.assume(allowance > 0);
 
-        RecurringAllowanceManager.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
+        SpendPermissions.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
         recurringAllowance.allowance = allowance;
 
         bytes32 hash = spendPermissions.getHash(recurringAllowance);
@@ -95,9 +95,9 @@ contract IntegrationTest is Test, Base {
     function _createRecurringAllowance()
         internal
         view
-        returns (RecurringAllowanceManager.RecurringAllowance memory recurringAllowance)
+        returns (SpendPermissions.RecurringAllowance memory recurringAllowance)
     {
-        recurringAllowance = RecurringAllowanceManager.RecurringAllowance({
+        recurringAllowance = SpendPermissions.RecurringAllowance({
             account: address(account),
             spender: owner,
             token: ETHER,

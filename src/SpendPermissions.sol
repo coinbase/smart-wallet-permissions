@@ -157,7 +157,8 @@ contract SpendPermissions is EIP712 {
     /// @param recipient Address to withdraw tokens to.
     /// @param value Amount of token attempting to withdraw (wei).
     function withdraw(bytes calldata context, address recipient, uint160 value) external {
-        (RecurringAllowance memory recurringAllowance, bytes memory signature) = decodeContext(context);
+        (RecurringAllowance memory recurringAllowance, bytes memory signature) =
+            abi.decode(context, (RecurringAllowance, bytes));
         permit(recurringAllowance, signature);
         withdraw(recurringAllowance, recipient, value);
     }
@@ -200,41 +201,6 @@ contract SpendPermissions is EIP712 {
                 data: abi.encodeWithSelector(IERC20.transfer.selector, recipient, value)
             });
         }
-    }
-
-    /// @notice Use a recurring allowance.
-    ///
-    /// @param recurringAllowance Details of the recurring allowance.
-    /// @param value Amount of token attempting to withdraw (wei).
-    function _useRecurringAllowance(RecurringAllowance memory recurringAllowance, uint160 value) internal {
-        // early return if no value spent
-        if (value == 0) return;
-
-        // require recurring allowance is approved and not revoked
-        if (!isAuthorized(recurringAllowance)) revert UnauthorizedRecurringAllowance();
-
-        CycleUsage memory currentCycle = getCurrentCycle(recurringAllowance);
-        uint256 totalSpend = uint256(value) + uint256(currentCycle.spend);
-
-        // check total spend value does not overflow max value
-        if (totalSpend > type(uint160).max) revert WithdrawValueOverflow(totalSpend);
-
-        // check total spend value does not exceed recurring allowance
-        if (totalSpend > recurringAllowance.allowance) {
-            revert ExceededRecurringAllowance(totalSpend, recurringAllowance.allowance);
-        }
-
-        bytes32 hash = getHash(recurringAllowance);
-
-        // save new withdraw for active cycle
-        currentCycle.spend = uint160(totalSpend);
-        _lastUpdatedCycle[hash][recurringAllowance.account] = currentCycle;
-        emit RecurringAllowanceWithdrawn(
-            hash,
-            recurringAllowance.account,
-            recurringAllowance.token,
-            CycleUsage(currentCycle.start, currentCycle.end, uint160(value))
-        );
     }
 
     /// @notice Hash a RecurringAllowance struct for signing.
@@ -307,20 +273,6 @@ contract SpendPermissions is EIP712 {
         }
     }
 
-    /// @notice Decode flat bytes context into a recurring allowance and approval signature.
-    ///
-    /// @param context Flat bytes value representing an approved recurring allowance.
-    ///
-    /// @return recurringAllowance Details of the recurring allowance.
-    /// @return signature Signed hash of the recurring allowance data.
-    function decodeContext(bytes memory context)
-        public
-        pure
-        returns (RecurringAllowance memory recurringAllowance, bytes memory signature)
-    {
-        (recurringAllowance, signature) = abi.decode(context, (RecurringAllowance, bytes));
-    }
-
     /// @notice Approve recurring allowance.
     ///
     /// @param recurringAllowance Details of the recurring allowance.
@@ -328,6 +280,41 @@ contract SpendPermissions is EIP712 {
         bytes32 hash = getHash(recurringAllowance);
         _isApproved[hash][recurringAllowance.account] = true;
         emit RecurringAllowanceApproved(hash, recurringAllowance.account, recurringAllowance);
+    }
+
+    /// @notice Use a recurring allowance.
+    ///
+    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param value Amount of token attempting to withdraw (wei).
+    function _useRecurringAllowance(RecurringAllowance memory recurringAllowance, uint160 value) internal {
+        // early return if no value spent
+        if (value == 0) return;
+
+        // require recurring allowance is approved and not revoked
+        if (!isAuthorized(recurringAllowance)) revert UnauthorizedRecurringAllowance();
+
+        CycleUsage memory currentCycle = getCurrentCycle(recurringAllowance);
+        uint256 totalSpend = uint256(value) + uint256(currentCycle.spend);
+
+        // check total spend value does not overflow max value
+        if (totalSpend > type(uint160).max) revert WithdrawValueOverflow(totalSpend);
+
+        // check total spend value does not exceed recurring allowance
+        if (totalSpend > recurringAllowance.allowance) {
+            revert ExceededRecurringAllowance(totalSpend, recurringAllowance.allowance);
+        }
+
+        bytes32 hash = getHash(recurringAllowance);
+
+        // save new withdraw for active cycle
+        currentCycle.spend = uint160(totalSpend);
+        _lastUpdatedCycle[hash][recurringAllowance.account] = currentCycle;
+        emit RecurringAllowanceWithdrawn(
+            hash,
+            recurringAllowance.account,
+            recurringAllowance.token,
+            CycleUsage(currentCycle.start, currentCycle.end, uint160(value))
+        );
     }
 
     /// @notice Execute a single call on an account.

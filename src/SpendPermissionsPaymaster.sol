@@ -56,8 +56,8 @@ contract SpendPermissionsPaymaster is SpendPermissions, Ownable2Step, IPaymaster
         returns (bytes memory postOpContext, uint256 validationData)
     {
         // todo allow passing signature for first-time allowance use
-        (bytes memory context, uint256 withdrawAmount) = abi.decode(userOp.paymasterAndData[20:], (bytes, uint256));
-        (RecurringAllowance memory recurringAllowance, bytes memory signature) = decodeContext(context);
+        (RecurringAllowance memory recurringAllowance, bytes memory signature, uint256 withdrawAmount) =
+            abi.decode(userOp.paymasterAndData[20:], (RecurringAllowance, bytes, uint256));
 
         // require withdraw amount not less than max gas cost
         if (withdrawAmount < maxGasCost) {
@@ -101,18 +101,18 @@ contract SpendPermissionsPaymaster is SpendPermissions, Ownable2Step, IPaymaster
     /// @notice Deposit native token into the paymaster for gas sponsorship.
     ///
     /// @dev Called within `this.validatePaymasterUserOp` execution.
-    /// @dev `this.validatePaymasterUserOp` enforces `msg.value` will always be greater than `maxGasCost`.
+    /// @dev `this.validatePaymasterUserOp` enforces `msg.value` will always be greater than `entryPointPrefund`.
     ///
-    /// @param maxGasCost Amount of native token to deposit into the Entrypoint for required prefund.
+    /// @param entryPointPrefund Amount of native token to deposit into the Entrypoint for required prefund.
     /// @param gasExcessRecipient Address to send native token in excess of gas cost to.
-    function paymasterDeposit(uint256 maxGasCost, address gasExcessRecipient) external payable {
-        if (msg.value < maxGasCost) revert LessThanGasMaxCost(msg.value, maxGasCost);
+    function paymasterDeposit(uint256 entryPointPrefund, address gasExcessRecipient) external payable {
+        if (msg.value < entryPointPrefund) revert LessThanGasMaxCost(msg.value, entryPointPrefund);
 
         // deposit into Entrypoint for required prefund
-        SafeTransferLib.safeTransferETH(entryPoint(), maxGasCost);
+        SafeTransferLib.safeTransferETH(entryPoint(), entryPointPrefund);
 
         // transfer withdraw amount exceeding gas cost to account
-        uint256 gasExcess = msg.value - maxGasCost;
+        uint256 gasExcess = msg.value - entryPointPrefund;
         if (gasExcess > 0) {
             _withdrawable[gasExcessRecipient] += gasExcess;
         }

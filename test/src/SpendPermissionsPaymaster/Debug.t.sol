@@ -49,8 +49,7 @@ contract DebugTest is Test, Base {
 
         vm.assertEq(account.isValidSignature(hash, signature), IERC1271.isValidSignature.selector);
 
-        bytes memory context = abi.encode(recurringAllowance, signature);
-        bytes memory paymasterData = abi.encode(context, allowance);
+        bytes memory paymasterData = abi.encode(recurringAllowance, signature, allowance);
 
         userOp.paymasterAndData = abi.encodePacked(address(spendPermissions), paymasterData);
 

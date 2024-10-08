@@ -44,7 +44,7 @@ contract SpendPermissions is EIP712 {
     }
 
     /// @notice Hash of EIP-712 message type
-    bytes32 private constant _RECURRING_ALLOWANCE_TYPEHASH = keccak256(
+    bytes32 internal constant _RECURRING_ALLOWANCE_TYPEHASH = keccak256(
         "RecurringAllowance(address account,address spender,address token,uint48 start,uint48 end,uint48 period,uint160 allowance)"
     );
 
@@ -272,7 +272,7 @@ contract SpendPermissions is EIP712 {
     ///
     /// @param recurringAllowance Details of the recurring allowance.
     /// @param value Amount of token attempting to withdraw (wei).
-    function _useRecurringAllowance(RecurringAllowance memory recurringAllowance, uint160 value) internal {
+    function _useRecurringAllowance(RecurringAllowance memory recurringAllowance, uint256 value) internal {
         // early return if no value spent
         if (value == 0) return;
 
@@ -280,7 +280,7 @@ contract SpendPermissions is EIP712 {
         if (!isAuthorized(recurringAllowance)) revert UnauthorizedRecurringAllowance();
 
         CycleUsage memory currentCycle = getCurrentCycle(recurringAllowance);
-        uint256 totalSpend = uint256(value) + uint256(currentCycle.spend);
+        uint256 totalSpend = value + uint256(currentCycle.spend);
 
         // check total spend value does not overflow max value
         if (totalSpend > type(uint160).max) revert WithdrawValueOverflow(totalSpend);
@@ -341,9 +341,7 @@ contract SpendPermissions is EIP712 {
     ///
     /// @return isValid True if signature is valid.
     function _isValidSignature(address account, bytes32 hash, bytes memory signature) internal view returns (bool) {
-        if (IERC1271(account).isValidSignature(hash, signature) != IERC1271.isValidSignature.selector) {
-            revert UnauthorizedRecurringAllowance();
-        }
+        return IERC1271(account).isValidSignature(hash, signature) != IERC1271.isValidSignature.selector;
     }
 
     /// @notice Returns the domain name and version to use when creating EIP-712 signatures.

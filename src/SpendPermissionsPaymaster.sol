@@ -55,7 +55,6 @@ contract SpendPermissionsPaymaster is SpendPermissions, Ownable2Step, IPaymaster
         requireSender(entryPoint())
         returns (bytes memory postOpContext, uint256 validationData)
     {
-        // todo allow passing signature for first-time allowance use
         (RecurringAllowance memory recurringAllowance, bytes memory signature, uint256 withdrawAmount) =
             abi.decode(userOp.paymasterAndData[20:], (RecurringAllowance, bytes, uint256));
 

@@ -12,7 +12,7 @@ Some security mechanisms require storing state external to Smart Wallets. Given 
 
 ### Ethereum address and `secp256r1` signers
 
-Just like Smart Wallet V1, Session Keys supports both Ethereum address and `secp256r1` signers. Ethereum addresses are split into validating EOA signatures with `ecrecover` and contract signatures with [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) `isValidSignature`. The `secp256r1` curve supports both Passkey and [CryptoKey](./CryptoKey.md) signature validation through [WebAuthn](https://github.com/base-org/webauthn-sol/blob/main/src/WebAuthn.sol).
+Just like Smart Wallet V1, Session Keys supports both Ethereum address and `secp256r1` signers. Ethereum addresses are split into validating EOA signatures with `ecrecover` and contract signatures with [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) `isValidSignature`. The `secp256r1` curve supports both Passkey and [CryptoKey](./CryptoKey.md) signature validation through [WebAuthn](https://github.com/base-org/webauthn-sol/blob/main/src/WebAuthn.sol). Note that contract signers cannot violate [ERC-7562](https://eips.ethereum.org/EIPS/eip-7562) "associated storage" constraints, e.g. using a Coinbase Smart Wallet as a signer for another Smart Wallet.
 
 ### Signature approvals with lazy caching
 
@@ -24,7 +24,7 @@ A storage-based approval system also enables Permission Manager to expose an `ap
 
 ### Permission revocations
 
-Permission Manager also exposes a `revokePermission` function to enable revocations. The storage for revocations is a doubly-nested mapping where the final key is the account address to enable valid access in the ERC-4337 validation phase. Permission revocation is always available to users in their Smart Wallet settings and in the future, potentially exposed to apps.
+Permission Manager also exposes a `revokePermission` function to enable revocations. The storage for revocations is a doubly-nested mapping where the final key is the account address to enable valid access in the ERC-4337 validation phase. Permission revocation is always available to users in their Smart Wallet settings and in the future, potentially exposed to apps. Revoking a permission cannot be undone, but users can approve a new, similar permission.
 
 ### Reentrancy protection
 
@@ -41,9 +41,9 @@ Additionally, reentrancy calls to the Permission Manager are also negated to pre
 
 To retain compliance, Permission Manager moves these checks to execution phase by enforcing that the first call in a batch is to `PermissionManager.beforeCalls`. This function implements the checks that cannot be done in validation phase and if it reverts, the user operation fails and no intended calls execute. The bundler will still get paid in this scenario because this is happening after validation phase.
 
-### Enabled Permission Contracts and Paymasters
+### Enabled Permission Contracts
 
-Part of these execution phase checks include verifying the attempted Permission Contract and Paymaster are enabled. The `owner` is responsible for maintaining this storage by adding new Permission Contracts as new functionality is rolled out, potentially disabling them later on if a compromise is found, and supporting ecosystem partners in adding their Paymasters to this allowlist.
+Part of these execution phase checks include verifying the attempted Permission Contract is enabled. The `owner` is responsible for maintaining this storage by adding new Permission Contracts as new functionality is rolled out, potentially disabling them later on if a compromise is found.
 
 ### Permission initialization
 
@@ -60,3 +60,5 @@ On this same theme, we prevent apps from secretly adding calls to `PermissionMan
 ### Required Cosigner
 
 All permissioned user operations require additional offchain validation through another signature from a Coinbase-owned key. This cosigner is our final line of protection to filter out user operations that might negatively impact users. It's logic is outlined further [here](./Cosigner.md) and is recommended to read after covering the Permission Contract's mechanisms: [recurring allowances](./RecurringAllowance.md), [permissioned calls](./PermissionedCall.md), and [required paymasters](./PaymasterRequirement.md).
+
+The cosigner is immutable so that we can verify permissioned user operation cosignatures in the validation phase to mitigate attacks involving paymasters that can burn user funds on failed user operations.

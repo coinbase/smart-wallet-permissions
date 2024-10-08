@@ -4,6 +4,8 @@ As much as possible, we want the trust and security of our system to be onchain.
 
 The first set of responsibilities for the cosigner is to support blocklists for specific apps, signers, and external contracts that are compromised or intend to harm users.
 
+The cosigner is also responsible for enforcing an offchain paymaster allowlist. If a permissioned user operation is attempted which does not use an allowed paymaster, cosigning will fail. This is done to mitigate attacks involving ERC20 paymasters with a users token allowance burning their funds on failing user operations.
+
 Note that any blocking at the cosigner level only applies to permissioned user operations and does not impact the normal transaction flow through keys.coinbase.com. Also note that the cosigner cannot submit permissioned user operations on its own and a signature from an app to initiate is still required.
 
 For our first permission contract, there is an additional cosigner responsibility to ensure that only native tokens are being spent. In absence of cosigning, it is actually possible for a permissioned user operation to spend contract tokens (ERC20, ERC721, ERC1155) if these tokens extend an allowance to an allowed external contract for permissions.

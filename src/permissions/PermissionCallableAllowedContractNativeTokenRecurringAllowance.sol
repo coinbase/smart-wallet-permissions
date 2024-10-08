@@ -93,7 +93,7 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
     /// @notice Validate the permission to execute a userOp.
     ///
-    /// @dev Offchain userOp construction should append useRecurringAllowance call to calls array if spending value.
+    /// @dev Offchain userOp construction should append useRecurringAllowance call to calls array.
     /// @dev Recurring native token spend accounting does not protect against re-entrancy where an external call could
     ///      trigger an authorized call back to the account to spend more ETH.
     ///
@@ -121,8 +121,11 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
         // end index at callsLen - 2 to ignore useRecurringAllowance call, enforced after loop as self-call
         for (uint256 i = 1; i < callsLen - 1; i++) {
             CoinbaseSmartWallet.Call memory call = calls[i];
-            bytes4 selector = bytes4(call.data);
 
+            // require call length at least 4 bytes to mitigate unintentional fallback
+            if (call.data.length < 4) revert CallErrors.InvalidCallLength();
+
+            bytes4 selector = bytes4(call.data);
             if (selector == IPermissionCallable.permissionedCall.selector) {
                 // check call target is the allowed contract
                 if (call.target != values.allowedContract) revert CallErrors.TargetNotAllowed(call.target);
@@ -155,7 +158,10 @@ contract PermissionCallableAllowedContractNativeTokenRecurringAllowance is
 
         // check last call is valid `this.useRecurringAllowance`
         CoinbaseSmartWallet.Call memory lastCall = calls[callsLen - 1];
-        if (lastCall.target != address(this) || !BytesLib.eq(lastCall.data, useRecurringAllowanceData)) {
+        if (
+            lastCall.target != address(this) || !BytesLib.eq(lastCall.data, useRecurringAllowanceData)
+                || lastCall.value != 0
+        ) {
             revert InvalidUseRecurringAllowanceCall();
         }
     }

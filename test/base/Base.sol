@@ -13,6 +13,7 @@ import {MockContractSigner} from "../mocks/MockContractSigner.sol";
 contract Base is Test {
     string public constant BASE_SEPOLIA_RPC = "https://sepolia.base.org";
     address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+    address constant CDP_PAYMASTER = 0xC484bCD10aB8AD132843872DEb1a0AdC1473189c;
     bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
     uint256 ownerPk = uint256(keccak256("owner"));
     address owner = vm.addr(ownerPk);
@@ -44,7 +45,7 @@ contract Base is Test {
             preVerificationGas: 0,
             maxFeePerGas: 0,
             maxPriorityFeePerGas: 0,
-            paymasterAndData: hex"",
+            paymasterAndData: abi.encodePacked(CDP_PAYMASTER),
             signature: hex""
         });
     }

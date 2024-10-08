@@ -12,24 +12,6 @@ import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
 library UserOperationLib {
     address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
-    /// @notice Calculate the requiredPrefund amount reserved by Entrypoint to pay for gas.
-    ///
-    /// @dev Gas not consumed gets refunded to the sponsoring party (user account or paymaster) in postOp process.
-    /// @dev Implementation forked from
-    ///      https://github.com/eth-infinitism/account-abstraction/blob/fa61290d37d079e928d92d53a122efcc63822214/contracts/core/EntryPoint.sol#L325
-    ///
-    /// @param userOp User operation struct.
-    ///
-    /// @return requiredPrefund Amount of native token withheld by EntryPoint to cover gas fee for bundler.
-    function getRequiredPrefund(UserOperation calldata userOp) internal pure returns (uint256 requiredPrefund) {
-        // if using paymaster, use a multiplier for verificationGasLimit
-        uint256 mul = userOp.paymasterAndData.length == 0 ? 1 : 3;
-        // sum gas parameters
-        uint256 requiredGas = userOp.callGasLimit + mul * userOp.verificationGasLimit + userOp.preVerificationGas;
-        // calculate max gas fees required for prefund
-        requiredPrefund = requiredGas * userOp.maxFeePerGas;
-    }
-
     /// @notice Get the userOpHash for a userOp.
     ///
     /// @dev Hardcoded to use EntryPoint v0.6.

@@ -4,9 +4,8 @@ pragma solidity ^0.8.23;
 import {SpendPermissions} from "../../src/SpendPermissions.sol";
 
 contract MockSpendPermissions is SpendPermissions {
-
     // TODO: what other internal functions should be exposed?
-    
+
     // function initializeRecurringAllowance(
     //     address account,
     //     bytes32 permissionHash,

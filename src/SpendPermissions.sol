@@ -44,7 +44,7 @@ contract SpendPermissions is EIP712 {
     }
 
     /// @notice Hash of EIP-712 message type
-    bytes32 private constant _MESSAGE_TYPEHASH = keccak256(
+    bytes32 private constant _RECURRING_ALLOWANCE_TYPEHASH = keccak256(
         "RecurringAllowance(address account,address spender,address token,uint48 start,uint48 end,uint48 period,uint160 allowance)"
     );
 
@@ -169,10 +169,7 @@ contract SpendPermissions is EIP712 {
     /// @param signature Signed hash of the recurring allowance data.
     function permit(RecurringAllowance memory recurringAllowance, bytes memory signature) public {
         // validate signature over recurring allowance data
-        if (
-            IERC1271(recurringAllowance.account).isValidSignature(getHash(recurringAllowance), signature)
-                != IERC1271.isValidSignature.selector
-        ) {
+        if (_isValidSignature(recurringAllowance.account, getHash(recurringAllowance), signature)) {
             revert UnauthorizedRecurringAllowance();
         }
 
@@ -189,18 +186,7 @@ contract SpendPermissions is EIP712 {
         requireSender(recurringAllowance.spender)
     {
         _useRecurringAllowance(recurringAllowance, value);
-
-        // transfer tokens from account to recipient
-        if (recurringAllowance.token == ETHER) {
-            _execute({account: recurringAllowance.account, target: recipient, value: value, data: hex""});
-        } else {
-            _execute({
-                account: recurringAllowance.account,
-                target: recurringAllowance.token,
-                value: 0,
-                data: abi.encodeWithSelector(IERC20.transfer.selector, recipient, value)
-            });
-        }
+        _transferFrom(recurringAllowance.account, recurringAllowance.token, recipient, value);
     }
 
     /// @notice Hash a RecurringAllowance struct for signing.
@@ -212,7 +198,7 @@ contract SpendPermissions is EIP712 {
     ///
     /// @return hash Hash of the recurring allowance and replay protection parameters.
     function getHash(RecurringAllowance memory recurringAllowance) public view returns (bytes32) {
-        return _eip712Hash(keccak256(abi.encode(_MESSAGE_TYPEHASH, recurringAllowance)));
+        return _eip712Hash(keccak256(abi.encode(_RECURRING_ALLOWANCE_TYPEHASH, recurringAllowance)));
     }
 
     /// @notice Return if recurring allowance is authorized i.e. approved and not revoked.
@@ -317,6 +303,26 @@ contract SpendPermissions is EIP712 {
         );
     }
 
+    /// @notice Transfer assets from an account to a recipient.
+    ///
+    /// @param account Address of the user account.
+    /// @param token Address of the token contract.
+    /// @param recipient Address of the token recipient.
+    /// @param value Amount of tokens to transfer.
+    function _transferFrom(address account, address token, address recipient, uint256 value) internal {
+        // transfer tokens from account to recipient
+        if (token == ETHER) {
+            _execute({account: account, target: recipient, value: value, data: hex""});
+        } else {
+            _execute({
+                account: account,
+                target: token,
+                value: 0,
+                data: abi.encodeWithSelector(IERC20.transfer.selector, recipient, value)
+            });
+        }
+    }
+
     /// @notice Execute a single call on an account.
     ///
     /// @param account Address of the user account.
@@ -325,6 +331,19 @@ contract SpendPermissions is EIP712 {
     /// @param data Bytes data to send in call.
     function _execute(address account, address target, uint256 value, bytes memory data) internal virtual {
         CoinbaseSmartWallet(payable(account)).execute({target: target, value: value, data: data});
+    }
+
+    /// @notice Validate an EIP-1271 contract signature.
+    ///
+    /// @param account Address of the user account.
+    /// @param hash Hash of the message.
+    /// @param signature Bytes for the user signature.
+    ///
+    /// @return isValid True if signature is valid.
+    function _isValidSignature(address account, bytes32 hash, bytes memory signature) internal view returns (bool) {
+        if (IERC1271(account).isValidSignature(hash, signature) != IERC1271.isValidSignature.selector) {
+            revert UnauthorizedRecurringAllowance();
+        }
     }
 
     /// @notice Returns the domain name and version to use when creating EIP-712 signatures.

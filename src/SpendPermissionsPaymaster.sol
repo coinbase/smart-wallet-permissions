@@ -55,8 +55,9 @@ contract SpendPermissionsPaymaster is SpendPermissions, Ownable2Step, IPaymaster
         requireSender(entryPoint())
         returns (bytes memory postOpContext, uint256 validationData)
     {
-        (RecurringAllowance memory recurringAllowance, bytes memory signature, uint256 withdrawAmount) =
-            abi.decode(userOp.paymasterAndData[20:], (RecurringAllowance, bytes, uint256));
+        (SignedPermission memory signedPermission, uint256 withdrawAmount) =
+            abi.decode(userOp.paymasterAndData[20:], (SignedPermission, uint256));
+        RecurringAllowance memory recurringAllowance = signedPermission.recurringAllowance;
 
         // require withdraw amount not less than max gas cost
         if (withdrawAmount < maxGasCost) {
@@ -74,8 +75,8 @@ contract SpendPermissionsPaymaster is SpendPermissions, Ownable2Step, IPaymaster
         }
 
         // apply permit if signature length non-zero
-        if (signature.length > 0) {
-            permit(recurringAllowance, signature);
+        if (signedPermission.signature.length > 0) {
+            permit(signedPermission);
         }
 
         // check total spend value does not overflow max value

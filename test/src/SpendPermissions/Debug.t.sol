@@ -29,6 +29,7 @@ contract DebugTest is Test, Base {
     }
 
     function test_withdraw(address recipient) public {
+        vm.assume(recipient != address(spendPermissions));
         SpendPermissions.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
 
         vm.prank(address(account));

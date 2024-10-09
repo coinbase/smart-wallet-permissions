@@ -49,7 +49,9 @@ contract DebugTest is Test, Base {
 
         vm.assertEq(account.isValidSignature(hash, signature), IERC1271.isValidSignature.selector);
 
-        bytes memory paymasterData = abi.encode(recurringAllowance, signature, allowance);
+        SpendPermissions.SignedPermission memory signedPermission =
+            SpendPermissions.SignedPermission(recurringAllowance, signature);
+        bytes memory paymasterData = abi.encode(signedPermission, allowance);
 
         userOp.paymasterAndData = abi.encodePacked(address(spendPermissions), paymasterData);
 
@@ -79,7 +81,9 @@ contract DebugTest is Test, Base {
 
         vm.assertEq(account.isValidSignature(hash, signature), IERC1271.isValidSignature.selector);
 
-        spendPermissions.permit(recurringAllowance, signature);
+        SpendPermissions.SignedPermission memory signedPermission =
+            SpendPermissions.SignedPermission(recurringAllowance, signature);
+        spendPermissions.permit(signedPermission);
 
         vm.assertTrue(spendPermissions.isAuthorized(recurringAllowance));
 

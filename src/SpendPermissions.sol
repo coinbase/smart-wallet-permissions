@@ -31,6 +31,14 @@ contract SpendPermissions {
         uint160 allowance;
     }
 
+    /// @notice A signed permit to approve a recurring allowance.
+    struct SignedPermission {
+        /// @dev Recurring allowance parameters.
+        RecurringAllowance recurringAllowance;
+        /// @dev User signature to validate via EIP-1271.
+        bytes signature;
+    }
+
     /// @notice Cycle parameters and spend usage.
     struct CycleUsage {
         /// @dev Start time of the cycle (unix seconds).
@@ -150,26 +158,25 @@ contract SpendPermissions {
     /// @param recipient Address to withdraw tokens to.
     /// @param value Amount of token attempting to withdraw (wei).
     function withdraw(bytes calldata context, address recipient, uint160 value) external {
-        (RecurringAllowance memory recurringAllowance, bytes memory signature) =
-            abi.decode(context, (RecurringAllowance, bytes));
-        permit(recurringAllowance, signature);
-        withdraw(recurringAllowance, recipient, value);
+        SignedPermission memory signedPermission = abi.decode(context, (SignedPermission));
+        permit(signedPermission);
+        withdraw(signedPermission.recurringAllowance, recipient, value);
     }
 
     /// @notice Approve a recurring allowance via a signature from the account.
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
-    /// @param signature Signed hash of the recurring allowance data.
-    function permit(RecurringAllowance memory recurringAllowance, bytes memory signature) public {
+    /// @param signedPermission Signed recurring allowance permission.
+    function permit(SignedPermission memory signedPermission) public {
         // validate signature over recurring allowance data
         if (
-            IERC1271(recurringAllowance.account).isValidSignature(getHash(recurringAllowance), signature)
-                != IERC1271.isValidSignature.selector
+            IERC1271(signedPermission.recurringAllowance.account).isValidSignature(
+                getHash(signedPermission.recurringAllowance), signedPermission.signature
+            ) != IERC1271.isValidSignature.selector
         ) {
             revert UnauthorizedRecurringAllowance();
         }
 
-        _approve(recurringAllowance);
+        _approve(signedPermission.recurringAllowance);
     }
 
     /// @notice Withdraw tokens using a recurring allowance.

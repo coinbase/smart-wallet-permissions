@@ -13,6 +13,7 @@ contract SpendPermissionsBase is Base {
     MockSpendPermissions mockSpendPermissions;
 
     function _initializeSpendPermissions() internal {
+        _initialize(); // Base
         mockSpendPermissions = new MockSpendPermissions();
     }
 

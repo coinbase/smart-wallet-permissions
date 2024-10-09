@@ -111,8 +111,7 @@ contract GetCurrentCycleTest is Test, SpendPermissionsBase {
         vm.assume(end > 0);
         vm.assume(start < end);
         vm.assume(period > 0);
-        vm.assume(period <= end - start); // is this an assumption we're comfortable making? (otherwise fuzz reverts
-            // with AfterRecurringAllowanceEnd)
+        vm.assume(period <= end - start);
         vm.assume(allowance > 0);
         vm.assume(spend <= allowance);
 
@@ -151,8 +150,7 @@ contract GetCurrentCycleTest is Test, SpendPermissionsBase {
         vm.assume(end > 0);
         vm.assume(start < end);
         vm.assume(period > 0);
-        vm.assume(period <= end - start); // is this an assumption we're comfortable making? (otherwise fuzz reverts
-            // with AfterRecurringAllowanceEnd)
+        vm.assume(period <= end - start);
         vm.assume(allowance > 0);
         vm.assume(spend <= allowance);
 

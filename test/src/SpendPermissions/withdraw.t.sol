@@ -10,7 +10,7 @@ import {SpendPermissions} from "../../../src/SpendPermissions.sol";
 import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
 
 contract WithdrawTest is Test, SpendPermissionsBase {
-    MockERC20 token = new MockERC20("mockERC20", "TEST", 18);
+    MockERC20 mockERC20 = new MockERC20("mockERC20", "TEST", 18);
 
     function setUp() public {
         _initializeSpendPermissions();
@@ -57,11 +57,9 @@ contract WithdrawTest is Test, SpendPermissionsBase {
     // permit-required overload of `withdraw`
     function test_withdraw_revert_unauthorizedRecurringAllowance() public {}
 
-    // success when uninitialized but contains valid context with signature
-    // success when already initialized (non-permit withdraw overload)
-    // success emits event
-    // success updates state? (how much of the functionality of useRecurringAllowance do we really need to re-test?)
-    function test_withdraw_success_ether(
+    function test_withdraw_success_ether_permit() public {}
+
+    function test_withdraw_success_ether_alreadyInitialized(
         address permissionSigner,
         address recipient,
         uint48 start,
@@ -87,16 +85,62 @@ contract WithdrawTest is Test, SpendPermissionsBase {
             allowance: allowance
         });
         vm.deal(address(account), allowance);
+        vm.deal(recipient, 0);
         vm.prank(address(account));
         mockSpendPermissions.approve(recurringAllowance);
         vm.warp(start);
 
+        assertEq(address(account).balance, allowance);
+        assertEq(recipient.balance, 0);
         vm.prank(permissionSigner);
         mockSpendPermissions.withdraw(recurringAllowance, recipient, spend);
+        assertEq(address(account).balance, allowance - spend);
+        assertEq(recipient.balance, spend);
+        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        assertEq(usage.start, start);
+        assertEq(usage.end, _safeAddUint48(start, period));
+        assertEq(usage.spend, spend);
     }
 
-    function test_withdraw_success_ERC20() public {}
-    // test balance changes on the account and recipient? (how do we set up and deploy a mock ERC20? for now can we just
-    // mock _execute and have it succeed?)
-    // test... transferFrom events?
+    function test_withdraw_success_ERC20(
+        address permissionSigner,
+        address recipient,
+        uint48 start,
+        uint48 end,
+        uint48 period,
+        uint160 allowance,
+        uint160 spend
+    ) public {
+        vm.assume(start > 0);
+        vm.assume(end > 0);
+        vm.assume(start < end);
+        vm.assume(period > 0);
+        vm.assume(spend > 0);
+        vm.assume(allowance > 0);
+        vm.assume(allowance >= spend);
+        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+            account: address(account),
+            spender: permissionSigner,
+            token: address(mockERC20),
+            start: start,
+            end: end,
+            period: period,
+            allowance: allowance
+        });
+        mockERC20.mint(address(account), allowance);
+        vm.prank(address(account));
+        mockSpendPermissions.approve(recurringAllowance);
+        vm.warp(start);
+
+        assertEq(mockERC20.balanceOf(address(account)), allowance);
+        assertEq(mockERC20.balanceOf(recipient), 0);
+        vm.prank(permissionSigner);
+        mockSpendPermissions.withdraw(recurringAllowance, recipient, spend);
+        assertEq(mockERC20.balanceOf(address(account)), allowance - spend);
+        assertEq(mockERC20.balanceOf(recipient), spend);
+        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        assertEq(usage.start, start);
+        assertEq(usage.end, _safeAddUint48(start, period));
+        assertEq(usage.spend, spend);
+    }
 }

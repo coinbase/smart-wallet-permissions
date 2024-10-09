@@ -45,7 +45,7 @@ contract SpendPermissions {
     address public constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice Spender delegates authority to other addresses to use its recurring allowances.
-    mapping(address spender => mapping(address delegate => bool isDelegate)) _isDelegateSpender;
+    mapping(address spender => mapping(address delegate => bool isDelegate)) public isDelegateSpender;
 
     /// @notice Recurring allowance is revoked.
     mapping(bytes32 hash => mapping(address account => bool revoked)) internal _isRevoked;
@@ -133,7 +133,7 @@ contract SpendPermissions {
     /// @param delegate Address that is given authority to also use a spender's recurring allowances.
     /// @param allowed True if delegate can act on behalf of spender.
     function updateDelegateSpender(address delegate, bool allowed) external {
-        _isDelegateSpender[msg.sender][delegate] = allowed;
+        isDelegateSpender[msg.sender][delegate] = allowed;
         emit DelegateSpenderUpdated(msg.sender, delegate, allowed);
     }
 
@@ -198,7 +198,7 @@ contract SpendPermissions {
     /// @param value Amount of token attempting to withdraw (wei).
     function withdraw(RecurringAllowance memory recurringAllowance, address recipient, uint160 value) public {
         // check sender is spender or delegated by spender
-        if (msg.sender != recurringAllowance.spender && !_isDelegateSpender[recurringAllowance.spender][msg.sender]) {
+        if (msg.sender != recurringAllowance.spender && !isDelegateSpender[recurringAllowance.spender][msg.sender]) {
             revert InvalidSender(msg.sender);
         }
         _useRecurringAllowance(recurringAllowance, value);

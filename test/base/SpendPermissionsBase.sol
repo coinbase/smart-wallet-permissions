@@ -31,9 +31,13 @@ contract SpendPermissionsBase is Base {
         });
     }
 
-    // we'll keep this around until we know we do or don't need it
-    function _safeAdd(uint48 a, uint48 b) internal pure returns (uint48 c) {
+    function _safeAddUint48(uint48 a, uint48 b) internal pure returns (uint48 c) {
         bool overflow = uint256(a) + uint256(b) > type(uint48).max;
         return overflow ? type(uint48).max : a + b;
+    }
+
+    function _safeAddUint160(uint160 a, uint160 b) internal pure returns (uint160 c) {
+        bool overflow = uint256(a) + uint256(b) > type(uint160).max;
+        return overflow ? type(uint160).max : a + b;
     }
 }

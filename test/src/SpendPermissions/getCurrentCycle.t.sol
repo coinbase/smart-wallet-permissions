@@ -59,7 +59,7 @@ contract GetCurrentCycleTest is Test, SpendPermissionsBase {
         SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
         bool endOverflow = uint256(start) + uint256(period) > type(uint48).max;
         assertEq(usage.start, start);
-        assertEq(usage.end, _safeAdd(start, period));
+        assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, 0);
     }
 
@@ -95,7 +95,7 @@ contract GetCurrentCycleTest is Test, SpendPermissionsBase {
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
         SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
         assertEq(usage.start, start);
-        assertEq(usage.end, _safeAdd(start, period));
+        assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
     }
 
@@ -132,10 +132,10 @@ contract GetCurrentCycleTest is Test, SpendPermissionsBase {
         vm.warp(start);
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
 
-        vm.warp(_safeAdd(start, period) - 1);
+        vm.warp(_safeAddUint48(start, period) - 1);
         SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
         assertEq(usage.start, start);
-        assertEq(usage.end, _safeAdd(start, period));
+        assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
     }
 
@@ -172,10 +172,10 @@ contract GetCurrentCycleTest is Test, SpendPermissionsBase {
         vm.warp(start);
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
 
-        vm.warp(_safeAdd(start, period));
+        vm.warp(_safeAddUint48(start, period));
         SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
-        assertEq(usage.start, _safeAdd(start, period));
-        assertEq(usage.end, _safeAdd(_safeAdd(start, period), period));
+        assertEq(usage.start, _safeAddUint48(start, period));
+        assertEq(usage.end, _safeAddUint48(_safeAddUint48(start, period), period));
         assertEq(usage.spend, 0);
     }
 

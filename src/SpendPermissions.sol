@@ -207,9 +207,10 @@ contract SpendPermissions {
         return keccak256(abi.encode(recurringAllowance, block.chainid, address(this)));
     }
 
-    /// @notice Hash a RecurringAllowance struct for signing.
+    /// @notice Hash a SignedPermission struct for signing.
     ///
     /// @dev Prevent phishing permits by making the hash incompatible with EIP-191/712.
+    /// @dev If signing only one recurring allowance, then the recurring allowance hash is the merkle root to sign.
     ///
     /// @param signedPermission Signed recurring allowance permission.
     ///

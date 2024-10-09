@@ -178,4 +178,32 @@ contract GetCurrentCycleTest is Test, SpendPermissionsBase {
         assertEq(usage.end, _safeAdd(_safeAdd(start, period), period));
         assertEq(usage.spend, 0);
     }
+
+    function test_getCurrentCycle_success_maxValueForEnd(
+        address permissionSigner,
+        uint48 start,
+        uint48 period,
+        uint160 allowance
+    ) public {
+        vm.assume(start > 0);
+        vm.assume(period > 0);
+        vm.assume(uint256(start) + uint256(period) > type(uint48).max); // force overflow
+        vm.assume(allowance > 0);
+
+        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+            account: address(account),
+            spender: permissionSigner,
+            token: ETHER,
+            start: start,
+            end: type(uint48).max,
+            period: period,
+            allowance: allowance
+        });
+
+        vm.warp(start);
+        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        assertEq(usage.start, start);
+        assertEq(usage.end, type(uint48).max);
+        assertEq(usage.spend, 0);
+    }
 }

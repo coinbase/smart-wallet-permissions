@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
 /// @title SpendPermissions
@@ -172,7 +173,7 @@ contract SpendPermissions {
         // validate signature over recurring allowance data
         if (
             IERC1271(signedPermission.recurringAllowance.account).isValidSignature(
-                getRoot(signedPermission.recurringAllowance, signedPermission.proof), signedPermission.signature
+                getRoot(signedPermission), signedPermission.signature
             ) != IERC1271.isValidSignature.selector
         ) {
             revert UnauthorizedRecurringAllowance();
@@ -209,22 +210,13 @@ contract SpendPermissions {
     /// @notice Hash a RecurringAllowance struct for signing.
     ///
     /// @dev Prevent phishing permits by making the hash incompatible with EIP-191/712.
-    /// @dev Include chainId and contract address in hash for cross-chain and cross-contract replay protection.
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
-    /// @param proof Merkle branch matching this recurring allowance to reconstruct root.
+    /// @param signedPermission Signed recurring allowance permission.
     ///
-    /// @return root Merkle root of a batch of recurring allowances.
-    function getRoot(RecurringAllowance memory recurringAllowance, bytes32[] memory proof)
-        public
-        view
-        returns (bytes32 root)
-    {
-        root = getHash(recurringAllowance);
-        uint256 len = proof.length;
-        for (uint256 i = 0; i < len; i++) {
-            root = keccak256(abi.encode(root, proof[i]));
-        }
+    /// @return hash Merkle root of a batch of recurring allowances.
+    function getHash(SignedPermission memory signedPermission) public view returns (bytes32 hash) {
+        bytes32 leaf = getHash(signedPermission.recurringAllowance);
+        return MerkleProof.processProof(signedPermission.proof, leaf);
     }
 
     /// @notice Return if recurring allowance is authorized i.e. approved and not revoked.

@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {SpendPermissions} from "../../../../src/SpendPermissions.sol";
+import {SpendPermissions} from "../../../src/SpendPermissions.sol";
 
 import {Base} from "../../base/Base.sol";
 

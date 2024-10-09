@@ -11,6 +11,77 @@ contract IsAuthorizedTest is Test, SpendPermissionsBase {
     function setUp() public {
         _initializeSpendPermissions();
     }
-    function test_isAuthorized_success_true() public {}
-    function test_isAuthorized_success_false() public {}
+
+    function test_isAuthorized_true(
+        address account,
+        address spender,
+        address token,
+        uint48 start,
+        uint48 end,
+        uint48 period,
+        uint160 allowance
+    ) public {
+        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+            account: account,
+            spender: spender,
+            token: token,
+            start: start,
+            end: end,
+            period: period,
+            allowance: allowance
+        });
+
+        vm.prank(account);
+        mockSpendPermissions.approve(recurringAllowance);
+        vm.assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
+    }
+
+    function test_isAuthorized_false_uninitialized(
+        address account,
+        address spender,
+        address token,
+        uint48 start,
+        uint48 end,
+        uint48 period,
+        uint160 allowance
+    ) public {
+        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+            account: account,
+            spender: spender,
+            token: token,
+            start: start,
+            end: end,
+            period: period,
+            allowance: allowance
+        });
+        vm.assertFalse(mockSpendPermissions.isAuthorized(recurringAllowance));
+    }
+
+    function test_isAuthorized_false_wasRevoked(
+        address account,
+        address spender,
+        address token,
+        uint48 start,
+        uint48 end,
+        uint48 period,
+        uint160 allowance
+    ) public {
+        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+            account: account,
+            spender: spender,
+            token: token,
+            start: start,
+            end: end,
+            period: period,
+            allowance: allowance
+        });
+        vm.startPrank(account);
+
+        mockSpendPermissions.approve(recurringAllowance);
+        vm.assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
+
+        mockSpendPermissions.revoke(recurringAllowance);
+        vm.assertFalse(mockSpendPermissions.isAuthorized(recurringAllowance));
+        vm.stopPrank();
+    }
 }

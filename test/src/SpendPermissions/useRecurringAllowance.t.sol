@@ -11,15 +11,16 @@ contract UseRecurringAllowanceTest is Test, SpendPermissionsBase {
     function setUp() public {
         _initializeSpendPermissions();
     }
-    function test_useRecurringAllowance_success_noValue() public {}
-    function test_useRecurringAllowance_revert_unauthorizedRecurringAllowance()
-        public
-    {}
-    function test_useRecurringAllowance_revert_qithdrawValueOverflow() public {}
-    function test_useRecurringAllowance_revert_exceededRecurringAllowance()
-        public
-    {}
-    // TODO what are the various success logical cases?
-    function test_userRecurringAllowance_success() public {}
 
+    function test_useRecurringAllowance_revert_unauthorizedRecurringAllowance() public {}
+    function test_useRecurringAllowance_revert_withdrawValueOverflow() public {}
+    function test_useRecurringAllowance_revert_exceededRecurringAllowance() public {}
+    function test_useRecurringAllowance_revert_exceededRecurringAllowance_accruedSpend() public {}
+    function test_useRecurringAllowance_success_noSpend() public {}
+    function test_useRecurringAllowance_success_emitsEvent() public {}
+    function test_useRecurringAllowance_success_setsState() public {}
+    function test_useRecurringAllowance_success_maxAllowance_ether() public {}
+    function test_useRecurringAllowance_success_maxAllowance_token() public {}
+    function test_useRecurringAllowance_success_incrementalSpends_ether() public {}
+    function test_useRecurringAllowance_success_incrementalSpends_token() public {}
 }

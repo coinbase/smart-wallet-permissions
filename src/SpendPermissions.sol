@@ -173,7 +173,7 @@ contract SpendPermissions {
         // validate signature over recurring allowance data
         if (
             IERC1271(signedPermission.recurringAllowance.account).isValidSignature(
-                getRoot(signedPermission), signedPermission.signature
+                getHash(signedPermission), signedPermission.signature
             ) != IERC1271.isValidSignature.selector
         ) {
             revert UnauthorizedRecurringAllowance();

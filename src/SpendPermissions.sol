@@ -44,6 +44,9 @@ contract SpendPermissions {
     /// @notice ERC-7528 address convention for ether (https://eips.ethereum.org/EIPS/eip-7528).
     address public constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    /// @notice Spender delegates authority to other addresses to use its recurring allowances.
+    mapping(address spender => mapping(address delegate => bool isDelegate)) _isDelegateSpender;
+
     /// @notice Recurring allowance is revoked.
     mapping(bytes32 hash => mapping(address account => bool revoked)) internal _isRevoked;
 
@@ -82,6 +85,13 @@ contract SpendPermissions {
     /// @param allowance Allowance value that was exceeded.
     error ExceededRecurringAllowance(uint256 value, uint256 allowance);
 
+    /// @notice Spender delegated to another address.
+    ///
+    /// @param spender Address that is a spender for recurring allowances.
+    /// @param delegate Address that is given authority to also use a spender's recurring allowances.
+    /// @param allowed True if delegate can act on behalf of spender.
+    event DelegateSpenderUpdated(address indexed spender, address indexed delegate, bool allowed);
+
     /// @notice RecurringAllowance was approved via transaction.
     ///
     /// @param hash The unique hash representing the recurring allowance.
@@ -116,6 +126,15 @@ contract SpendPermissions {
     modifier requireSender(address sender) {
         if (msg.sender != sender) revert InvalidSender(sender);
         _;
+    }
+
+    /// @notice Update delegate spender.
+    ///
+    /// @param delegate Address that is given authority to also use a spender's recurring allowances.
+    /// @param allowed True if delegate can act on behalf of spender.
+    function updateDelegateSpender(address delegate, bool allowed) external {
+        _isDelegateSpender[msg.sender][delegate] = allowed;
+        emit DelegateSpenderUpdated(msg.sender, delegate, allowed);
     }
 
     /// @notice Approve a recurring allowance via a direct call from the account.
@@ -177,10 +196,11 @@ contract SpendPermissions {
     /// @param recurringAllowance Details of the recurring allowance.
     /// @param recipient Address to withdraw tokens to.
     /// @param value Amount of token attempting to withdraw (wei).
-    function withdraw(RecurringAllowance memory recurringAllowance, address recipient, uint160 value)
-        public
-        requireSender(recurringAllowance.spender)
-    {
+    function withdraw(RecurringAllowance memory recurringAllowance, address recipient, uint160 value) public {
+        // check sender is spender or delegated by spender
+        if (msg.sender != recurringAllowance.spender && !_isDelegateSpender[recurringAllowance.spender][msg.sender]) {
+            revert InvalidSender(msg.sender);
+        }
         _useRecurringAllowance(recurringAllowance, value);
         _transferFrom(recurringAllowance.account, recurringAllowance.token, recipient, value);
     }

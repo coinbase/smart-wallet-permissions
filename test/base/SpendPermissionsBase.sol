@@ -32,6 +32,18 @@ contract SpendPermissionsBase is Base {
         });
     }
 
+    function _createSignedPermission(
+        SpendPermissions.RecurringAllowance memory recurringAllowance,
+        uint256 ownerPk,
+        uint256 ownerIndex
+    ) internal view returns (SpendPermissions.SignedPermission memory) {
+        bytes32 recurringAllowanceHash = mockSpendPermissions.getHash(recurringAllowance);
+        bytes32 replaySafeHash = account.replaySafeHash(recurringAllowanceHash);
+        bytes memory signature = _sign(ownerPk, replaySafeHash);
+        bytes memory wrappedSignature = _applySignatureWrapper(0, signature);
+        return SpendPermissions.SignedPermission({recurringAllowance: recurringAllowance, signature: wrappedSignature});
+    }
+
     function _safeAddUint48(uint48 a, uint48 b) internal pure returns (uint48 c) {
         bool overflow = uint256(a) + uint256(b) > type(uint48).max;
         return overflow ? type(uint48).max : a + b;

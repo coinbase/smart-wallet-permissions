@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {Test, console2} from "forge-std/Test.sol";
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
@@ -173,6 +174,7 @@ contract SpendPermissions {
                 getHash(signedPermission.recurringAllowance), signedPermission.signature
             ) != IERC1271.isValidSignature.selector
         ) {
+            console2.log("about to revert in permit");
             revert UnauthorizedRecurringAllowance();
         }
 

@@ -10,7 +10,7 @@ To do accounting onchain, we need to design a storage layout and make sure to up
 
 Now that Session Keys replace a pop-up window every transaction with a pop-up window for approving every permission, the frequency of permission requests is the new baseline annoyance for wallet UX. How can we minimize this intrusion?
 
-Taking a look at the existing approval for common token standards, we see unfortunately see an antipattern of over-permissive infinite allowances. Apps also don't want to have to ask the user every single time they want to spend tokens so instead they ask for a high amount of trust. Users aren't really given a choice if they want to use the product, so they comply and extend that trust. Unfortunately, this trust has led to countless drainer events which we would like to prevent with Session Keys.
+Taking a look at the existing approval for common token standards, we unfortunately see an antipattern of over-permissive infinite allowances. Apps also don't want to have to ask the user every single time they want to spend tokens so instead they ask for a high amount of trust. Users aren't really given a choice if they want to use the product, so they comply and extend that trust. Unfortunately, this trust has led to countless drainer events which we would like to prevent with Session Keys.
 
 Our solution is to create recurring allowances that allow an app to request to spend user assets on a recurring basis (e.g. 1 ETH / month). As apps spend user assets through using this permission, the recurring logic automatically increments and enforces the allowance for the current cycle. Once enough time passes to enter the next cycle, the allowance usage is reset to zero and the app can keep spending up to the same allowance.
 

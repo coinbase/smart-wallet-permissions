@@ -40,7 +40,7 @@ contract SpendPermissionsBase is Base {
         bytes32 recurringAllowanceHash = mockSpendPermissions.getHash(recurringAllowance);
         bytes32 replaySafeHash = account.replaySafeHash(recurringAllowanceHash);
         bytes memory signature = _sign(ownerPk, replaySafeHash);
-        bytes memory wrappedSignature = _applySignatureWrapper(0, signature);
+        bytes memory wrappedSignature = _applySignatureWrapper(ownerIndex, signature);
         return SpendPermissions.SignedPermission({recurringAllowance: recurringAllowance, signature: wrappedSignature});
     }
 

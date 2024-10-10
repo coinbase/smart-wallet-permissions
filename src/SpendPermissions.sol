@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
 /// @title SpendPermissions
@@ -37,6 +38,8 @@ contract SpendPermissions {
         RecurringAllowance recurringAllowance;
         /// @dev User signature to validate via EIP-1271.
         bytes signature;
+        /// @dev Optional Merkle proof from batch signing of many recurring allowances.
+        bytes32[] proof;
     }
 
     /// @notice Cycle parameters and spend usage.
@@ -170,7 +173,7 @@ contract SpendPermissions {
         // validate signature over recurring allowance data
         if (
             IERC1271(signedPermission.recurringAllowance.account).isValidSignature(
-                getHash(signedPermission.recurringAllowance), signedPermission.signature
+                getHash(signedPermission), signedPermission.signature
             ) != IERC1271.isValidSignature.selector
         ) {
             revert UnauthorizedRecurringAllowance();
@@ -202,6 +205,19 @@ contract SpendPermissions {
     /// @return hash Hash of the recurring allowance and replay protection parameters.
     function getHash(RecurringAllowance memory recurringAllowance) public view returns (bytes32) {
         return keccak256(abi.encode(recurringAllowance, block.chainid, address(this)));
+    }
+
+    /// @notice Hash a SignedPermission struct for signing.
+    ///
+    /// @dev Prevent phishing permits by making the hash incompatible with EIP-191/712.
+    /// @dev If signing only one recurring allowance, then the recurring allowance hash is the merkle root to sign.
+    ///
+    /// @param signedPermission Signed recurring allowance permission.
+    ///
+    /// @return hash Merkle root of a batch of recurring allowances.
+    function getHash(SignedPermission memory signedPermission) public view returns (bytes32 hash) {
+        bytes32 leaf = getHash(signedPermission.recurringAllowance);
+        return MerkleProof.processProof(signedPermission.proof, leaf);
     }
 
     /// @notice Return if recurring allowance is authorized i.e. approved and not revoked.

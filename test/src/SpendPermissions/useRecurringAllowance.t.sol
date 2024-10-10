@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Test, console2} from "forge-std/Test.sol";
-
 import {SpendPermissions} from "../../../src/SpendPermissions.sol";
 
 import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
 
-contract UseRecurringAllowanceTest is Test, SpendPermissionsBase {
+contract UseRecurringAllowanceTest is SpendPermissionsBase {
     function setUp() public {
         _initializeSpendPermissions();
     }
@@ -42,7 +40,6 @@ contract UseRecurringAllowanceTest is Test, SpendPermissionsBase {
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
     }
 
-    // TODO test revert WithdrawValueOverflow after non-zero cumulative spend
     function test_useRecurringAllowance_revert_withdrawValueOverflow(
         address account,
         address permissionSigner,

@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Static} from "../../base/Static.sol";
-
-import {Test, console2} from "forge-std/Test.sol";
 import {MockERC20} from "solady/../test/utils/mocks/MockERC20.sol";
 
 import {SpendPermissions} from "../../../src/SpendPermissions.sol";
 
 import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
 
-contract WithdrawTest is Test, SpendPermissionsBase {
+contract WithdrawTest is SpendPermissionsBase {
     MockERC20 mockERC20 = new MockERC20("mockERC20", "TEST", 18);
 
     function setUp() public {

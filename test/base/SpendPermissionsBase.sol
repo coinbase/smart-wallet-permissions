@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Test, console2} from "forge-std/Test.sol";
-
 import {SpendPermissions} from "../../src/SpendPermissions.sol";
 import {MockSpendPermissions} from "../mocks/MockSpendPermissions.sol";
 import {Base} from "./Base.sol";

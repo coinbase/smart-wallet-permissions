@@ -28,16 +28,17 @@ contract DebugTest is Test, Base {
         spendPermissions.approve(recurringAllowance);
     }
 
-    // function test_withdraw(address recipient) public {
-    //     SpendPermissions.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
+    function test_withdraw(address recipient) public {
+        assumePayable(recipient);
+        SpendPermissions.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
 
-    //     vm.prank(address(account));
-    //     spendPermissions.approve(recurringAllowance);
+        vm.prank(address(account));
+        spendPermissions.approve(recurringAllowance);
 
-    //     vm.deal(address(account), 1 ether);
-    //     vm.prank(owner);
-    //     spendPermissions.withdraw(recurringAllowance, recipient, 1 ether / 2);
-    // }
+        vm.deal(address(account), 1 ether);
+        vm.prank(owner);
+        spendPermissions.withdraw(recurringAllowance, recipient, 1 ether / 2);
+    }
 
     function _createRecurringAllowance() internal view returns (SpendPermissions.RecurringAllowance memory) {
         return SpendPermissions.RecurringAllowance({

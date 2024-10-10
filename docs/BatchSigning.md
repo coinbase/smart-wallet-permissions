@@ -48,6 +48,54 @@ Note that the inclusion of `chainId` and `verifyingContract` in the leaf hash fo
 
 We also have open-ended flexibility to compose other kinds of leaf nodes, for example a future `NftAllowance` struct, within the same batch signing event as Spend Permissions V1. This composability is powerful for future product developments, but deserves security scrutiny for potentially being too flexible.
 
-## Simple Base Case Usage
+### Examples
+
+### Single Allowance
 
 If an app only needs to request a single recurring allowance, the leaf node is also the root node. This means the `bytes32[]` Merkle proof will be an empty array and no iterative hashing is performed. This effectively means that non-batched signatures function exactly the same as if this batching mechanism didn't exist. This provides us an easy way to implement our V1 on the offchain side without concerning ourselves with this more advanced Merkle Tree construction.
+
+### Multiple Allownaces
+
+Below is pseudo-code for offchain preparation of the Merkle Tree, root, signature, and individual contexts returned back to the app.
+
+```tsx
+// receive spend permissions RPC request
+const request;
+
+// prepare recurring allowance structs from requests
+const recurringAllowance0 = getRecurringAllowance(request[0]);
+const recurringAllowance1 = getRecurringAllowance(request[1]);
+
+// hash recurring allowances to create leaves
+const leaf0 = hashRecurringAllowance(recurringAllowance0);
+const leaf1 = hashRecurringAllowance(recurringAllowance1);
+
+// form merkle tree with leaves
+const merkleTree = makeMerkleTree([leaf0, leaf1]);
+
+// get individual proofs for each leaf
+const proof0 = getProof(merkleTree, leaf0);
+const proof1 = getProof(merkleTree, leaf1);
+
+// get the root of the tree and sign
+const root = getRoot(merkleTree);
+const signature = await signHash(root);
+
+// prepare contexts from recurring allowance, merkle proof, and signature
+const context0 = prepareContext({
+  recurringAllowance: recurringAllowance0,
+  proof: proof0,
+  signature
+});
+const context1 = prepareContext(
+  recurringAllowance: recurringAllowance1,
+  proof: proof1,
+  signature
+);
+
+// return requests with context
+return [
+  { ...request[0], context: context0 },
+  { ...request[1], context: context1 },
+];
+```

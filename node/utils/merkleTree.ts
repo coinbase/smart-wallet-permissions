@@ -19,7 +19,15 @@ export function makeMerkleTree(leaves: Hex[]): Hex[] {
   return tree;
 }
 
-export function getProof(tree: Hex[], index: number): Hex[] {
+export function getRoot(tree: Hex[]): Hex {
+  if (tree.length === 0) throwError('Tree has no root');
+  return tree[0];
+}
+
+export function getProof(tree: Hex[], leaf: Hex): Hex[] {
+  let index = tree.indexOf(leaf)
+  if (index === -1) throwError("Leaf does not exist in tree")
+
   checkLeafNode(tree, index);
 
   const proof: Hex[] = [];

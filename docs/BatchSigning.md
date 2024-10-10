@@ -56,7 +56,7 @@ If an app only needs to request a single recurring allowance, the leaf node is a
 
 ### Multiple Allownaces
 
-Below is pseudo-code for offchain preparation of the Merkle Tree, root, signature, and individual contexts returned back to the app.
+Below is pseudo-code for offchain preparation of the Merkle Tree, root, signature, and individual contexts returned back to the app. Note that `makeMerkleTree`, `getProof`, and `getRoot` are utilities specific to batch signing and are found in [`merkleTree.ts`](../node/utils/merkleTree.ts).
 
 ```tsx
 // receive spend permissions RPC request

@@ -4,50 +4,45 @@ pragma solidity ^0.8.0;
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
+import {EIP712} from "solady/utils/EIP712.sol";
 
-/// @title SpendPermissions
+/// @title SpendPermissionManager
 ///
 /// @notice Allow spending native and ERC20 tokens with a recurring allowance.
 ///
 /// @dev Allowance and spend values capped at uint160 ~ 1e48.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-contract SpendPermissions {
-    /// @notice A recurring allowance for an external spender to withdraw an account's tokens.
-    struct RecurringAllowance {
-        /// @dev Smart account this recurring allowance is valid for.
+contract SpendPermissionManager is EIP712{
+    /// @notice A spend permission for an external spender to be able to withdraw an account's tokens.
+    struct SpendPermission {
+        /// @dev Smart account this spend permission is valid for.
         address account;
-        /// @dev Entity that can spend user funds.
+        /// @dev Entity that can spend `accounts`'s funds.
         address spender;
         /// @dev Token address (ERC-7528 ether address or ERC-20 contract).
         address token;
-        /// @dev Timestamp this recurring allowance is valid after (unix seconds).
+        /// @dev Timestamp this spend permission is valid after (unix seconds).
         uint48 start;
-        /// @dev Timestamp this recurring allowance is valid until (unix seconds).
+        /// @dev Timestamp this spend permission is valid until (unix seconds).
         uint48 end;
         /// @dev Time duration for resetting used allowance on a recurring basis (seconds).
         uint48 period;
-        /// @dev Maximum allowed value to spend within a recurring cycle.
-        uint160 allowance;
+        /// @dev Maximum allowed value to spend within each period.
+        uint160 amountPerPeriod;
     }
 
-    /// @notice A signed permit to approve a recurring allowance.
-    struct SignedPermission {
-        /// @dev Recurring allowance parameters.
-        RecurringAllowance recurringAllowance;
-        /// @dev User signature to validate via EIP-1271.
-        bytes signature;
-    }
-
-    /// @notice Cycle parameters and spend usage.
-    struct CycleUsage {
-        /// @dev Start time of the cycle (unix seconds).
+    /// @notice Spend Permission usage for a certain period.
+    struct PeriodUsage {
+        /// @dev Start time of the period (unix seconds).
         uint48 start;
-        /// @dev End time of the cycle (unix seconds).
+        /// @dev End time of the period (unix seconds).
         uint48 end;
-        /// @dev Accumulated spend amount for cycle.
+        /// @dev Accumulated spend amount for period.
         uint160 spend;
     }
+
+    bytes32 constant MESSAGE_TYPEHASH = keccak256("SpendPermission(bytes32 spendPermissionHash)");
 
     /// @notice ERC-7528 address convention for ether (https://eips.ethereum.org/EIPS/eip-7528).
     address public constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -59,7 +54,7 @@ contract SpendPermissions {
     mapping(bytes32 hash => mapping(address account => bool approved)) internal _isApproved;
 
     /// @notice Last updated cycle for a recurring allowance.
-    mapping(bytes32 hash => mapping(address account => CycleUsage)) internal _lastUpdatedCycle;
+    mapping(bytes32 hash => mapping(address account => PeriodUsage)) internal _lastUpdatedCycle;
 
     /// @notice Invalid sender for the external call.
     ///
@@ -94,18 +89,18 @@ contract SpendPermissions {
     ///
     /// @param hash The unique hash representing the recurring allowance.
     /// @param account The smart contract account the recurring allowance controls.
-    /// @param recurringAllowance Details of the recurring allowance.
-    event RecurringAllowanceApproved(
-        bytes32 indexed hash, address indexed account, RecurringAllowance recurringAllowance
+    /// @param spendPermission SpendPermission struct
+    event SpendPermissionApproved(
+        bytes32 indexed hash, address indexed account, SpendPermission spendPermission
     );
 
     /// @notice RecurringAllowance was revoked prematurely by account.
     ///
     /// @param hash The unique hash representing the recurring allowance.
     /// @param account The smart contract account the recurring allowance controlled.
-    /// @param recurringAllowance Details of the recurring allowance.
-    event RecurringAllowanceRevoked(
-        bytes32 indexed hash, address indexed account, RecurringAllowance recurringAllowance
+    /// @param spendPermission SpendPermission struct
+    event SpendPermissionRevoked(
+        bytes32 indexed hash, address indexed account, SpendPermission spendPermission
     );
 
     /// @notice Register native token spend for a recurring allowance cycle.
@@ -113,9 +108,9 @@ contract SpendPermissions {
     /// @param hash Hash of the recurring allowance.
     /// @param account Account that spent native token via a recurring allowance.
     /// @param token Account that spent native token via a recurring allowance.
-    /// @param newUsage Start and end of the current cycle with new spend usage (struct).
-    event RecurringAllowanceWithdrawn(
-        bytes32 indexed hash, address indexed account, address indexed token, CycleUsage newUsage
+    /// @param newUsage Start and end of the current period with new spend usage (struct).
+    event SpendPermissionUsed(
+        bytes32 indexed hash, address indexed account, address indexed token, PeriodUsage newUsage
     );
 
     /// @notice Require a specific sender for an external call,
@@ -126,92 +121,84 @@ contract SpendPermissions {
         _;
     }
 
-    /// @notice Approve a recurring allowance via a direct call from the account.
+    /// @notice Approve a SpendPermission via a direct call from the account.
     ///
     /// @dev Prevent phishing approvals by rejecting simulated transactions with the approval event.
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
-    function approve(RecurringAllowance calldata recurringAllowance)
+    /// @param spendPermission Details of the recurring allowance.
+    function approveSpendPermission(SpendPermission calldata spendPermission)
         external
-        requireSender(recurringAllowance.account)
+        requireSender(spendPermission.account)
     {
-        _approve(recurringAllowance);
+        _approve(spendPermission);
     }
 
-    /// @notice Revoke a recurring allowance to disable its use indefinitely.
+    /// @notice Revoke a SpendPermission to disable its use indefinitely.
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
-    function revoke(RecurringAllowance calldata recurringAllowance)
+    /// @param spendPermission Details of the recurring allowance.
+    function revokeSpendPermission(SpendPermission calldata spendPermission)
         external
-        requireSender(recurringAllowance.account)
+        requireSender(spendPermission.account)
     {
-        bytes32 hash = getHash(recurringAllowance);
-        _isRevoked[hash][recurringAllowance.account] = true;
-        emit RecurringAllowanceRevoked(hash, recurringAllowance.account, recurringAllowance);
-    }
-
-    /// @notice Withdraw tokens using a recurring allowance and approval signature.
-    ///
-    /// @dev Convenience function for offchain preparation from apps that have an ERC-7715 permissions context.
-    ///
-    /// @param context Flat bytes value representing an approved recurring allowance.
-    /// @param recipient Address to withdraw tokens to.
-    /// @param value Amount of token attempting to withdraw (wei).
-    function withdraw(bytes calldata context, address recipient, uint160 value) external {
-        SignedPermission memory signedPermission = abi.decode(context, (SignedPermission));
-        permit(signedPermission);
-        withdraw(signedPermission.recurringAllowance, recipient, value);
+        bytes32 hash = getHash(spendPermission);
+        _isRevoked[hash][spendPermission.account] = true;
+        emit SpendPermissionRevoked(hash, spendPermission.account, spendPermission);
     }
 
     /// @notice Approve a recurring allowance via a signature from the account.
     ///
-    /// @param signedPermission Signed recurring allowance permission.
-    function permit(SignedPermission memory signedPermission) public {
+    /// @param spendPermission Signed recurring allowance permission.
+    /// @param signature The signature for the given spend permission.
+    function approveSpendPermissionBySignature(SpendPermission calldata spendPermission, bytes calldata signature) public {
         // validate signature over recurring allowance data
         if (
-            IERC1271(signedPermission.recurringAllowance.account).isValidSignature(
-                getHash(signedPermission.recurringAllowance), signedPermission.signature
+            IERC1271(spendPermission.account).isValidSignature(
+                hashStruct(getHash(spendPermission)), signature
             ) != IERC1271.isValidSignature.selector
         ) {
             revert UnauthorizedRecurringAllowance();
         }
 
-        _approve(signedPermission.recurringAllowance);
+        _approve(spendPermission);
     }
 
     /// @notice Withdraw tokens using a recurring allowance.
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param spendPermission Details of the recurring allowance.
     /// @param recipient Address to withdraw tokens to.
-    /// @param value Amount of token attempting to withdraw (wei).
-    function withdraw(RecurringAllowance memory recurringAllowance, address recipient, uint160 value)
+    /// @param value Amount of token attempting to withdraw.
+    function spend(SpendPermission memory spendPermission, address recipient, uint256 value)
         public
-        requireSender(recurringAllowance.spender)
+        requireSender(spendPermission.spender)
     {
-        _useRecurringAllowance(recurringAllowance, value);
-        _transferFrom(recurringAllowance.account, recurringAllowance.token, recipient, value);
+        _useRecurringAllowance(spendPermission, value);
+        _transferFrom(spendPermission.account, spendPermission.token, recipient, value);
     }
 
-    /// @notice Hash a RecurringAllowance struct for signing.
+    /// @notice Hash a SpendPermission struct for consistent identification.
     ///
     /// @dev Prevent phishing permits by making the hash incompatible with EIP-191/712.
     /// @dev Include chainId and contract address in hash for cross-chain and cross-contract replay protection.
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param spendPermission Details of the recurring allowance.
     ///
     /// @return hash Hash of the recurring allowance and replay protection parameters.
-    function getHash(RecurringAllowance memory recurringAllowance) public view returns (bytes32) {
-        return keccak256(abi.encode(recurringAllowance, block.chainid, address(this)));
+    function getHash(SpendPermission memory spendPermission) public pure returns (bytes32) {
+        return keccak256(abi.encode(spendPermission));
     }
 
-    /// @notice Return if recurring allowance is authorized i.e. approved and not revoked.
+    function hashStruct(bytes32 spendPermissionHash) public view returns (bytes32) {
+        return _hashTypedData(keccak256(abi.encode(MESSAGE_TYPEHASH, spendPermissionHash)));
+    }
+
+    /// @notice Return if recurring allowance is approved and has not been revoked.
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param spendPermission Details of the SpendPermission.
     ///
-    /// @return authorized True if recurring allowance is approved and not revoked.
-    function isAuthorized(RecurringAllowance memory recurringAllowance) public view returns (bool) {
-        bytes32 hash = getHash(recurringAllowance);
-        return !_isRevoked[hash][recurringAllowance.account] && _isApproved[hash][recurringAllowance.account];
+    /// @return True if recurring allowance is approved and not revoked.
+    function isApproved(SpendPermission memory spendPermission) public view returns (bool) {
+        bytes32 hash = getHash(spendPermission);
+        return !_isRevoked[hash][spendPermission.account] && _isApproved[hash][spendPermission.account];
     }
 
     /// @notice Get current cycle usage.
@@ -219,27 +206,27 @@ contract SpendPermissions {
     /// @dev Reverts if recurring allowance has not started or has already ended.
     /// @dev Cycle boundaries are at fixed intervals of [start + n * period, start + (n + 1) * period - 1].
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param spendPermission Details of the recurring allowance.
     ///
-    /// @return currentCycle Currently active cycle with spend usage (struct).
-    function getCurrentCycle(RecurringAllowance memory recurringAllowance) public view returns (CycleUsage memory) {
+    /// @return Current period with spend usage (struct).
+    function getCurrentCycle(SpendPermission memory spendPermission) public view returns (PeriodUsage memory) {
         // check current timestamp is within recurring allowance time range
         uint48 currentTimestamp = uint48(block.timestamp);
-        if (currentTimestamp < recurringAllowance.start) {
-            revert BeforeRecurringAllowanceStart(recurringAllowance.start);
-        } else if (currentTimestamp > recurringAllowance.end) {
-            revert AfterRecurringAllowanceEnd(recurringAllowance.end);
+        if (currentTimestamp < spendPermission.start) {
+            revert BeforeRecurringAllowanceStart(spendPermission.start);
+        } else if (currentTimestamp > spendPermission.end) {
+            revert AfterRecurringAllowanceEnd(spendPermission.end);
         }
 
         // return last cycle if still active, otherwise compute new active cycle start time with no spend
-        CycleUsage memory lastUpdatedCycle = _lastUpdatedCycle[getHash(recurringAllowance)][recurringAllowance.account];
+        PeriodUsage memory lastUpdatedCycle = _lastUpdatedCycle[getHash(spendPermission)][spendPermission.account];
 
         // last cycle exists if spend is non-zero
         bool lastCycleExists = lastUpdatedCycle.spend != 0;
 
         // last cycle still active if current timestamp within [start, end - 1] range.
         bool lastCycleStillActive =
-            currentTimestamp < uint256(lastUpdatedCycle.start) + uint256(recurringAllowance.period);
+            currentTimestamp < uint256(lastUpdatedCycle.start) + uint256(spendPermission.period);
 
         if (lastCycleExists && lastCycleStillActive) {
             return lastUpdatedCycle;
@@ -247,62 +234,62 @@ contract SpendPermissions {
             // last active cycle does not exist or is outdated, determine current cycle
 
             // current cycle progress is remainder of time since first recurring cycle mod reset period
-            uint48 currentCycleProgress = (currentTimestamp - recurringAllowance.start) % recurringAllowance.period;
+            uint48 currentCycleProgress = (currentTimestamp - spendPermission.start) % spendPermission.period;
 
             // current cycle start is progress duration before current time
             uint48 start = currentTimestamp - currentCycleProgress;
 
             // current cycle end will overflow if period is sufficiently large
-            bool endOverflow = uint256(start) + uint256(recurringAllowance.period) > type(uint48).max;
+            bool endOverflow = uint256(start) + uint256(spendPermission.period) > type(uint48).max;
 
             // end is one period after start or maximum uint48 if overflow
-            uint48 end = endOverflow ? type(uint48).max : start + recurringAllowance.period;
+            uint48 end = endOverflow ? type(uint48).max : start + spendPermission.period;
 
-            return CycleUsage({start: start, end: end, spend: 0});
+            return PeriodUsage({start: start, end: end, spend: 0});
         }
     }
 
     /// @notice Approve recurring allowance.
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
-    function _approve(RecurringAllowance memory recurringAllowance) internal {
-        bytes32 hash = getHash(recurringAllowance);
-        _isApproved[hash][recurringAllowance.account] = true;
-        emit RecurringAllowanceApproved(hash, recurringAllowance.account, recurringAllowance);
+    /// @param spendPermission Details of the recurring allowance.
+    function _approve(SpendPermission memory spendPermission) internal {
+        bytes32 hash = getHash(spendPermission);
+        _isApproved[hash][spendPermission.account] = true;
+        emit SpendPermissionApproved(hash, spendPermission.account, spendPermission);
     }
 
     /// @notice Use a recurring allowance.
     ///
-    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param spendPermission Details of the recurring allowance.
     /// @param value Amount of token attempting to withdraw (wei).
-    function _useRecurringAllowance(RecurringAllowance memory recurringAllowance, uint256 value) internal {
+    function _useRecurringAllowance(SpendPermission memory spendPermission, uint256 value) internal {
         // early return if no value spent
         if (value == 0) return;
 
         // require recurring allowance is approved and not revoked
-        if (!isAuthorized(recurringAllowance)) revert UnauthorizedRecurringAllowance();
+        if (!isApproved(spendPermission)) revert UnauthorizedRecurringAllowance();
 
-        CycleUsage memory currentCycle = getCurrentCycle(recurringAllowance);
+        PeriodUsage memory currentCycle = getCurrentCycle(spendPermission);
         uint256 totalSpend = value + uint256(currentCycle.spend);
 
         // check total spend value does not overflow max value
         if (totalSpend > type(uint160).max) revert WithdrawValueOverflow(totalSpend);
 
         // check total spend value does not exceed recurring allowance
-        if (totalSpend > recurringAllowance.allowance) {
-            revert ExceededRecurringAllowance(totalSpend, recurringAllowance.allowance);
+        if (totalSpend > spendPermission.amountPerPeriod) {
+            revert ExceededRecurringAllowance(totalSpend, spendPermission.amountPerPeriod);
         }
 
-        bytes32 hash = getHash(recurringAllowance);
+        bytes32 hash = getHash(spendPermission);
 
         // save new withdraw for active cycle
         currentCycle.spend = uint160(totalSpend);
-        _lastUpdatedCycle[hash][recurringAllowance.account] = currentCycle;
-        emit RecurringAllowanceWithdrawn(
+        _lastUpdatedCycle[hash][spendPermission.account] = currentCycle;
+        emit SpendPermissionUsed(
             hash,
-            recurringAllowance.account,
-            recurringAllowance.token,
-            CycleUsage(currentCycle.start, currentCycle.end, uint160(value))
+            spendPermission.account,
+            spendPermission.token,
+            PeriodUsage(currentCycle.start, currentCycle.end, uint160(value))
         );
     }
 
@@ -334,5 +321,10 @@ contract SpendPermissions {
     /// @param data Bytes data to send in call.
     function _execute(address account, address target, uint256 value, bytes memory data) internal virtual {
         CoinbaseSmartWallet(payable(account)).execute({target: target, value: value, data: data});
+    }
+
+    function _domainNameAndVersion() internal view override returns (string memory name, string memory version) {
+        name = "SpendPermissionmanager";
+        version = "1";
     }
 }

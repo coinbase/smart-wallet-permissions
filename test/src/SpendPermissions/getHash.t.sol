@@ -19,7 +19,7 @@ contract GetHashTest is SpendPermissionsBase {
         uint48 end,
         uint48 period,
         uint160 allowance
-    ) public {
+    ) public view {
         SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
             account: account,
             spender: spender,
@@ -29,7 +29,7 @@ contract GetHashTest is SpendPermissionsBase {
             period: period,
             allowance: allowance
         });
-        bytes32 hash = mockSpendPermissions.getHash(recurringAllowance);
+        mockSpendPermissions.getHash(recurringAllowance);
     }
 
     function test_getHash_success_uniqueHashPerChain(

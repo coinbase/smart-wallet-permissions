@@ -55,7 +55,7 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         });
         vm.warp(start);
         SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
-        bool endOverflow = uint256(start) + uint256(period) > type(uint48).max;
+
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, 0);

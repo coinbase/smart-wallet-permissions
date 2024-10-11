@@ -42,7 +42,7 @@ contract IsAuthorizedTest is SpendPermissionsBase {
         uint48 end,
         uint48 period,
         uint160 allowance
-    ) public {
+    ) public view {
         SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
             account: account,
             spender: spender,

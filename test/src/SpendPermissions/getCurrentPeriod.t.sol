@@ -54,7 +54,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.warp(start);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
 
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
@@ -91,7 +91,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
 
         vm.warp(start);
         mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -130,7 +130,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
 
         vm.warp(_safeAddUint48(start, period) - 1);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -169,7 +169,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
 
         vm.warp(_safeAddUint48(start, period));
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, _safeAddUint48(start, period));
         assertEq(usage.end, _safeAddUint48(_safeAddUint48(start, period), period));
         assertEq(usage.spend, 0);
@@ -197,7 +197,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         });
 
         vm.warp(start);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, type(uint48).max);
         assertEq(usage.spend, 0);

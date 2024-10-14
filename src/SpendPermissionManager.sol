@@ -33,7 +33,7 @@ contract SpendPermissionManager is EIP712 {
     }
 
     /// @notice Period parameters and spend usage.
-    struct PeriodUsage {
+    struct PeriodSpend {
         /// @dev Start time of the period (unix seconds).
         uint48 start;
         /// @dev End time of the period (unix seconds).
@@ -47,7 +47,7 @@ contract SpendPermissionManager is EIP712 {
     );
 
     /// @notice ERC-7528 address convention for ether (https://eips.ethereum.org/EIPS/eip-7528).
-    address public constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice Spend permission is revoked.
     mapping(bytes32 hash => mapping(address account => bool revoked)) internal _isRevoked;
@@ -56,7 +56,7 @@ contract SpendPermissionManager is EIP712 {
     mapping(bytes32 hash => mapping(address account => bool approved)) internal _isApproved;
 
     /// @notice Last updated period for a spend permission.
-    mapping(bytes32 hash => mapping(address account => PeriodUsage)) internal _lastUpdatedPeriod;
+    mapping(bytes32 hash => mapping(address account => PeriodSpend)) internal _lastUpdatedPeriod;
 
     /// @notice Invalid sender for the external call.
     ///
@@ -76,10 +76,10 @@ contract SpendPermissionManager is EIP712 {
     /// @param end Timestamp this spend permission is valid until (unix seconds).
     error AfterSpendPermissionEnd(uint48 end);
 
-    /// @notice Withdraw value exceeds max size of uint160.
+    /// @notice Spend value exceeds max size of uint160.
     ///
     /// @param value Spend value that triggered overflow.
-    error WithdrawValueOverflow(uint256 value);
+    error SpendValueOverflow(uint256 value);
 
     /// @notice Spend value exceeds spend permission.
     ///
@@ -108,7 +108,7 @@ contract SpendPermissionManager is EIP712 {
     /// @param token Account that spent native token via a spend permission.
     /// @param newUsage Start and end of the current period with new spend usage (struct).
     event SpendPermissionUsed(
-        bytes32 indexed hash, address indexed account, address indexed token, PeriodUsage newUsage
+        bytes32 indexed hash, address indexed account, address indexed token, PeriodSpend newUsage
     );
 
     /// @notice Require a specific sender for an external call,
@@ -179,7 +179,7 @@ contract SpendPermissionManager is EIP712 {
     ///
     /// @param spendPermission Details of the spend permission.
     ///
-    /// @return authorized True if spend permission is approved and not revoked.
+    /// @return approved True if spend permission is approved and not revoked.
     function isApproved(SpendPermission memory spendPermission) public view returns (bool) {
         bytes32 hash = getHash(spendPermission);
         return !_isRevoked[hash][spendPermission.account] && _isApproved[hash][spendPermission.account];
@@ -193,7 +193,7 @@ contract SpendPermissionManager is EIP712 {
     /// @param spendPermission Details of the spend permission.
     ///
     /// @return currentPeriod Currently active period with spend usage (struct).
-    function getCurrentPeriod(SpendPermission memory spendPermission) public view returns (PeriodUsage memory) {
+    function getCurrentPeriod(SpendPermission memory spendPermission) public view returns (PeriodSpend memory) {
         // check current timestamp is within spend permission time range
         uint48 currentTimestamp = uint48(block.timestamp);
         if (currentTimestamp < spendPermission.start) {
@@ -203,7 +203,7 @@ contract SpendPermissionManager is EIP712 {
         }
 
         // return last period if still active, otherwise compute new active period start time with no spend
-        PeriodUsage memory lastUpdatedPeriod = _lastUpdatedPeriod[getHash(spendPermission)][spendPermission.account];
+        PeriodSpend memory lastUpdatedPeriod = _lastUpdatedPeriod[getHash(spendPermission)][spendPermission.account];
 
         // last period exists if spend is non-zero
         bool lastPeriodExists = lastUpdatedPeriod.spend != 0;
@@ -229,7 +229,7 @@ contract SpendPermissionManager is EIP712 {
             // end is one period after start or maximum uint48 if overflow
             uint48 end = endOverflow ? type(uint48).max : start + spendPermission.period;
 
-            return PeriodUsage({start: start, end: end, spend: 0});
+            return PeriodSpend({start: start, end: end, spend: 0});
         }
     }
 
@@ -253,11 +253,11 @@ contract SpendPermissionManager is EIP712 {
         // require spend permission is approved and not revoked
         if (!isApproved(spendPermission)) revert UnauthorizedSpendPermission();
 
-        PeriodUsage memory currentPeriod = getCurrentPeriod(spendPermission);
+        PeriodSpend memory currentPeriod = getCurrentPeriod(spendPermission);
         uint256 totalSpend = value + uint256(currentPeriod.spend);
 
         // check total spend value does not overflow max value
-        if (totalSpend > type(uint160).max) revert WithdrawValueOverflow(totalSpend);
+        if (totalSpend > type(uint160).max) revert SpendValueOverflow(totalSpend);
 
         // check total spend value does not exceed spend permission
         if (totalSpend > spendPermission.allowance) {
@@ -273,7 +273,7 @@ contract SpendPermissionManager is EIP712 {
             hash,
             spendPermission.account,
             spendPermission.token,
-            PeriodUsage(currentPeriod.start, currentPeriod.end, uint160(value))
+            PeriodSpend(currentPeriod.start, currentPeriod.end, uint160(value))
         );
     }
 
@@ -285,7 +285,7 @@ contract SpendPermissionManager is EIP712 {
     /// @param value Amount of tokens to transfer.
     function _transferFrom(address account, address token, address recipient, uint256 value) internal {
         // transfer tokens from account to recipient
-        if (token == ETHER) {
+        if (token == NATIVE_TOKEN) {
             _execute({account: account, target: recipient, value: value, data: hex""});
         } else {
             _execute({

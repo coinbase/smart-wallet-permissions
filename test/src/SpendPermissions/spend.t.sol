@@ -130,7 +130,7 @@ contract WithdrawTest is SpendPermissionManagerBase {
 
         assertEq(address(account).balance, allowance - spend);
         assertEq(recipient.balance, spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -175,7 +175,7 @@ contract WithdrawTest is SpendPermissionManagerBase {
         mockSpendPermissionManager.spend(spendPermission, recipient, spend);
         assertEq(address(account).balance, allowance - spend);
         assertEq(recipient.balance, spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -218,7 +218,7 @@ contract WithdrawTest is SpendPermissionManagerBase {
         mockSpendPermissionManager.spend(spendPermission, recipient, spend);
         assertEq(mockERC20.balanceOf(address(account)), allowance - spend);
         assertEq(mockERC20.balanceOf(recipient), spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);

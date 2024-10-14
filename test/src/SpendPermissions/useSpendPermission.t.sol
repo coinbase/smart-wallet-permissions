@@ -195,7 +195,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
             hash: mockSpendPermissionManager.getHash(spendPermission),
             account: account,
             token: ETHER,
-            newUsage: SpendPermissionManager.PeriodUsage({start: start, end: _safeAddUint48(start, period), spend: spend})
+            newUsage: SpendPermissionManager.PeriodSpend({start: start, end: _safeAddUint48(start, period), spend: spend})
         });
         mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
     }
@@ -231,7 +231,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
         mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -265,7 +265,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
         mockSpendPermissionManager.useSpendPermission(spendPermission, allowance); // spend full allowance
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, allowance);
@@ -306,7 +306,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         for (uint256 i; i < numberOfSpends; i++) {
             mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
             expectedTotalSpend += spend;
-            SpendPermissionManager.PeriodUsage memory usage =
+            SpendPermissionManager.PeriodSpend memory usage =
                 mockSpendPermissionManager.getCurrentPeriod(spendPermission);
             assertEq(usage.start, start);
             assertEq(usage.end, _safeAddUint48(start, period));

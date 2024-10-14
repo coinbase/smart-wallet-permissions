@@ -87,6 +87,11 @@ contract SpendPermissionManager is EIP712 {
     /// @param allowance Allowance value that was exceeded.
     error ExceededSpendPermission(uint256 value, uint256 allowance);
 
+    /// @notice ERC-20 token transfer call did not result in expected value transfer;
+    ///
+    /// @param token ERC-20 contract address.
+    error InvalidERC20Transfer(address token);
+
     /// @notice SpendPermission was approved via transaction.
     ///
     /// @param hash The unique hash representing the spend permission.
@@ -153,7 +158,7 @@ contract SpendPermissionManager is EIP712 {
         _approve(spendPermission);
     }
 
-    /// @notice Withdraw tokens using a spend permission.
+    /// @notice Spend tokens using a permission.
     ///
     /// @param spendPermission Details of the spend permission.
     /// @param recipient Address to spend tokens to.
@@ -164,6 +169,19 @@ contract SpendPermissionManager is EIP712 {
     {
         _useSpendPermission(spendPermission, value);
         _transferFrom(spendPermission.account, spendPermission.token, recipient, value);
+    }
+
+    /// @notice Spend tokens using a permission and confirm valid balance change.
+    ///
+    /// @param spendPermission Details of the spend permission.
+    /// @param recipient Address to spend tokens to.
+    /// @param value Amount of token attempting to spend (wei).
+    function safeSpend(SpendPermission memory spendPermission, address recipient, uint160 value)
+        public
+        requireSender(spendPermission.spender)
+    {
+        _useSpendPermission(spendPermission, value);
+        _safeTransferFrom(spendPermission.account, spendPermission.token, recipient, value);
     }
 
     /// @notice Hash a SpendPermission struct for signing in accordance with EIP-191/712.
@@ -275,6 +293,32 @@ contract SpendPermissionManager is EIP712 {
             spendPermission.token,
             PeriodSpend(currentPeriod.start, currentPeriod.end, uint160(value))
         );
+    }
+
+    /// @notice Transfer assets from an account to a recipient with additional check to mitigate ERC20s not reverting.
+    ///
+    /// @dev Some ERC-20s like USDT do not revert on transfer failure. This combined with `CoinbaseSmartWallet.execute`
+    ///      not returning return data removes our ability to detect if these kinds of ERC-20s did indeed spend tokens,
+    ///      so we manually check the balances before and after to assert that our accounting is correct.
+    ///
+    /// @param account Address of the user account.
+    /// @param token Address of the token contract.
+    /// @param recipient Address of the token recipient.
+    /// @param value Amount of tokens to transfer.
+    function _safeTransferFrom(address account, address token, address recipient, uint256 value) internal {
+        // if native token, transfer and early return
+        if (token == NATIVE_TOKEN) {
+            _transferFrom(account, token, recipient, value);
+            return;
+        }
+
+        // read balance of `account` before and after token transfer
+        uint256 balanceBefore = IERC20(token).balanceOf(account);
+        _transferFrom(account, token, recipient, value);
+        uint256 balanceAfter = IERC20(token).balanceOf(account);
+
+        // check balance after is less than balance before and difference matches value transferred
+        if (balanceAfter > balanceBefore) revert InvalidERC20Transfer(token);
     }
 
     /// @notice Transfer assets from an account to a recipient.

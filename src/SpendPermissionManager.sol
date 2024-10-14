@@ -198,7 +198,7 @@ contract SpendPermissionManager is EIP712 {
         uint48 currentTimestamp = uint48(block.timestamp);
         if (currentTimestamp < spendPermission.start) {
             revert BeforeSpendPermissionStart(spendPermission.start);
-        } else if (currentTimestamp > spendPermission.end) {
+        } else if (currentTimestamp >= spendPermission.end) {
             revert AfterSpendPermissionEnd(spendPermission.end);
         }
 

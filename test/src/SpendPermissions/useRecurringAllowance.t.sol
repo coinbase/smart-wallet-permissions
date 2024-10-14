@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract UseRecurringAllowanceTest is SpendPermissionsBase {
+contract UseRecurringAllowanceTest is SpendPermissionManagerBase {
     function setUp() public {
         _initializeSpendPermissions();
     }
@@ -26,7 +26,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         vm.assume(spend > 0); // spend of 0 would be caught as unauthorized in permit version of `withdraw`, caller of
             // `useRecurringAllowance`
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -36,7 +36,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
             allowance: allowance
         });
 
-        vm.expectRevert(SpendPermissions.UnauthorizedRecurringAllowance.selector);
+        vm.expectRevert(SpendPermissionManager.UnauthorizedRecurringAllowance.selector);
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
     }
 
@@ -56,7 +56,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
 
         uint256 spend = uint256(type(uint160).max) + 1; // spend as a fuzz param with assumption spend > type(160).max
             // rejects too many inputs
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -69,7 +69,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         mockSpendPermissions.approve(recurringAllowance);
         vm.warp(start);
 
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissions.WithdrawValueOverflow.selector, spend));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.WithdrawValueOverflow.selector, spend));
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
     }
 
@@ -89,7 +89,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         vm.assume(allowance > 0);
         vm.assume(spend > allowance);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -102,7 +102,9 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         mockSpendPermissions.approve(recurringAllowance);
         vm.warp(start);
 
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissions.ExceededRecurringAllowance.selector, spend, allowance));
+        vm.expectRevert(
+            abi.encodeWithSelector(SpendPermissionManager.ExceededRecurringAllowance.selector, spend, allowance)
+        );
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
     }
 
@@ -125,7 +127,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         vm.assume(secondSpend > allowance - firstSpend);
         vm.assume(secondSpend < type(uint160).max - firstSpend);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -143,7 +145,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         // exceed the allowance with the second spend
         vm.expectRevert(
             abi.encodeWithSelector(
-                SpendPermissions.ExceededRecurringAllowance.selector,
+                SpendPermissionManager.ExceededRecurringAllowance.selector,
                 _safeAddUint160(firstSpend, secondSpend),
                 allowance
             )
@@ -152,7 +154,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
     }
 
     function test_useRecurringAllowance_success_noSpend() public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
+        SpendPermissionManager.SpendPermission memory recurringAllowance = _createRecurringAllowance();
         vm.prank(recurringAllowance.account);
         mockSpendPermissions.approve(recurringAllowance);
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, 0);
@@ -175,7 +177,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         vm.assume(spend > 0);
         vm.assume(spend < allowance);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -189,11 +191,11 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         mockSpendPermissions.approve(recurringAllowance);
         vm.warp(start);
         vm.expectEmit(address(mockSpendPermissions));
-        emit SpendPermissions.RecurringAllowanceWithdrawn({
+        emit SpendPermissionManager.RecurringAllowanceWithdrawn({
             hash: mockSpendPermissions.getHash(recurringAllowance),
             account: account,
             token: ETHER,
-            newUsage: SpendPermissions.CycleUsage({start: start, end: _safeAddUint48(start, period), spend: spend})
+            newUsage: SpendPermissionManager.CycleUsage({start: start, end: _safeAddUint48(start, period), spend: spend})
         });
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
     }
@@ -215,7 +217,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         vm.assume(spend > 0);
         vm.assume(spend < allowance);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -229,7 +231,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         mockSpendPermissions.approve(recurringAllowance);
         vm.warp(start);
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
-        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        SpendPermissionManager.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -249,7 +251,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         vm.assume(period > 0);
         vm.assume(allowance > 0);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -263,7 +265,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         mockSpendPermissions.approve(recurringAllowance);
         vm.warp(start);
         mockSpendPermissions.useRecurringAllowance(recurringAllowance, allowance); // spend full allowance
-        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        SpendPermissionManager.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, allowance);
@@ -287,7 +289,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
 
         uint160 spend = allowance / numberOfSpends;
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -304,7 +306,7 @@ contract UseRecurringAllowanceTest is SpendPermissionsBase {
         for (uint256 i; i < numberOfSpends; i++) {
             mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
             expectedTotalSpend += spend;
-            SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+            SpendPermissionManager.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
             assertEq(usage.start, start);
             assertEq(usage.end, _safeAddUint48(start, period));
             assertEq(usage.spend, expectedTotalSpend);

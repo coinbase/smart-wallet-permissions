@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract ApproveTest is SpendPermissionsBase {
+contract ApproveTest is SpendPermissionManagerBase {
     function setUp() public {
         _initializeSpendPermissions();
     }
@@ -22,7 +22,7 @@ contract ApproveTest is SpendPermissionsBase {
         vm.assume(sender != address(0));
         vm.assume(sender != account);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -32,7 +32,7 @@ contract ApproveTest is SpendPermissionsBase {
             allowance: allowance
         });
         vm.startPrank(sender);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissions.InvalidSender.selector, account));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, account));
         mockSpendPermissions.approve(recurringAllowance);
         vm.stopPrank();
     }
@@ -45,7 +45,7 @@ contract ApproveTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -67,7 +67,7 @@ contract ApproveTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
             token: ETHER,
@@ -78,7 +78,7 @@ contract ApproveTest is SpendPermissionsBase {
         });
         vm.startPrank(account);
         vm.expectEmit(address(mockSpendPermissions));
-        emit SpendPermissions.RecurringAllowanceApproved({
+        emit SpendPermissionManager.RecurringAllowanceApproved({
             hash: mockSpendPermissions.getHash(recurringAllowance),
             account: account,
             recurringAllowance: recurringAllowance

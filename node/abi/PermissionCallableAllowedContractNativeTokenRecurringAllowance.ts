@@ -22,7 +22,7 @@ export const permissionContractAbi = [
       {
         name: "recurringAllowance",
         type: "tuple",
-        internalType: "struct NativeTokenRecurringAllowance.RecurringAllowance",
+        internalType: "struct NativeTokenRecurringAllowance.SpendPermission",
         components: [
           { name: "start", type: "uint48", internalType: "uint48" },
           { name: "period", type: "uint48", internalType: "uint48" },
@@ -148,7 +148,7 @@ export const permissionContractAbi = [
         name: "recurringAllowance",
         type: "tuple",
         indexed: false,
-        internalType: "struct NativeTokenRecurringAllowance.RecurringAllowance",
+        internalType: "struct NativeTokenRecurringAllowance.SpendPermission",
         components: [
           { name: "start", type: "uint48", internalType: "uint48" },
           { name: "period", type: "uint48", internalType: "uint48" },

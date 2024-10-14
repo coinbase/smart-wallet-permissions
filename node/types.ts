@@ -18,14 +18,14 @@ export type Call = {
   data: Hex;
 };
 
-export type RecurringAllowance = {
+export type SpendPermission = {
   start: number; // unix seconds
   period: number; // seconds
   allowance: bigint;
 };
 
 export type PermissionValues = {
-  recurringAllowance: RecurringAllowance;
+  recurringAllowance: SpendPermission;
   allowedContract: Address;
 };
 
@@ -48,7 +48,7 @@ export const permissionStruct = {
 export const recurringAllowanceStruct = {
   name: "recurringAllowance",
   type: "tuple",
-  internalType: "struct RecurringAllowance",
+  internalType: "struct SpendPermission",
   components: [
     { name: "start", type: "uint48", internalType: "uint48" },
     { name: "period", type: "uint48", internalType: "uint48" },

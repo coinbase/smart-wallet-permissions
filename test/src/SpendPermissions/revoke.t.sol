@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract RevokeTest is SpendPermissionsBase {
+contract RevokeTest is SpendPermissionManagerBase {
     function setUp() public {
         _initializeSpendPermissions();
     }
@@ -22,7 +22,7 @@ contract RevokeTest is SpendPermissionsBase {
     ) public {
         vm.assume(sender != address(0));
         vm.assume(sender != account);
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -35,7 +35,7 @@ contract RevokeTest is SpendPermissionsBase {
         mockSpendPermissions.approve(recurringAllowance);
         assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
         vm.startPrank(sender);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissions.InvalidSender.selector, account));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, account));
         mockSpendPermissions.revoke(recurringAllowance);
         vm.stopPrank();
     }
@@ -49,7 +49,7 @@ contract RevokeTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -74,7 +74,7 @@ contract RevokeTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -87,7 +87,7 @@ contract RevokeTest is SpendPermissionsBase {
         mockSpendPermissions.approve(recurringAllowance);
         assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
         vm.expectEmit(address(mockSpendPermissions));
-        emit SpendPermissions.RecurringAllowanceRevoked({
+        emit SpendPermissionManager.RecurringAllowanceRevoked({
             hash: mockSpendPermissions.getHash(recurringAllowance),
             account: account,
             recurringAllowance: recurringAllowance

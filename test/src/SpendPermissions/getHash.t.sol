@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 import {MockSpendPermissions} from "../../mocks/MockSpendPermissions.sol";
 
-contract GetHashTest is SpendPermissionsBase {
+contract GetHashTest is SpendPermissionManagerBase {
     function setUp() public {
         _initializeSpendPermissions();
     }
@@ -20,7 +20,7 @@ contract GetHashTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public view {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -46,7 +46,7 @@ contract GetHashTest is SpendPermissionsBase {
         vm.assume(chainId1 != chainId2);
         vm.assume(chainId1 > 0);
         vm.assume(chainId2 > 0);
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -71,7 +71,7 @@ contract GetHashTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../src/SpendPermissionManager.sol";
 import {MockSpendPermissions} from "../mocks/MockSpendPermissions.sol";
 import {Base} from "./Base.sol";
 
-contract SpendPermissionsBase is Base {
+contract SpendPermissionManagerBase is Base {
     address constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     MockSpendPermissions mockSpendPermissions;
@@ -16,10 +16,10 @@ contract SpendPermissionsBase is Base {
     }
 
     /**
-     * @dev Helper function to create a SpendPermissions.RecurringAllowance struct with happy path defaults
+     * @dev Helper function to create a SpendPermissionManager.SpendPermission struct with happy path defaults
      */
-    function _createRecurringAllowance() internal view returns (SpendPermissions.RecurringAllowance memory) {
-        return SpendPermissions.RecurringAllowance({
+    function _createRecurringAllowance() internal view returns (SpendPermissionManager.SpendPermission memory) {
+        return SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
             token: ETHER,
@@ -31,15 +31,18 @@ contract SpendPermissionsBase is Base {
     }
 
     function _createSignedPermission(
-        SpendPermissions.RecurringAllowance memory recurringAllowance,
+        SpendPermissionManager.SpendPermission memory recurringAllowance,
         uint256 ownerPk,
         uint256 ownerIndex
-    ) internal view returns (SpendPermissions.SignedPermission memory) {
+    ) internal view returns (SpendPermissionManager.SignedPermission memory) {
         bytes32 recurringAllowanceHash = mockSpendPermissions.getHash(recurringAllowance);
         bytes32 replaySafeHash = account.replaySafeHash(recurringAllowanceHash);
         bytes memory signature = _sign(ownerPk, replaySafeHash);
         bytes memory wrappedSignature = _applySignatureWrapper(ownerIndex, signature);
-        return SpendPermissions.SignedPermission({recurringAllowance: recurringAllowance, signature: wrappedSignature});
+        return SpendPermissionManager.SignedPermission({
+            recurringAllowance: recurringAllowance,
+            signature: wrappedSignature
+        });
     }
 
     function _safeAddUint48(uint48 a, uint48 b) internal pure returns (uint48 c) {

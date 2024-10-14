@@ -23,7 +23,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         vm.assume(end > 0);
         vm.assume(period > 0);
         vm.assume(allowance > 0);
-        vm.assume(spend > 0); // spend of 0 would be caught as unauthorized in permit version of `withdraw`, caller of
+        vm.assume(spend > 0); // spend of 0 would be caught as unauthorized in permit version of `spend`, caller of
             // `useSpendPermission`
 
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
@@ -191,11 +191,11 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         mockSpendPermissions.approve(spendPermission);
         vm.warp(start);
         vm.expectEmit(address(mockSpendPermissions));
-        emit SpendPermissionManager.SpendPermissionWithdrawn({
+        emit SpendPermissionManager.SpendPermissionUsed({
             hash: mockSpendPermissions.getHash(spendPermission),
             account: account,
             token: ETHER,
-            newUsage: SpendPermissionManager.CycleUsage({start: start, end: _safeAddUint48(start, period), spend: spend})
+            newUsage: SpendPermissionManager.PeriodUsage({start: start, end: _safeAddUint48(start, period), spend: spend})
         });
         mockSpendPermissions.useSpendPermission(spendPermission, spend);
     }
@@ -231,7 +231,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         mockSpendPermissions.approve(spendPermission);
         vm.warp(start);
         mockSpendPermissions.useSpendPermission(spendPermission, spend);
-        SpendPermissionManager.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -265,7 +265,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         mockSpendPermissions.approve(spendPermission);
         vm.warp(start);
         mockSpendPermissions.useSpendPermission(spendPermission, allowance); // spend full allowance
-        SpendPermissionManager.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, allowance);
@@ -306,7 +306,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         for (uint256 i; i < numberOfSpends; i++) {
             mockSpendPermissions.useSpendPermission(spendPermission, spend);
             expectedTotalSpend += spend;
-            SpendPermissionManager.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+            SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentPeriod(spendPermission);
             assertEq(usage.start, start);
             assertEq(usage.end, _safeAddUint48(start, period));
             assertEq(usage.spend, expectedTotalSpend);

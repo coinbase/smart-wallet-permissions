@@ -41,9 +41,9 @@ export const permissionContractAbi = [
     ],
     outputs: [
       {
-        name: "cycleUsage",
+        name: "periodUsage",
         type: "tuple",
-        internalType: "struct NativeTokenSpendPermission.CycleUsage",
+        internalType: "struct NativeTokenSpendPermission.PeriodUsage",
         components: [
           { name: "start", type: "uint48", internalType: "uint48" },
           { name: "end", type: "uint48", internalType: "uint48" },

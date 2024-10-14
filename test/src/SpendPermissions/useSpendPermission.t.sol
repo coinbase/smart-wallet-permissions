@@ -69,7 +69,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
 
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.WithdrawValueOverflow.selector, spend));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.SpendValueOverflow.selector, spend));
         mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
     }
 

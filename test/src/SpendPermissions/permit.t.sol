@@ -33,10 +33,9 @@ contract PermitTest is SpendPermissionsBase {
             allowance: allowance
         });
 
-        SpendPermissions.SignedPermission memory invalidSignedPermission =
-            _createSignedPermission(recurringAllowance, invalidPk, 0);
+        bytes memory invalidSignature = _signRecurringAllowance(recurringAllowance, invalidPk, 0);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissions.UnauthorizedRecurringAllowance.selector));
-        mockSpendPermissions.permit(invalidSignedPermission);
+        mockSpendPermissions.permit(recurringAllowance, invalidSignature);
     }
 
     function test_permit_success_isAuthorized(
@@ -57,9 +56,8 @@ contract PermitTest is SpendPermissionsBase {
             allowance: allowance
         });
 
-        SpendPermissions.SignedPermission memory signedPermission =
-            _createSignedPermission(recurringAllowance, ownerPk, 0);
-        mockSpendPermissions.permit(signedPermission);
+        bytes memory signature = _signRecurringAllowance(recurringAllowance, ownerPk, 0);
+        mockSpendPermissions.permit(recurringAllowance, signature);
         vm.assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
     }
 
@@ -81,14 +79,13 @@ contract PermitTest is SpendPermissionsBase {
             allowance: allowance
         });
 
-        SpendPermissions.SignedPermission memory signedPermission =
-            _createSignedPermission(recurringAllowance, ownerPk, 0);
+        bytes memory signature = _signRecurringAllowance(recurringAllowance, ownerPk, 0);
         vm.expectEmit(address(mockSpendPermissions));
         emit SpendPermissions.RecurringAllowanceApproved({
             hash: mockSpendPermissions.getHash(recurringAllowance),
             account: address(account),
             recurringAllowance: recurringAllowance
         });
-        mockSpendPermissions.permit(signedPermission);
+        mockSpendPermissions.permit(recurringAllowance, signature);
     }
 }

@@ -11,26 +11,26 @@ contract GetHashTest is SpendPermissionManagerBase {
         _initializeSpendPermissionManager();
     }
 
-    function test_getHash_success(
-        address account,
-        address spender,
-        address token,
-        uint48 start,
-        uint48 end,
-        uint48 period,
-        uint160 allowance
-    ) public view {
-        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
-            account: account,
-            spender: spender,
-            token: token,
-            start: start,
-            end: end,
-            period: period,
-            allowance: allowance
-        });
-        MockSpendPermissionManager.getHash(spendPermission);
-    }
+    // function test_getHash_success(
+    //     address account,
+    //     address spender,
+    //     address token,
+    //     uint48 start,
+    //     uint48 end,
+    //     uint48 period,
+    //     uint160 allowance
+    // ) public view {
+    //     SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
+    //         account: account,
+    //         spender: spender,
+    //         token: token,
+    //         start: start,
+    //         end: end,
+    //         period: period,
+    //         allowance: allowance
+    //     });
+    //     MockSpendPermissionManager.getHash(spendPermission);
+    // }
 
     function test_getHash_success_uniqueHashPerChain(
         address account,

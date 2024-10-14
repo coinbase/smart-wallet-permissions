@@ -53,7 +53,7 @@ contract WithdrawTest is SpendPermissionManagerBase {
     }
 
     // permit-required overload of `spend`
-    function test_withdraw_revert_unauthorizedRecurringAllowance(
+    function test_withdraw_revert_unauthorizedSpendPermission(
         uint128 invalidPk,
         address permissionSigner,
         address recipient,
@@ -83,7 +83,7 @@ contract WithdrawTest is SpendPermissionManagerBase {
 
         vm.warp(start);
         vm.startPrank(permissionSigner);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedRecurringAllowance.selector));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedSpendPermission.selector));
         mockSpendPermissionManager.spend(spendPermission, recipient, spend);
         vm.stopPrank();
     }

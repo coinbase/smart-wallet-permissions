@@ -107,7 +107,7 @@ contract SpendPermissionManager is EIP712 {
     /// @param account Account that spent native token via a spend permission.
     /// @param token Account that spent native token via a spend permission.
     /// @param newUsage Start and end of the current period with new spend usage (struct).
-    event SpendPermissionWithdrawn(
+    event SpendPermissionUsed(
         bytes32 indexed hash, address indexed account, address indexed token, PeriodUsage newUsage
     );
 
@@ -269,7 +269,7 @@ contract SpendPermissionManager is EIP712 {
         // save new spend for active period
         currentPeriod.spend = uint160(totalSpend);
         _lastUpdatedPeriod[hash][spendPermission.account] = currentPeriod;
-        emit SpendPermissionWithdrawn(
+        emit SpendPermissionUsed(
             hash,
             spendPermission.account,
             spendPermission.token,

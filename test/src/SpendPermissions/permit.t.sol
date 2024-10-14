@@ -12,7 +12,7 @@ contract PermitTest is SpendPermissionManagerBase {
         account.addOwnerAddress(address(mockSpendPermissionManager));
     }
 
-    function test_permit_revert_unauthorizedRecurringAllowance(
+    function test_permit_revert_unauthorizedSpendPermission(
         uint128 invalidPk,
         address spender,
         address token,
@@ -34,7 +34,7 @@ contract PermitTest is SpendPermissionManagerBase {
         });
 
         bytes memory invalidSignature = _signSpendPermission(spendPermission, invalidPk, 0);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedRecurringAllowance.selector));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedSpendPermission.selector));
         mockSpendPermissionManager.permit(spendPermission, invalidSignature);
     }
 
@@ -81,7 +81,7 @@ contract PermitTest is SpendPermissionManagerBase {
 
         bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
         vm.expectEmit(address(mockSpendPermissionManager));
-        emit SpendPermissionManager.RecurringAllowanceApproved({
+        emit SpendPermissionManager.SpendPermissionApproved({
             hash: mockSpendPermissionManager.getHash(spendPermission),
             account: address(account),
             spendPermission: spendPermission

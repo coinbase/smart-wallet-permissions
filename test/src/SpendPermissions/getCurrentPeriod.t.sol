@@ -47,7 +47,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -79,7 +79,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -116,7 +116,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -155,7 +155,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -189,7 +189,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: type(uint48).max,
             period: period,

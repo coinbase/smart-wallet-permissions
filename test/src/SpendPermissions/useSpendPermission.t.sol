@@ -29,7 +29,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -59,7 +59,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -92,7 +92,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -130,7 +130,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -180,7 +180,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -194,7 +194,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         emit SpendPermissionManager.SpendPermissionUsed({
             hash: mockSpendPermissionManager.getHash(spendPermission),
             account: account,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             newUsage: SpendPermissionManager.PeriodSpend({start: start, end: _safeAddUint48(start, period), spend: spend})
         });
         mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
@@ -220,7 +220,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -254,7 +254,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -292,7 +292,7 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,

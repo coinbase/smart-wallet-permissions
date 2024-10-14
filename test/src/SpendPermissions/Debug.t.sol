@@ -8,7 +8,7 @@ import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 import {Base} from "../../base/Base.sol";
 
 contract DebugTest is Test, Base {
-    address public constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     SpendPermissionManager spendPermissionManager;
 
@@ -44,7 +44,7 @@ contract DebugTest is Test, Base {
         return SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: owner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: 0,
             end: 1758791693, // 1 year from now
             period: 86400, // 1 day

@@ -6,7 +6,7 @@ import {MockSpendPermissionManager} from "../mocks/MockSpendPermissionManager.so
 import {Base} from "./Base.sol";
 
 contract SpendPermissionManagerBase is Base {
-    address constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     MockSpendPermissionManager mockSpendPermissionManager;
 
@@ -22,7 +22,7 @@ contract SpendPermissionManagerBase is Base {
         return SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: uint48(vm.getBlockTimestamp()),
             end: type(uint48).max,
             period: 604800,

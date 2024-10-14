@@ -11,12 +11,12 @@ contract WithdrawTest is SpendPermissionManagerBase {
     MockERC20 mockERC20 = new MockERC20("mockERC20", "TEST", 18);
 
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
         vm.prank(owner);
-        account.addOwnerAddress(address(mockSpendPermissions));
+        account.addOwnerAddress(address(mockSpendPermissionManager));
     }
 
-    // non-permit, pre-approved overload of `withdraw`
+    // non-permit, pre-approved overload of `spend`
     function test_withdraw_revert_invalidSender(
         address sender,
         address account,
@@ -45,15 +45,15 @@ contract WithdrawTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.startPrank(sender);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, permissionSigner));
-        mockSpendPermissions.withdraw(spendPermission, recipient, spend);
+        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
         vm.stopPrank();
     }
 
-    // permit-required overload of `withdraw`
-    function test_withdraw_revert_unauthorizedSpendPermission(
+    // permit-required overload of `spend`
+    function test_withdraw_revert_unauthorizedRecurringAllowance(
         uint128 invalidPk,
         address permissionSigner,
         address recipient,
@@ -80,15 +80,11 @@ contract WithdrawTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
-        SpendPermissionManager.SignedPermission memory invalidSignedPermission =
-            _createSignedPermission(spendPermission, invalidPk, 0);
-        bytes memory context = abi.encode(invalidSignedPermission);
 
         vm.warp(start);
-
         vm.startPrank(permissionSigner);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedSpendPermission.selector));
-        mockSpendPermissions.withdraw(context, recipient, spend);
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedRecurringAllowance.selector));
+        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
         vm.stopPrank();
     }
 
@@ -124,18 +120,17 @@ contract WithdrawTest is SpendPermissionManagerBase {
         assertEq(address(account).balance, allowance);
         assertEq(recipient.balance, 0);
 
-        SpendPermissionManager.SignedPermission memory signedPermission =
-            _createSignedPermission(spendPermission, ownerPk, 0);
-        bytes memory context = abi.encode(signedPermission);
+        bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
 
         vm.warp(start);
 
-        vm.prank(permissionSigner);
-        mockSpendPermissions.withdraw(context, recipient, spend);
+        vm.startPrank(permissionSigner);
+        mockSpendPermissionManager.permit(spendPermission, signature);
+        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
 
         assertEq(address(account).balance, allowance - spend);
         assertEq(recipient.balance, spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -171,16 +166,16 @@ contract WithdrawTest is SpendPermissionManagerBase {
         vm.deal(address(account), allowance);
         vm.deal(recipient, 0);
         vm.prank(address(account));
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
 
         assertEq(address(account).balance, allowance);
         assertEq(recipient.balance, 0);
         vm.prank(permissionSigner);
-        mockSpendPermissions.withdraw(spendPermission, recipient, spend);
+        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
         assertEq(address(account).balance, allowance - spend);
         assertEq(recipient.balance, spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -214,16 +209,16 @@ contract WithdrawTest is SpendPermissionManagerBase {
         });
         mockERC20.mint(address(account), allowance);
         vm.prank(address(account));
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
 
         assertEq(mockERC20.balanceOf(address(account)), allowance);
         assertEq(mockERC20.balanceOf(recipient), 0);
         vm.prank(permissionSigner);
-        mockSpendPermissions.withdraw(spendPermission, recipient, spend);
+        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
         assertEq(mockERC20.balanceOf(address(account)), allowance - spend);
         assertEq(mockERC20.balanceOf(recipient), spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);

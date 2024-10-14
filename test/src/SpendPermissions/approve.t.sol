@@ -7,7 +7,7 @@ import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.
 
 contract ApproveTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
     function test_approve_revert_invalidSender(
@@ -33,7 +33,7 @@ contract ApproveTest is SpendPermissionManagerBase {
         });
         vm.startPrank(sender);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, account));
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.stopPrank();
     }
 
@@ -55,8 +55,8 @@ contract ApproveTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(spendPermission));
+        mockSpendPermissionManager.approve(spendPermission);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
     function test_approve_success_emitsEvent(
@@ -77,12 +77,12 @@ contract ApproveTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.startPrank(account);
-        vm.expectEmit(address(mockSpendPermissions));
+        vm.expectEmit(address(mockSpendPermissionManager));
         emit SpendPermissionManager.SpendPermissionApproved({
-            hash: mockSpendPermissions.getHash(spendPermission),
+            hash: mockSpendPermissionManager.getHash(spendPermission),
             account: account,
             spendPermission: spendPermission
         });
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
     }
 }

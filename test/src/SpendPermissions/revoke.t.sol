@@ -7,7 +7,7 @@ import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.
 
 contract RevokeTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
     function test_revoke_revert_invalidSender(
@@ -32,11 +32,11 @@ contract RevokeTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
-        assertTrue(mockSpendPermissions.isAuthorized(spendPermission));
+        mockSpendPermissionManager.approve(spendPermission);
+        assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
         vm.startPrank(sender);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, account));
-        mockSpendPermissions.revoke(spendPermission);
+        mockSpendPermissionManager.revoke(spendPermission);
         vm.stopPrank();
     }
 
@@ -59,10 +59,10 @@ contract RevokeTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.startPrank(account);
-        mockSpendPermissions.approve(spendPermission);
-        assertTrue(mockSpendPermissions.isAuthorized(spendPermission));
-        mockSpendPermissions.revoke(spendPermission);
-        assertFalse(mockSpendPermissions.isAuthorized(spendPermission));
+        mockSpendPermissionManager.approve(spendPermission);
+        assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
+        mockSpendPermissionManager.revoke(spendPermission);
+        assertFalse(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
     function test_revoke_success_emitsEvent(
@@ -84,14 +84,14 @@ contract RevokeTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.startPrank(account);
-        mockSpendPermissions.approve(spendPermission);
-        assertTrue(mockSpendPermissions.isAuthorized(spendPermission));
-        vm.expectEmit(address(mockSpendPermissions));
+        mockSpendPermissionManager.approve(spendPermission);
+        assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
+        vm.expectEmit(address(mockSpendPermissionManager));
         emit SpendPermissionManager.SpendPermissionRevoked({
-            hash: mockSpendPermissions.getHash(spendPermission),
+            hash: mockSpendPermissionManager.getHash(spendPermission),
             account: account,
             spendPermission: spendPermission
         });
-        mockSpendPermissions.revoke(spendPermission);
+        mockSpendPermissionManager.revoke(spendPermission);
     }
 }

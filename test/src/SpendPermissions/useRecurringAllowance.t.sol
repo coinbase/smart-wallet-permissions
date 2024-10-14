@@ -7,7 +7,7 @@ import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.
 
 contract UseSpendPermissionTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
     function test_useSpendPermission_revert_unauthorizedSpendPermission(
@@ -37,10 +37,10 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         });
 
         vm.expectRevert(SpendPermissionManager.UnauthorizedSpendPermission.selector);
-        mockSpendPermissions.useSpendPermission(spendPermission, spend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
     }
 
-    function test_useSpendPermission_revert_withdrawValueOverflow(
+    function test_useSpendPermission_revert_spendValueOverflow(
         address account,
         address permissionSigner,
         uint48 start,
@@ -66,11 +66,11 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
 
         vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.WithdrawValueOverflow.selector, spend));
-        mockSpendPermissions.useSpendPermission(spendPermission, spend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
     }
 
     function test_useSpendPermission_revert_exceededSpendPermission(
@@ -99,13 +99,13 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
 
         vm.expectRevert(
             abi.encodeWithSelector(SpendPermissionManager.ExceededSpendPermission.selector, spend, allowance)
         );
-        mockSpendPermissions.useSpendPermission(spendPermission, spend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
     }
 
     function test_useSpendPermission_revert_exceededSpendPermission_accruedSpend(
@@ -137,10 +137,10 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
         // make the first spend without using the full allowance
-        mockSpendPermissions.useSpendPermission(spendPermission, firstSpend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, firstSpend);
 
         // exceed the allowance with the second spend
         vm.expectRevert(
@@ -150,14 +150,14 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
                 allowance
             )
         );
-        mockSpendPermissions.useSpendPermission(spendPermission, secondSpend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, secondSpend);
     }
 
     function test_useSpendPermission_success_noSpend() public {
         SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
         vm.prank(spendPermission.account);
-        mockSpendPermissions.approve(spendPermission);
-        mockSpendPermissions.useSpendPermission(spendPermission, 0);
+        mockSpendPermissionManager.approve(spendPermission);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, 0);
     }
 
     function test_useSpendPermission_success_emitsEvent(
@@ -188,16 +188,16 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         });
 
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
-        vm.expectEmit(address(mockSpendPermissions));
+        vm.expectEmit(address(mockSpendPermissionManager));
         emit SpendPermissionManager.SpendPermissionUsed({
-            hash: mockSpendPermissions.getHash(spendPermission),
+            hash: mockSpendPermissionManager.getHash(spendPermission),
             account: account,
             token: ETHER,
             newUsage: SpendPermissionManager.PeriodUsage({start: start, end: _safeAddUint48(start, period), spend: spend})
         });
-        mockSpendPermissions.useSpendPermission(spendPermission, spend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
     }
 
     function test_useSpendPermission_success_setsState(
@@ -228,10 +228,10 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         });
 
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
-        mockSpendPermissions.useSpendPermission(spendPermission, spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentPeriod(spendPermission);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
@@ -262,10 +262,10 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         });
 
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
-        mockSpendPermissions.useSpendPermission(spendPermission, allowance); // spend full allowance
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentPeriod(spendPermission);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, allowance); // spend full allowance
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, allowance);
@@ -300,13 +300,14 @@ contract UseSpendPermissionTest is SpendPermissionManagerBase {
         });
 
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
         vm.warp(start);
         uint256 expectedTotalSpend = 0;
         for (uint256 i; i < numberOfSpends; i++) {
-            mockSpendPermissions.useSpendPermission(spendPermission, spend);
+            mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
             expectedTotalSpend += spend;
-            SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentPeriod(spendPermission);
+            SpendPermissionManager.PeriodUsage memory usage =
+                mockSpendPermissionManager.getCurrentPeriod(spendPermission);
             assertEq(usage.start, start);
             assertEq(usage.end, _safeAddUint48(start, period));
             assertEq(usage.spend, expectedTotalSpend);

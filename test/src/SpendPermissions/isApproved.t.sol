@@ -7,10 +7,10 @@ import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.
 
 contract IsAuthorizedTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
-    function test_isAuthorized_true(
+    function test_isApproved_true(
         address account,
         address spender,
         address token,
@@ -30,11 +30,11 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
         });
 
         vm.prank(account);
-        mockSpendPermissions.approve(spendPermission);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(spendPermission));
+        mockSpendPermissionManager.approve(spendPermission);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
-    function test_isAuthorized_false_uninitialized(
+    function test_isApproved_false_uninitialized(
         address account,
         address spender,
         address token,
@@ -52,10 +52,10 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
-        vm.assertFalse(mockSpendPermissions.isAuthorized(spendPermission));
+        vm.assertFalse(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
-    function test_isAuthorized_false_wasRevoked(
+    function test_isApproved_false_wasRevoked(
         address account,
         address spender,
         address token,
@@ -75,11 +75,11 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
         });
         vm.startPrank(account);
 
-        mockSpendPermissions.approve(spendPermission);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(spendPermission));
+        mockSpendPermissionManager.approve(spendPermission);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
 
-        mockSpendPermissions.revoke(spendPermission);
-        vm.assertFalse(mockSpendPermissions.isAuthorized(spendPermission));
+        mockSpendPermissionManager.revoke(spendPermission);
+        vm.assertFalse(mockSpendPermissionManager.isApproved(spendPermission));
         vm.stopPrank();
     }
 }

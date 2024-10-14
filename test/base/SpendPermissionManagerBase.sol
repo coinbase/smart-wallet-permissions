@@ -2,17 +2,17 @@
 pragma solidity ^0.8.23;
 
 import {SpendPermissionManager} from "../../src/SpendPermissionManager.sol";
-import {MockSpendPermissions} from "../mocks/MockSpendPermissions.sol";
+import {MockSpendPermissionManager} from "../mocks/MockSpendPermissionManager.sol";
 import {Base} from "./Base.sol";
 
 contract SpendPermissionManagerBase is Base {
     address constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    MockSpendPermissions mockSpendPermissions;
+    MockSpendPermissionManager mockSpendPermissionManager;
 
-    function _initializeSpendPermissions() internal {
+    function _initializeSpendPermissionManager() internal {
         _initialize(); // Base
-        mockSpendPermissions = new MockSpendPermissions();
+        mockSpendPermissionManager = new MockSpendPermissionManager();
     }
 
     /**
@@ -30,16 +30,16 @@ contract SpendPermissionManagerBase is Base {
         });
     }
 
-    function _createSignedPermission(
+    function _signSpendPermission(
         SpendPermissionManager.SpendPermission memory spendPermission,
         uint256 ownerPk,
         uint256 ownerIndex
-    ) internal view returns (SpendPermissionManager.SignedPermission memory) {
-        bytes32 spendPermissionHash = mockSpendPermissions.getHash(spendPermission);
+    ) internal view returns (bytes memory) {
+        bytes32 spendPermissionHash = mockSpendPermissionManager.getHash(spendPermission);
         bytes32 replaySafeHash = account.replaySafeHash(spendPermissionHash);
         bytes memory signature = _sign(ownerPk, replaySafeHash);
         bytes memory wrappedSignature = _applySignatureWrapper(ownerIndex, signature);
-        return SpendPermissionManager.SignedPermission({spendPermission: spendPermission, signature: wrappedSignature});
+        return wrappedSignature;
     }
 
     function _safeAddUint48(uint48 a, uint48 b) internal pure returns (uint48 c) {

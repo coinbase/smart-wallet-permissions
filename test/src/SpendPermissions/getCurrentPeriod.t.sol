@@ -7,20 +7,20 @@ import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.
 
 contract GetCurrentCycleTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
-    function test_getCurrentCycle_revert_beforeSpendPermissionStart(uint48 start) public {
+    function test_getCurrentPeriod_revert_beforeSpendPermissionStart(uint48 start) public {
         vm.assume(start > 0);
 
         SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
         spendPermission.start = start;
         vm.warp(start - 1);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.BeforeSpendPermissionStart.selector, start));
-        mockSpendPermissions.getCurrentCycle(spendPermission);
+        mockSpendPermissionManager.getCurrentPeriod(spendPermission);
     }
 
-    function test_getCurrentCycle_revert_afterSpendPermissionEnd(uint48 end) public {
+    function test_getCurrentPeriod_revert_afterSpendPermissionEnd(uint48 end) public {
         vm.assume(end > 0);
         vm.assume(end < type(uint48).max);
 
@@ -28,10 +28,10 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         spendPermission.end = end;
         vm.warp(end + 1);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.AfterSpendPermissionEnd.selector, end));
-        mockSpendPermissions.getCurrentCycle(spendPermission);
+        mockSpendPermissionManager.getCurrentPeriod(spendPermission);
     }
 
-    function test_getCurrentCycle_success_unusedAllowance(
+    function test_getCurrentPeriod_success_unusedAllowance(
         address permissionSigner,
         uint48 start,
         uint48 end,
@@ -54,14 +54,14 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.warp(start);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
 
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, 0);
     }
 
-    function test_getCurrentCycle_success_startOfPeriod(
+    function test_getCurrentPeriod_success_startOfPeriod(
         address permissionSigner,
         uint48 start,
         uint48 end,
@@ -87,17 +87,17 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         });
 
         vm.prank(address(account));
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
 
         vm.warp(start);
-        mockSpendPermissions.useSpendPermission(spendPermission, spend);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
     }
 
-    function test_getCurrentCycle_success_endOfPeriod(
+    function test_getCurrentPeriod_success_endOfPeriod(
         address permissionSigner,
         uint48 start,
         uint48 end,
@@ -124,19 +124,19 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         });
 
         vm.prank(address(account));
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
 
         vm.warp(start);
-        mockSpendPermissions.useSpendPermission(spendPermission, spend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
 
         vm.warp(_safeAddUint48(start, period) - 1);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
     }
 
-    function test_getCurrentCycle_succes_resetsAfterPeriod(
+    function test_getCurrentPeriod_succes_resetsAfterPeriod(
         address permissionSigner,
         uint48 start,
         uint48 end,
@@ -163,19 +163,19 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         });
 
         vm.prank(address(account));
-        mockSpendPermissions.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission);
 
         vm.warp(start);
-        mockSpendPermissions.useSpendPermission(spendPermission, spend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
 
         vm.warp(_safeAddUint48(start, period));
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, _safeAddUint48(start, period));
         assertEq(usage.end, _safeAddUint48(_safeAddUint48(start, period), period));
         assertEq(usage.spend, 0);
     }
 
-    function test_getCurrentCycle_success_maxValueForEnd(
+    function test_getCurrentPeriod_success_maxValueForEnd(
         address permissionSigner,
         uint48 start,
         uint48 period,
@@ -197,7 +197,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         });
 
         vm.warp(start);
-        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissions.getCurrentCycle(spendPermission);
+        SpendPermissionManager.PeriodUsage memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, type(uint48).max);
         assertEq(usage.spend, 0);

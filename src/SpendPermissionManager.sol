@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
+import {EIP712} from "solady/utils/EIP712.sol";
 
 /// @title SpendPermissionManager
 ///
@@ -12,7 +13,7 @@ import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 /// @dev Allowance and spend values capped at uint160 ~ 1e48.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-contract SpendPermissionManager {
+contract SpendPermissionManager is EIP712 {
     /// @notice A spend permission for an external spender to spend an account's tokens.
     struct SpendPermission {
         /// @dev Smart account this spend permission is valid for.
@@ -27,27 +28,23 @@ contract SpendPermissionManager {
         uint48 end;
         /// @dev Time duration for resetting used allowance on a recurring basis (seconds).
         uint48 period;
-        /// @dev Maximum allowed value to spend within a recurring cycle.
+        /// @dev Maximum allowed value to spend within a recurring period.
         uint160 allowance;
     }
 
-    /// @notice A signed permit to approve a spend permission.
-    struct SignedPermission {
-        /// @dev Spend permission parameters.
-        SpendPermission spendPermission;
-        /// @dev User signature to validate via EIP-1271.
-        bytes signature;
-    }
-
-    /// @notice Cycle parameters and spend usage.
+    /// @notice Period parameters and spend usage.
     struct PeriodUsage {
-        /// @dev Start time of the cycle (unix seconds).
+        /// @dev Start time of the period (unix seconds).
         uint48 start;
-        /// @dev End time of the cycle (unix seconds).
+        /// @dev End time of the period (unix seconds).
         uint48 end;
-        /// @dev Accumulated spend amount for cycle.
+        /// @dev Accumulated spend amount for period.
         uint160 spend;
     }
+
+    bytes32 constant MESSAGE_TYPEHASH = keccak256(
+        "SpendPermission(address account,address spender,address token,uint48 start,uint48 end,uint48 period,uint160 allowance)"
+    );
 
     /// @notice ERC-7528 address convention for ether (https://eips.ethereum.org/EIPS/eip-7528).
     address public constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -58,7 +55,7 @@ contract SpendPermissionManager {
     /// @notice Spend permission is approved.
     mapping(bytes32 hash => mapping(address account => bool approved)) internal _isApproved;
 
-    /// @notice Last updated cycle for a spend permission.
+    /// @notice Last updated period for a spend permission.
     mapping(bytes32 hash => mapping(address account => PeriodUsage)) internal _lastUpdatedPeriod;
 
     /// @notice Invalid sender for the external call.
@@ -69,12 +66,12 @@ contract SpendPermissionManager {
     /// @notice Unauthorized spend permission.
     error UnauthorizedSpendPermission();
 
-    /// @notice Recurring cycle has not started yet.
+    /// @notice Recurring period has not started yet.
     ///
     /// @param start Timestamp this spend permission is valid after (unix seconds).
     error BeforeSpendPermissionStart(uint48 start);
 
-    /// @notice Recurring cycle has not started yet.
+    /// @notice Recurring period has not started yet.
     ///
     /// @param end Timestamp this spend permission is valid until (unix seconds).
     error AfterSpendPermissionEnd(uint48 end);
@@ -104,13 +101,13 @@ contract SpendPermissionManager {
     /// @param spendPermission Details of the spend permission.
     event SpendPermissionRevoked(bytes32 indexed hash, address indexed account, SpendPermission spendPermission);
 
-    /// @notice Register native token spend for a spend permission cycle.
+    /// @notice Register native token spend for a spend permission period.
     ///
     /// @param hash Hash of the spend permission.
     /// @param account Account that spent native token via a spend permission.
     /// @param token Account that spent native token via a spend permission.
-    /// @param newUsage Start and end of the current cycle with new spend usage (struct).
-    event SpendPermissionUsed(
+    /// @param newUsage Start and end of the current period with new spend usage (struct).
+    event SpendPermissionWithdrawn(
         bytes32 indexed hash, address indexed account, address indexed token, PeriodUsage newUsage
     );
 
@@ -140,33 +137,20 @@ contract SpendPermissionManager {
         emit SpendPermissionRevoked(hash, spendPermission.account, spendPermission);
     }
 
-    /// @notice Withdraw tokens using a spend permission and approval signature.
-    ///
-    /// @dev Convenience function for offchain preparation from apps that have an ERC-7715 permissions context.
-    ///
-    /// @param context Flat bytes value representing an approved spend permission.
-    /// @param recipient Address to spend tokens to.
-    /// @param value Amount of token attempting to spend (wei).
-    function spend(bytes calldata context, address recipient, uint160 value) external {
-        SignedPermission memory signedPermission = abi.decode(context, (SignedPermission));
-        permit(signedPermission);
-        spend(signedPermission.spendPermission, recipient, value);
-    }
-
     /// @notice Approve a spend permission via a signature from the account.
     ///
-    /// @param signedPermission Signed spend permission permission.
-    function permit(SignedPermission memory signedPermission) public {
+    /// @param spendPermission Details of the spend permission.
+    /// @param signature Signed approval from the user.
+    function permit(SpendPermission memory spendPermission, bytes memory signature) public {
         // validate signature over spend permission data
         if (
-            IERC1271(signedPermission.spendPermission.account).isValidSignature(
-                getHash(signedPermission.spendPermission), signedPermission.signature
-            ) != IERC1271.isValidSignature.selector
+            IERC1271(spendPermission.account).isValidSignature(getHash(spendPermission), signature)
+                != IERC1271.isValidSignature.selector
         ) {
             revert UnauthorizedSpendPermission();
         }
 
-        _approve(signedPermission.spendPermission);
+        _approve(spendPermission);
     }
 
     /// @notice Withdraw tokens using a spend permission.
@@ -182,36 +166,33 @@ contract SpendPermissionManager {
         _transferFrom(spendPermission.account, spendPermission.token, recipient, value);
     }
 
-    /// @notice Hash a SpendPermission struct for signing.
-    ///
-    /// @dev Prevent phishing permits by making the hash incompatible with EIP-191/712.
-    /// @dev Include chainId and contract address in hash for cross-chain and cross-contract replay protection.
+    /// @notice Hash a SpendPermission struct for signing in accordance with EIP-191/712.
     ///
     /// @param spendPermission Details of the spend permission.
     ///
-    /// @return hash Hash of the spend permission and replay protection parameters.
+    /// @return hash Hash of the spend permission.
     function getHash(SpendPermission memory spendPermission) public view returns (bytes32) {
-        return keccak256(abi.encode(spendPermission, block.chainid, address(this)));
+        return _hashTypedData(keccak256(abi.encode(MESSAGE_TYPEHASH, spendPermission)));
     }
 
-    /// @notice Return true if spend permission is currently approved.
+    /// @notice Return if spend permission is authorized i.e. approved and not revoked.
     ///
     /// @param spendPermission Details of the spend permission.
     ///
-    /// @return approved True if spend permission is approved and not revoked.
+    /// @return authorized True if spend permission is approved and not revoked.
     function isApproved(SpendPermission memory spendPermission) public view returns (bool) {
         bytes32 hash = getHash(spendPermission);
         return !_isRevoked[hash][spendPermission.account] && _isApproved[hash][spendPermission.account];
     }
 
-    /// @notice Get current cycle usage.
+    /// @notice Get current period usage.
     ///
     /// @dev Reverts if spend permission has not started or has already ended.
-    /// @dev Cycle boundaries are at fixed intervals of [start + n * period, start + (n + 1) * period - 1].
+    /// @dev Period boundaries are at fixed intervals of [start + n * period, start + (n + 1) * period - 1].
     ///
     /// @param spendPermission Details of the spend permission.
     ///
-    /// @return currentCycle Currently active cycle with spend usage (struct).
+    /// @return currentPeriod Currently active period with spend usage (struct).
     function getCurrentPeriod(SpendPermission memory spendPermission) public view returns (PeriodUsage memory) {
         // check current timestamp is within spend permission time range
         uint48 currentTimestamp = uint48(block.timestamp);
@@ -221,27 +202,28 @@ contract SpendPermissionManager {
             revert AfterSpendPermissionEnd(spendPermission.end);
         }
 
-        // return last cycle if still active, otherwise compute new active cycle start time with no spend
-        PeriodUsage memory lastUpdatedCycle = _lastUpdatedPeriod[getHash(spendPermission)][spendPermission.account];
+        // return last period if still active, otherwise compute new active period start time with no spend
+        PeriodUsage memory lastUpdatedPeriod = _lastUpdatedPeriod[getHash(spendPermission)][spendPermission.account];
 
-        // last cycle exists if spend is non-zero
-        bool lastCycleExists = lastUpdatedCycle.spend != 0;
+        // last period exists if spend is non-zero
+        bool lastPeriodExists = lastUpdatedPeriod.spend != 0;
 
-        // last cycle still active if current timestamp within [start, end - 1] range.
-        bool lastCycleStillActive = currentTimestamp < uint256(lastUpdatedCycle.start) + uint256(spendPermission.period);
+        // last period still active if current timestamp within [start, end - 1] range.
+        bool lastPeriodStillActive =
+            currentTimestamp < uint256(lastUpdatedPeriod.start) + uint256(spendPermission.period);
 
-        if (lastCycleExists && lastCycleStillActive) {
-            return lastUpdatedCycle;
+        if (lastPeriodExists && lastPeriodStillActive) {
+            return lastUpdatedPeriod;
         } else {
-            // last active cycle does not exist or is outdated, determine current cycle
+            // last active period does not exist or is outdated, determine current period
 
-            // current cycle progress is remainder of time since first recurring cycle mod reset period
-            uint48 currentCycleProgress = (currentTimestamp - spendPermission.start) % spendPermission.period;
+            // current period progress is remainder of time since first recurring period mod reset period
+            uint48 currentPeriodProgress = (currentTimestamp - spendPermission.start) % spendPermission.period;
 
-            // current cycle start is progress duration before current time
-            uint48 start = currentTimestamp - currentCycleProgress;
+            // current period start is progress duration before current time
+            uint48 start = currentTimestamp - currentPeriodProgress;
 
-            // current cycle end will overflow if period is sufficiently large
+            // current period end will overflow if period is sufficiently large
             bool endOverflow = uint256(start) + uint256(spendPermission.period) > type(uint48).max;
 
             // end is one period after start or maximum uint48 if overflow
@@ -271,8 +253,8 @@ contract SpendPermissionManager {
         // require spend permission is approved and not revoked
         if (!isApproved(spendPermission)) revert UnauthorizedSpendPermission();
 
-        PeriodUsage memory currentCycle = getCurrentPeriod(spendPermission);
-        uint256 totalSpend = value + uint256(currentCycle.spend);
+        PeriodUsage memory currentPeriod = getCurrentPeriod(spendPermission);
+        uint256 totalSpend = value + uint256(currentPeriod.spend);
 
         // check total spend value does not overflow max value
         if (totalSpend > type(uint160).max) revert WithdrawValueOverflow(totalSpend);
@@ -284,14 +266,14 @@ contract SpendPermissionManager {
 
         bytes32 hash = getHash(spendPermission);
 
-        // save new spend for active cycle
-        currentCycle.spend = uint160(totalSpend);
-        _lastUpdatedPeriod[hash][spendPermission.account] = currentCycle;
-        emit SpendPermissionUsed(
+        // save new spend for active period
+        currentPeriod.spend = uint160(totalSpend);
+        _lastUpdatedPeriod[hash][spendPermission.account] = currentPeriod;
+        emit SpendPermissionWithdrawn(
             hash,
             spendPermission.account,
             spendPermission.token,
-            PeriodUsage(currentCycle.start, currentCycle.end, uint160(value))
+            PeriodUsage(currentPeriod.start, currentPeriod.end, uint160(value))
         );
     }
 
@@ -323,5 +305,14 @@ contract SpendPermissionManager {
     /// @param data Bytes data to send in call.
     function _execute(address account, address target, uint256 value, bytes memory data) internal virtual {
         CoinbaseSmartWallet(payable(account)).execute({target: target, value: value, data: data});
+    }
+
+    /// @notice Return EIP712 domain name and version.
+    ///
+    /// @return name Name string for the EIP712 domain.
+    /// @return version Version string for the EIP712 domain.
+    function _domainNameAndVersion() internal pure override returns (string memory name, string memory version) {
+        name = "SpendPermissionManager";
+        version = "1";
     }
 }

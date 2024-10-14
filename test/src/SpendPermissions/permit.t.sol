@@ -7,12 +7,12 @@ import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.
 
 contract PermitTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
         vm.prank(owner);
-        account.addOwnerAddress(address(mockSpendPermissions));
+        account.addOwnerAddress(address(mockSpendPermissionManager));
     }
 
-    function test_permit_revert_unauthorizedSpendPermission(
+    function test_permit_revert_unauthorizedRecurringAllowance(
         uint128 invalidPk,
         address spender,
         address token,
@@ -33,13 +33,12 @@ contract PermitTest is SpendPermissionManagerBase {
             allowance: allowance
         });
 
-        SpendPermissionManager.SignedPermission memory invalidSignedPermission =
-            _createSignedPermission(spendPermission, invalidPk, 0);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedSpendPermission.selector));
-        mockSpendPermissions.permit(invalidSignedPermission);
+        bytes memory invalidSignature = _signSpendPermission(spendPermission, invalidPk, 0);
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedRecurringAllowance.selector));
+        mockSpendPermissionManager.permit(spendPermission, invalidSignature);
     }
 
-    function test_permit_success_isAuthorized(
+    function test_permit_success_isApproved(
         address spender,
         address token,
         uint48 start,
@@ -57,10 +56,9 @@ contract PermitTest is SpendPermissionManagerBase {
             allowance: allowance
         });
 
-        SpendPermissionManager.SignedPermission memory signedPermission =
-            _createSignedPermission(spendPermission, ownerPk, 0);
-        mockSpendPermissions.permit(signedPermission);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(spendPermission));
+        bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
+        mockSpendPermissionManager.permit(spendPermission, signature);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
     function test_permit_success_emitsEvent(
@@ -81,14 +79,13 @@ contract PermitTest is SpendPermissionManagerBase {
             allowance: allowance
         });
 
-        SpendPermissionManager.SignedPermission memory signedPermission =
-            _createSignedPermission(spendPermission, ownerPk, 0);
-        vm.expectEmit(address(mockSpendPermissions));
-        emit SpendPermissionManager.SpendPermissionApproved({
-            hash: mockSpendPermissions.getHash(spendPermission),
+        bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
+        vm.expectEmit(address(mockSpendPermissionManager));
+        emit SpendPermissionManager.RecurringAllowanceApproved({
+            hash: mockSpendPermissionManager.getHash(spendPermission),
             account: address(account),
             spendPermission: spendPermission
         });
-        mockSpendPermissions.permit(signedPermission);
+        mockSpendPermissionManager.permit(spendPermission, signature);
     }
 }

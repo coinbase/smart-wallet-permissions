@@ -4,11 +4,11 @@ pragma solidity ^0.8.23;
 import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
 import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
-import {MockSpendPermissions} from "../../mocks/MockSpendPermissions.sol";
+import {MockSpendPermissionManager} from "../../mocks/MockSpendPermissionManager.sol";
 
 contract GetHashTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
     function test_getHash_success(
@@ -29,7 +29,7 @@ contract GetHashTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
-        mockSpendPermissions.getHash(spendPermission);
+        MockSpendPermissionManager.getHash(spendPermission);
     }
 
     function test_getHash_success_uniqueHashPerChain(
@@ -56,9 +56,9 @@ contract GetHashTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.chainId(chainId1);
-        bytes32 hash1 = mockSpendPermissions.getHash(spendPermission);
+        bytes32 hash1 = MockSpendPermissionManager.getHash(spendPermission);
         vm.chainId(chainId2);
-        bytes32 hash2 = mockSpendPermissions.getHash(spendPermission);
+        bytes32 hash2 = MockSpendPermissionManager.getHash(spendPermission);
         assertNotEq(hash1, hash2);
     }
 
@@ -80,10 +80,10 @@ contract GetHashTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
-        MockSpendPermissions mockSpendPermissions1 = new MockSpendPermissions();
-        MockSpendPermissions mockSpendPermissions2 = new MockSpendPermissions();
-        bytes32 hash1 = mockSpendPermissions1.getHash(spendPermission);
-        bytes32 hash2 = mockSpendPermissions2.getHash(spendPermission);
+        MockSpendPermissionManager MockSpendPermissionManager1 = new MockSpendPermissionManager();
+        MockSpendPermissionManager MockSpendPermissionManager2 = new MockSpendPermissionManager();
+        bytes32 hash1 = MockSpendPermissionManager1.getHash(spendPermission);
+        bytes32 hash2 = MockSpendPermissionManager2.getHash(spendPermission);
         assertNotEq(hash1, hash2);
     }
 }

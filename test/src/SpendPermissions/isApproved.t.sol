@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract IsAuthorizedTest is SpendPermissionsBase {
+contract IsAuthorizedTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
-    function test_isAuthorized_true(
+    function test_isApproved_true(
         address account,
         address spender,
         address token,
@@ -19,7 +19,7 @@ contract IsAuthorizedTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -30,11 +30,11 @@ contract IsAuthorizedTest is SpendPermissionsBase {
         });
 
         vm.prank(account);
-        mockSpendPermissions.approve(recurringAllowance);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
+        mockSpendPermissionManager.approve(spendPermission);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
-    function test_isAuthorized_false_uninitialized(
+    function test_isApproved_false_uninitialized(
         address account,
         address spender,
         address token,
@@ -43,7 +43,7 @@ contract IsAuthorizedTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public view {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -52,10 +52,10 @@ contract IsAuthorizedTest is SpendPermissionsBase {
             period: period,
             allowance: allowance
         });
-        vm.assertFalse(mockSpendPermissions.isAuthorized(recurringAllowance));
+        vm.assertFalse(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
-    function test_isAuthorized_false_wasRevoked(
+    function test_isApproved_false_wasRevoked(
         address account,
         address spender,
         address token,
@@ -64,7 +64,7 @@ contract IsAuthorizedTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -75,11 +75,11 @@ contract IsAuthorizedTest is SpendPermissionsBase {
         });
         vm.startPrank(account);
 
-        mockSpendPermissions.approve(recurringAllowance);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
+        mockSpendPermissionManager.approve(spendPermission);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
 
-        mockSpendPermissions.revoke(recurringAllowance);
-        vm.assertFalse(mockSpendPermissions.isAuthorized(recurringAllowance));
+        mockSpendPermissionManager.revoke(spendPermission);
+        vm.assertFalse(mockSpendPermissionManager.isApproved(spendPermission));
         vm.stopPrank();
     }
 }

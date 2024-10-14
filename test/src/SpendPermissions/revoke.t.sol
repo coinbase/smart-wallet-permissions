@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract RevokeTest is SpendPermissionsBase {
+contract RevokeTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
     function test_revoke_revert_invalidSender(
@@ -22,7 +22,7 @@ contract RevokeTest is SpendPermissionsBase {
     ) public {
         vm.assume(sender != address(0));
         vm.assume(sender != account);
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -32,11 +32,11 @@ contract RevokeTest is SpendPermissionsBase {
             allowance: allowance
         });
         vm.prank(account);
-        mockSpendPermissions.approve(recurringAllowance);
-        assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
+        mockSpendPermissionManager.approve(spendPermission);
+        assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
         vm.startPrank(sender);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissions.InvalidSender.selector, account));
-        mockSpendPermissions.revoke(recurringAllowance);
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, account));
+        mockSpendPermissionManager.revoke(spendPermission);
         vm.stopPrank();
     }
 
@@ -49,7 +49,7 @@ contract RevokeTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -59,10 +59,10 @@ contract RevokeTest is SpendPermissionsBase {
             allowance: allowance
         });
         vm.startPrank(account);
-        mockSpendPermissions.approve(recurringAllowance);
-        assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
-        mockSpendPermissions.revoke(recurringAllowance);
-        assertFalse(mockSpendPermissions.isAuthorized(recurringAllowance));
+        mockSpendPermissionManager.approve(spendPermission);
+        assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
+        mockSpendPermissionManager.revoke(spendPermission);
+        assertFalse(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
     function test_revoke_success_emitsEvent(
@@ -74,7 +74,7 @@ contract RevokeTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -84,14 +84,14 @@ contract RevokeTest is SpendPermissionsBase {
             allowance: allowance
         });
         vm.startPrank(account);
-        mockSpendPermissions.approve(recurringAllowance);
-        assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
-        vm.expectEmit(address(mockSpendPermissions));
-        emit SpendPermissions.RecurringAllowanceRevoked({
-            hash: mockSpendPermissions.getHash(recurringAllowance),
+        mockSpendPermissionManager.approve(spendPermission);
+        assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
+        vm.expectEmit(address(mockSpendPermissionManager));
+        emit SpendPermissionManager.SpendPermissionRevoked({
+            hash: mockSpendPermissionManager.getHash(spendPermission),
             account: account,
-            recurringAllowance: recurringAllowance
+            spendPermission: spendPermission
         });
-        mockSpendPermissions.revoke(recurringAllowance);
+        mockSpendPermissionManager.revoke(spendPermission);
     }
 }

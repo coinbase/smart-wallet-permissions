@@ -1,4 +1,4 @@
-# Recurring Allowance
+# Spend Permission
 
 ## Onchain accounting
 
@@ -12,11 +12,11 @@ Now that Session Keys replace a pop-up window every transaction with a pop-up wi
 
 Taking a look at the existing approval for common token standards, we unfortunately see an antipattern of over-permissive infinite allowances. Apps also don't want to have to ask the user every single time they want to spend tokens so instead they ask for a high amount of trust. Users aren't really given a choice if they want to use the product, so they comply and extend that trust. Unfortunately, this trust has led to countless drainer events which we would like to prevent with Session Keys.
 
-Our solution is to create recurring allowances that allow an app to request to spend user assets on a recurring basis (e.g. 1 ETH / month). As apps spend user assets through using this permission, the recurring logic automatically increments and enforces the allowance for the current cycle. Once enough time passes to enter the next cycle, the allowance usage is reset to zero and the app can keep spending up to the same allowance.
+Our solution is to create spend permissions that allow an app to request to spend user assets on a recurring basis (e.g. 1 ETH / month). As apps spend user assets through using this permission, the recurring logic automatically increments and enforces the allowance for the current cycle. Once enough time passes to enter the next cycle, the allowance usage is reset to zero and the app can keep spending up to the same allowance.
 
 This design allows users and apps to have reduced friction in approving asset use, while still giving the user control to manage risk and keep asset allowance small upfront. This design is also intuitive for users and can easily support recurring models like subscriptions, automated trading strategies, and payroll.
 
-A recurring allowance is defined by 3 values:
+A spend permission is defined by 3 values:
 
 1. start time
 2. cycle period
@@ -24,7 +24,7 @@ A recurring allowance is defined by 3 values:
 
 The start time and cycle period set a deterministic schedule infinitely into the future for when allowances reset to zero for the next cycle.
 
-Here are the first few cycles for a recurring allowance:
+Here are the first few cycles for a spend permission:
 
 1. `[start, start + period - 1]`
 1. `[start + period, start + 2 * period - 1]`
@@ -32,4 +32,4 @@ Here are the first few cycles for a recurring allowance:
 
 Which follows the general form for the `n`th cycle's time range: `[start + (n - 1) * period, start + n * period - 1]` with first `n = 1`.
 
-When a new spend of a recurring allowance is attempted, the contract first determines what the current cycle's usage is. If the current time falls within the cycle of last stored use, we simply check if this new usage will exceed the allowance. If the current time exceeds the cycle of last stored use, that means we are in a new cycle and should reset the allowance to zero and then add our new attempted spend. By leveraging a single storage slot, we are able to have a gas cost that does not scale with usage, keeping it efficient.
+When a new spend of a spend permission is attempted, the contract first determines what the current cycle's usage is. If the current time falls within the cycle of last stored use, we simply check if this new usage will exceed the allowance. If the current time exceeds the cycle of last stored use, that means we are in a new cycle and should reset the allowance to zero and then add our new attempted spend. By leveraging a single storage slot, we are able to have a gas cost that does not scale with usage, keeping it efficient.

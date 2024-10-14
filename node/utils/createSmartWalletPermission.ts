@@ -8,7 +8,7 @@ import {
 } from "../types";
 import {
   PermissionManager,
-  PermissionCallableAllowedContractNativeTokenRecurringAllowance,
+  PermissionCallableAllowedContractNativeTokenSpendPermission,
 } from "../constants";
 
 // convert between received PermissionRequest to contract-compatible SmartWalletPermission
@@ -30,7 +30,7 @@ export function createSmartWalletPermission({
   if (signer.type !== SignerType.P256) {
     throw Error("Invalid signer type");
   }
-  if (permission.type !== PermissionType.NativeTokenRecurringAllowance) {
+  if (permission.type !== PermissionType.NativeTokenSpendPermission) {
     throw Error("Invalid permission type");
   }
 
@@ -38,14 +38,14 @@ export function createSmartWalletPermission({
     [permissionValuesStruct],
     [
       {
-        recurringAllowance: {
+        spendPermission: {
           start: permission.data.start,
           period: permission.data.period,
           allowance: permission.data.allowance,
         },
         allowedContract: permission.data.allowedContract,
       },
-    ],
+    ]
   );
 
   return {
@@ -54,7 +54,7 @@ export function createSmartWalletPermission({
     expiry,
     signer: signer.data.publicKey,
     permissionContract:
-      PermissionCallableAllowedContractNativeTokenRecurringAllowance,
+      PermissionCallableAllowedContractNativeTokenSpendPermission,
     permissionValues,
     verifyingContract: PermissionManager,
     approval: "0x",

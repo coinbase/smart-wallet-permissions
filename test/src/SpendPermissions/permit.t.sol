@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract PermitTest is SpendPermissionsBase {
+contract PermitTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
         vm.prank(owner);
-        account.addOwnerAddress(address(mockSpendPermissions));
+        account.addOwnerAddress(address(mockSpendPermissionManager));
     }
 
-    function test_permit_revert_unauthorizedRecurringAllowance(
+    function test_permit_revert_unauthorizedSpendPermission(
         uint128 invalidPk,
         address spender,
         address token,
@@ -23,7 +23,7 @@ contract PermitTest is SpendPermissionsBase {
     ) public {
         vm.assume(invalidPk != 0);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: spender,
             token: token,
@@ -33,12 +33,12 @@ contract PermitTest is SpendPermissionsBase {
             allowance: allowance
         });
 
-        bytes memory invalidSignature = _signRecurringAllowance(recurringAllowance, invalidPk, 0);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissions.UnauthorizedRecurringAllowance.selector));
-        mockSpendPermissions.permit(recurringAllowance, invalidSignature);
+        bytes memory invalidSignature = _signSpendPermission(spendPermission, invalidPk, 0);
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedSpendPermission.selector));
+        mockSpendPermissionManager.permit(spendPermission, invalidSignature);
     }
 
-    function test_permit_success_isAuthorized(
+    function test_permit_success_isApproved(
         address spender,
         address token,
         uint48 start,
@@ -46,7 +46,7 @@ contract PermitTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: spender,
             token: token,
@@ -56,9 +56,9 @@ contract PermitTest is SpendPermissionsBase {
             allowance: allowance
         });
 
-        bytes memory signature = _signRecurringAllowance(recurringAllowance, ownerPk, 0);
-        mockSpendPermissions.permit(recurringAllowance, signature);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
+        bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
+        mockSpendPermissionManager.permit(spendPermission, signature);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
     function test_permit_success_emitsEvent(
@@ -69,7 +69,7 @@ contract PermitTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: spender,
             token: token,
@@ -79,13 +79,13 @@ contract PermitTest is SpendPermissionsBase {
             allowance: allowance
         });
 
-        bytes memory signature = _signRecurringAllowance(recurringAllowance, ownerPk, 0);
-        vm.expectEmit(address(mockSpendPermissions));
-        emit SpendPermissions.RecurringAllowanceApproved({
-            hash: mockSpendPermissions.getHash(recurringAllowance),
+        bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
+        vm.expectEmit(address(mockSpendPermissionManager));
+        emit SpendPermissionManager.SpendPermissionApproved({
+            hash: mockSpendPermissionManager.getHash(spendPermission),
             account: address(account),
-            recurringAllowance: recurringAllowance
+            spendPermission: spendPermission
         });
-        mockSpendPermissions.permit(recurringAllowance, signature);
+        mockSpendPermissionManager.permit(spendPermission, signature);
     }
 }

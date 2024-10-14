@@ -1,37 +1,37 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract GetCurrentCycleTest is SpendPermissionsBase {
+contract GetCurrentCycleTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
-    function test_getCurrentCycle_revert_beforeRecurringAllowanceStart(uint48 start) public {
+    function test_getCurrentPeriod_revert_beforeSpendPermissionStart(uint48 start) public {
         vm.assume(start > 0);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
-        recurringAllowance.start = start;
+        SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
+        spendPermission.start = start;
         vm.warp(start - 1);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissions.BeforeRecurringAllowanceStart.selector, start));
-        mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.BeforeSpendPermissionStart.selector, start));
+        mockSpendPermissionManager.getCurrentPeriod(spendPermission);
     }
 
-    function test_getCurrentCycle_revert_afterRecurringAllowanceEnd(uint48 end) public {
+    function test_getCurrentPeriod_revert_afterSpendPermissionEnd(uint48 end) public {
         vm.assume(end > 0);
         vm.assume(end < type(uint48).max);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = _createRecurringAllowance();
-        recurringAllowance.end = end;
+        SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
+        spendPermission.end = end;
         vm.warp(end + 1);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissions.AfterRecurringAllowanceEnd.selector, end));
-        mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.AfterSpendPermissionEnd.selector, end));
+        mockSpendPermissionManager.getCurrentPeriod(spendPermission);
     }
 
-    function test_getCurrentCycle_success_unusedAllowance(
+    function test_getCurrentPeriod_success_unusedAllowance(
         address permissionSigner,
         uint48 start,
         uint48 end,
@@ -44,24 +44,24 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         vm.assume(period > 0);
         vm.assume(allowance > 0);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
             allowance: allowance
         });
         vm.warp(start);
-        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
 
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, 0);
     }
 
-    function test_getCurrentCycle_success_startOfPeriod(
+    function test_getCurrentPeriod_success_startOfPeriod(
         address permissionSigner,
         uint48 start,
         uint48 end,
@@ -76,10 +76,10 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         vm.assume(allowance > 0);
         vm.assume(spend <= allowance);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -87,17 +87,17 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         });
 
         vm.prank(address(account));
-        mockSpendPermissions.approve(recurringAllowance);
+        mockSpendPermissionManager.approve(spendPermission);
 
         vm.warp(start);
-        mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
-        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
     }
 
-    function test_getCurrentCycle_success_endOfPeriod(
+    function test_getCurrentPeriod_success_endOfPeriod(
         address permissionSigner,
         uint48 start,
         uint48 end,
@@ -113,10 +113,10 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         vm.assume(allowance > 0);
         vm.assume(spend <= allowance);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -124,19 +124,19 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         });
 
         vm.prank(address(account));
-        mockSpendPermissions.approve(recurringAllowance);
+        mockSpendPermissionManager.approve(spendPermission);
 
         vm.warp(start);
-        mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
 
         vm.warp(_safeAddUint48(start, period) - 1);
-        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
     }
 
-    function test_getCurrentCycle_succes_resetsAfterPeriod(
+    function test_getCurrentPeriod_succes_resetsAfterPeriod(
         address permissionSigner,
         uint48 start,
         uint48 end,
@@ -152,10 +152,10 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         vm.assume(allowance > 0);
         vm.assume(spend <= allowance);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
@@ -163,19 +163,19 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         });
 
         vm.prank(address(account));
-        mockSpendPermissions.approve(recurringAllowance);
+        mockSpendPermissionManager.approve(spendPermission);
 
         vm.warp(start);
-        mockSpendPermissions.useRecurringAllowance(recurringAllowance, spend);
+        mockSpendPermissionManager.useSpendPermission(spendPermission, spend);
 
         vm.warp(_safeAddUint48(start, period));
-        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, _safeAddUint48(start, period));
         assertEq(usage.end, _safeAddUint48(_safeAddUint48(start, period), period));
         assertEq(usage.spend, 0);
     }
 
-    function test_getCurrentCycle_success_maxValueForEnd(
+    function test_getCurrentPeriod_success_maxValueForEnd(
         address permissionSigner,
         uint48 start,
         uint48 period,
@@ -186,10 +186,10 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         vm.assume(uint256(start) + uint256(period) > type(uint48).max); // force overflow
         vm.assume(allowance > 0);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: type(uint48).max,
             period: period,
@@ -197,7 +197,7 @@ contract GetCurrentCycleTest is SpendPermissionsBase {
         });
 
         vm.warp(start);
-        SpendPermissions.CycleUsage memory usage = mockSpendPermissions.getCurrentCycle(recurringAllowance);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
         assertEq(usage.start, start);
         assertEq(usage.end, type(uint48).max);
         assertEq(usage.spend, 0);

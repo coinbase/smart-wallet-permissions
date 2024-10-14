@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract ApproveTest is SpendPermissionsBase {
+contract ApproveTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
     function test_approve_revert_invalidSender(
@@ -22,18 +22,18 @@ contract ApproveTest is SpendPermissionsBase {
         vm.assume(sender != address(0));
         vm.assume(sender != account);
 
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
             allowance: allowance
         });
         vm.startPrank(sender);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissions.InvalidSender.selector, account));
-        mockSpendPermissions.approve(recurringAllowance);
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, account));
+        mockSpendPermissionManager.approve(spendPermission);
         vm.stopPrank();
     }
 
@@ -45,18 +45,18 @@ contract ApproveTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
             allowance: allowance
         });
         vm.prank(account);
-        mockSpendPermissions.approve(recurringAllowance);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
+        mockSpendPermissionManager.approve(spendPermission);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
     function test_approve_success_emitsEvent(
@@ -67,22 +67,22 @@ contract ApproveTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
             allowance: allowance
         });
         vm.startPrank(account);
-        vm.expectEmit(address(mockSpendPermissions));
-        emit SpendPermissions.RecurringAllowanceApproved({
-            hash: mockSpendPermissions.getHash(recurringAllowance),
+        vm.expectEmit(address(mockSpendPermissionManager));
+        emit SpendPermissionManager.SpendPermissionApproved({
+            hash: mockSpendPermissionManager.getHash(spendPermission),
             account: account,
-            recurringAllowance: recurringAllowance
+            spendPermission: spendPermission
         });
-        mockSpendPermissions.approve(recurringAllowance);
+        mockSpendPermissionManager.approve(spendPermission);
     }
 }

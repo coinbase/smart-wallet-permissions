@@ -1,6 +1,6 @@
 ## Batch Update Permissions
 
-Accounts can batch-revoke/approve/update permissions via batching `revoke` and `approve` calls to `SpendPermissions`.
+Accounts can batch-revoke/approve/update permissions via batching `revoke` and `approve` calls to `SpendPermissionManager`.
 
 ```mermaid
 sequenceDiagram

@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../src/SpendPermissions.sol";
-import {MockSpendPermissions} from "../mocks/MockSpendPermissions.sol";
+import {SpendPermissionManager} from "../../src/SpendPermissionManager.sol";
+import {MockSpendPermissionManager} from "../mocks/MockSpendPermissionManager.sol";
 import {Base} from "./Base.sol";
 
-contract SpendPermissionsBase is Base {
-    address constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+contract SpendPermissionManagerBase is Base {
+    address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    MockSpendPermissions mockSpendPermissions;
+    MockSpendPermissionManager mockSpendPermissionManager;
 
-    function _initializeSpendPermissions() internal {
+    function _initializeSpendPermissionManager() internal {
         _initialize(); // Base
-        mockSpendPermissions = new MockSpendPermissions();
+        mockSpendPermissionManager = new MockSpendPermissionManager();
     }
 
     /**
-     * @dev Helper function to create a SpendPermissions.RecurringAllowance struct with happy path defaults
+     * @dev Helper function to create a SpendPermissionManager.SpendPermission struct with happy path defaults
      */
-    function _createRecurringAllowance() internal view returns (SpendPermissions.RecurringAllowance memory) {
-        return SpendPermissions.RecurringAllowance({
+    function _createSpendPermission() internal view returns (SpendPermissionManager.SpendPermission memory) {
+        return SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
-            token: ETHER,
+            token: NATIVE_TOKEN,
             start: uint48(vm.getBlockTimestamp()),
             end: type(uint48).max,
             period: 604800,
@@ -30,13 +30,13 @@ contract SpendPermissionsBase is Base {
         });
     }
 
-    function _signRecurringAllowance(
-        SpendPermissions.RecurringAllowance memory recurringAllowance,
+    function _signSpendPermission(
+        SpendPermissionManager.SpendPermission memory spendPermission,
         uint256 ownerPk,
         uint256 ownerIndex
     ) internal view returns (bytes memory) {
-        bytes32 recurringAllowanceHash = mockSpendPermissions.getHash(recurringAllowance);
-        bytes32 replaySafeHash = account.replaySafeHash(recurringAllowanceHash);
+        bytes32 spendPermissionHash = mockSpendPermissionManager.getHash(spendPermission);
+        bytes32 replaySafeHash = account.replaySafeHash(spendPermissionHash);
         bytes memory signature = _sign(ownerPk, replaySafeHash);
         bytes memory wrappedSignature = _applySignatureWrapper(ownerIndex, signature);
         return wrappedSignature;

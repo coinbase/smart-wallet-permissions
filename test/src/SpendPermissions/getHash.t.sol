@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {SpendPermissions} from "../../../src/SpendPermissions.sol";
+import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
-import {SpendPermissionsBase} from "../../base/SpendPermissionsBase.sol";
-import {MockSpendPermissions} from "../../mocks/MockSpendPermissions.sol";
+import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
+import {MockSpendPermissionManager} from "../../mocks/MockSpendPermissionManager.sol";
 
-contract GetHashTest is SpendPermissionsBase {
+contract GetHashTest is SpendPermissionManagerBase {
     function setUp() public {
-        _initializeSpendPermissions();
+        _initializeSpendPermissionManager();
     }
 
     function test_getHash_success(
@@ -20,7 +20,7 @@ contract GetHashTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public view {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -29,7 +29,7 @@ contract GetHashTest is SpendPermissionsBase {
             period: period,
             allowance: allowance
         });
-        mockSpendPermissions.getHash(recurringAllowance);
+        mockSpendPermissionManager.getHash(spendPermission);
     }
 
     function test_getHash_success_uniqueHashPerChain(
@@ -46,7 +46,7 @@ contract GetHashTest is SpendPermissionsBase {
         vm.assume(chainId1 != chainId2);
         vm.assume(chainId1 > 0);
         vm.assume(chainId2 > 0);
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -56,9 +56,9 @@ contract GetHashTest is SpendPermissionsBase {
             allowance: allowance
         });
         vm.chainId(chainId1);
-        bytes32 hash1 = mockSpendPermissions.getHash(recurringAllowance);
+        bytes32 hash1 = mockSpendPermissionManager.getHash(spendPermission);
         vm.chainId(chainId2);
-        bytes32 hash2 = mockSpendPermissions.getHash(recurringAllowance);
+        bytes32 hash2 = mockSpendPermissionManager.getHash(spendPermission);
         assertNotEq(hash1, hash2);
     }
 
@@ -71,7 +71,7 @@ contract GetHashTest is SpendPermissionsBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissions.RecurringAllowance memory recurringAllowance = SpendPermissions.RecurringAllowance({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -80,10 +80,10 @@ contract GetHashTest is SpendPermissionsBase {
             period: period,
             allowance: allowance
         });
-        MockSpendPermissions mockSpendPermissions1 = new MockSpendPermissions();
-        MockSpendPermissions mockSpendPermissions2 = new MockSpendPermissions();
-        bytes32 hash1 = mockSpendPermissions1.getHash(recurringAllowance);
-        bytes32 hash2 = mockSpendPermissions2.getHash(recurringAllowance);
+        MockSpendPermissionManager mockSpendPermissionManager1 = new MockSpendPermissionManager();
+        MockSpendPermissionManager mockSpendPermissionManager2 = new MockSpendPermissionManager();
+        bytes32 hash1 = mockSpendPermissionManager1.getHash(spendPermission);
+        bytes32 hash2 = mockSpendPermissionManager2.getHash(spendPermission);
         assertNotEq(hash1, hash2);
     }
 }

@@ -13,16 +13,16 @@ export const permissionContractAbi = [
   },
   {
     type: "function",
-    name: "getRecurringAllowance",
+    name: "getSpendPermission",
     inputs: [
       { name: "account", type: "address", internalType: "address" },
       { name: "permissionHash", type: "bytes32", internalType: "bytes32" },
     ],
     outputs: [
       {
-        name: "recurringAllowance",
+        name: "spendPermission",
         type: "tuple",
-        internalType: "struct NativeTokenRecurringAllowance.RecurringAllowance",
+        internalType: "struct NativeTokenSpendPermission.SpendPermission",
         components: [
           { name: "start", type: "uint48", internalType: "uint48" },
           { name: "period", type: "uint48", internalType: "uint48" },
@@ -34,16 +34,16 @@ export const permissionContractAbi = [
   },
   {
     type: "function",
-    name: "getRecurringAllowanceUsage",
+    name: "getSpendPermissionUsage",
     inputs: [
       { name: "account", type: "address", internalType: "address" },
       { name: "permissionHash", type: "bytes32", internalType: "bytes32" },
     ],
     outputs: [
       {
-        name: "cycleUsage",
+        name: "PeriodSpend",
         type: "tuple",
-        internalType: "struct NativeTokenRecurringAllowance.CycleUsage",
+        internalType: "struct NativeTokenSpendPermission.PeriodSpend",
         components: [
           { name: "start", type: "uint48", internalType: "uint48" },
           { name: "end", type: "uint48", internalType: "uint48" },
@@ -80,7 +80,7 @@ export const permissionContractAbi = [
   },
   {
     type: "function",
-    name: "useRecurringAllowance",
+    name: "useSpendPermission",
     inputs: [
       { name: "permissionHash", type: "bytes32", internalType: "bytes32" },
       { name: "spend", type: "uint256", internalType: "uint256" },
@@ -130,7 +130,7 @@ export const permissionContractAbi = [
   },
   {
     type: "event",
-    name: "RecurringAllowanceInitialized",
+    name: "SpendPermissionInitialized",
     inputs: [
       {
         name: "account",
@@ -145,10 +145,10 @@ export const permissionContractAbi = [
         internalType: "bytes32",
       },
       {
-        name: "recurringAllowance",
+        name: "spendPermission",
         type: "tuple",
         indexed: false,
-        internalType: "struct NativeTokenRecurringAllowance.RecurringAllowance",
+        internalType: "struct NativeTokenSpendPermission.SpendPermission",
         components: [
           { name: "start", type: "uint48", internalType: "uint48" },
           { name: "period", type: "uint48", internalType: "uint48" },
@@ -160,7 +160,7 @@ export const permissionContractAbi = [
   },
   {
     type: "event",
-    name: "RecurringAllowanceUsed",
+    name: "SpendPermissionUsed",
     inputs: [
       {
         name: "account",
@@ -195,13 +195,13 @@ export const permissionContractAbi = [
     ],
     anonymous: false,
   },
-  { type: "error", name: "BeforeRecurringAllowanceStart", inputs: [] },
-  { type: "error", name: "ExceededRecurringAllowance", inputs: [] },
+  { type: "error", name: "BeforeSpendPermissionStart", inputs: [] },
+  { type: "error", name: "ExceededSpendPermission", inputs: [] },
   { type: "error", name: "InvalidInitializePermissionSender", inputs: [] },
-  { type: "error", name: "InvalidUseRecurringAllowanceCall", inputs: [] },
+  { type: "error", name: "InvalidUseSpendPermissionCall", inputs: [] },
   { type: "error", name: "InvalidWithdrawAsset", inputs: [] },
   { type: "error", name: "SelectorNotAllowed", inputs: [] },
   { type: "error", name: "SpendValueOverflow", inputs: [] },
   { type: "error", name: "TargetNotAllowed", inputs: [] },
-  { type: "error", name: "ZeroRecurringAllowance", inputs: [] },
+  { type: "error", name: "ZeroSpendPermission", inputs: [] },
 ];

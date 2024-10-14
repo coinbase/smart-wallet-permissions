@@ -5,7 +5,7 @@ import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
 import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract GetCurrentCycleTest is SpendPermissionManagerBase {
+contract GetCurrentPeriodTest is SpendPermissionManagerBase {
     function setUp() public {
         _initializeSpendPermissionManager();
     }
@@ -17,6 +17,17 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
         spendPermission.start = start;
         vm.warp(start - 1);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.BeforeSpendPermissionStart.selector, start));
+        mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+    }
+
+    function test_getCurrentPeriod_revert_equalSpendPermissionEnd(uint48 end) public {
+        vm.assume(end > 0);
+        vm.assume(end < type(uint48).max);
+
+        SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
+        spendPermission.end = end;
+        vm.warp(end);
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.AfterSpendPermissionEnd.selector, end));
         mockSpendPermissionManager.getCurrentPeriod(spendPermission);
     }
 
@@ -183,6 +194,7 @@ contract GetCurrentCycleTest is SpendPermissionManagerBase {
     ) public {
         vm.assume(start > 0);
         vm.assume(period > 0);
+        vm.assume(start < type(uint48).max);
         vm.assume(uint256(start) + uint256(period) > type(uint48).max); // force overflow
         vm.assume(allowance > 0);
 

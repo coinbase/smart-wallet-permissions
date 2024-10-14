@@ -176,14 +176,11 @@ contract SpendPermissions is EIP712 {
         _transferFrom(recurringAllowance.account, recurringAllowance.token, recipient, value);
     }
 
-    /// @notice Hash a RecurringAllowance struct for signing.
-    ///
-    /// @dev Prevent phishing permits by making the hash incompatible with EIP-191/712.
-    /// @dev Include chainId and contract address in hash for cross-chain and cross-contract replay protection.
+    /// @notice Hash a RecurringAllowance struct for signing in accordance with EIP-191/712.
     ///
     /// @param recurringAllowance Details of the recurring allowance.
     ///
-    /// @return hash Hash of the recurring allowance and replay protection parameters.
+    /// @return hash Hash of the recurring allowance.
     function getHash(RecurringAllowance memory recurringAllowance) public view returns (bytes32) {
         return _hashTypedData(keccak256(abi.encode(MESSAGE_TYPEHASH, recurringAllowance)));
     }

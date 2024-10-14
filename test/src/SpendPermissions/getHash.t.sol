@@ -11,26 +11,26 @@ contract GetHashTest is SpendPermissionManagerBase {
         _initializeSpendPermissionManager();
     }
 
-    // function test_getHash_success(
-    //     address account,
-    //     address spender,
-    //     address token,
-    //     uint48 start,
-    //     uint48 end,
-    //     uint48 period,
-    //     uint160 allowance
-    // ) public view {
-    //     SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
-    //         account: account,
-    //         spender: spender,
-    //         token: token,
-    //         start: start,
-    //         end: end,
-    //         period: period,
-    //         allowance: allowance
-    //     });
-    //     MockSpendPermissionManager.getHash(spendPermission);
-    // }
+    function test_getHash_success(
+        address account,
+        address spender,
+        address token,
+        uint48 start,
+        uint48 end,
+        uint48 period,
+        uint160 allowance
+    ) public view {
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
+            account: account,
+            spender: spender,
+            token: token,
+            start: start,
+            end: end,
+            period: period,
+            allowance: allowance
+        });
+        mockSpendPermissionManager.getHash(spendPermission);
+    }
 
     function test_getHash_success_uniqueHashPerChain(
         address account,
@@ -56,9 +56,9 @@ contract GetHashTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.chainId(chainId1);
-        bytes32 hash1 = MockSpendPermissionManager.getHash(spendPermission);
+        bytes32 hash1 = mockSpendPermissionManager.getHash(spendPermission);
         vm.chainId(chainId2);
-        bytes32 hash2 = MockSpendPermissionManager.getHash(spendPermission);
+        bytes32 hash2 = mockSpendPermissionManager.getHash(spendPermission);
         assertNotEq(hash1, hash2);
     }
 
@@ -80,10 +80,10 @@ contract GetHashTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
-        MockSpendPermissionManager MockSpendPermissionManager1 = new MockSpendPermissionManager();
-        MockSpendPermissionManager MockSpendPermissionManager2 = new MockSpendPermissionManager();
-        bytes32 hash1 = MockSpendPermissionManager1.getHash(spendPermission);
-        bytes32 hash2 = MockSpendPermissionManager2.getHash(spendPermission);
+        MockSpendPermissionManager mockSpendPermissionManager1 = new MockSpendPermissionManager();
+        MockSpendPermissionManager mockSpendPermissionManager2 = new MockSpendPermissionManager();
+        bytes32 hash1 = mockSpendPermissionManager1.getHash(spendPermission);
+        bytes32 hash2 = mockSpendPermissionManager2.getHash(spendPermission);
         assertNotEq(hash1, hash2);
     }
 }

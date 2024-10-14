@@ -80,15 +80,11 @@ contract WithdrawTest is SpendPermissionsBase {
             period: period,
             allowance: allowance
         });
-        SpendPermissions.SignedPermission memory invalidSignedPermission =
-            _createSignedPermission(recurringAllowance, invalidPk, 0);
-        bytes memory context = abi.encode(invalidSignedPermission);
 
         vm.warp(start);
-
         vm.startPrank(permissionSigner);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissions.UnauthorizedRecurringAllowance.selector));
-        mockSpendPermissions.withdraw(context, recipient, spend);
+        mockSpendPermissions.withdraw(recurringAllowance, recipient, spend);
         vm.stopPrank();
     }
 
@@ -124,14 +120,13 @@ contract WithdrawTest is SpendPermissionsBase {
         assertEq(address(account).balance, allowance);
         assertEq(recipient.balance, 0);
 
-        SpendPermissions.SignedPermission memory signedPermission =
-            _createSignedPermission(recurringAllowance, ownerPk, 0);
-        bytes memory context = abi.encode(signedPermission);
+        bytes memory signature = _signRecurringAllowance(recurringAllowance, ownerPk, 0);
 
         vm.warp(start);
 
-        vm.prank(permissionSigner);
-        mockSpendPermissions.withdraw(context, recipient, spend);
+        vm.startPrank(permissionSigner);
+        mockSpendPermissions.permit(recurringAllowance, signature);
+        mockSpendPermissions.withdraw(recurringAllowance, recipient, spend);
 
         assertEq(address(account).balance, allowance - spend);
         assertEq(recipient.balance, spend);

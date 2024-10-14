@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
+import {EIP712} from "solady/utils/EIP712.sol";
 
 /// @title SpendPermissions
 ///
@@ -12,7 +13,7 @@ import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 /// @dev Allowance and spend values capped at uint160 ~ 1e48.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
-contract SpendPermissions {
+contract SpendPermissions is EIP712 {
     /// @notice A recurring allowance for an external spender to withdraw an account's tokens.
     struct RecurringAllowance {
         /// @dev Smart account this recurring allowance is valid for.
@@ -31,14 +32,6 @@ contract SpendPermissions {
         uint160 allowance;
     }
 
-    /// @notice A signed permit to approve a recurring allowance.
-    struct SignedPermission {
-        /// @dev Recurring allowance parameters.
-        RecurringAllowance recurringAllowance;
-        /// @dev User signature to validate via EIP-1271.
-        bytes signature;
-    }
-
     /// @notice Cycle parameters and spend usage.
     struct CycleUsage {
         /// @dev Start time of the cycle (unix seconds).
@@ -48,6 +41,10 @@ contract SpendPermissions {
         /// @dev Accumulated spend amount for cycle.
         uint160 spend;
     }
+
+    bytes32 constant MESSAGE_TYPEHASH = keccak256(
+        "RecurringAllowance(address account,address spender,address token,uint48 start,uint48 end,uint48 period,uint160 allowance)"
+    );
 
     /// @notice ERC-7528 address convention for ether (https://eips.ethereum.org/EIPS/eip-7528).
     address public constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -150,33 +147,20 @@ contract SpendPermissions {
         emit RecurringAllowanceRevoked(hash, recurringAllowance.account, recurringAllowance);
     }
 
-    /// @notice Withdraw tokens using a recurring allowance and approval signature.
-    ///
-    /// @dev Convenience function for offchain preparation from apps that have an ERC-7715 permissions context.
-    ///
-    /// @param context Flat bytes value representing an approved recurring allowance.
-    /// @param recipient Address to withdraw tokens to.
-    /// @param value Amount of token attempting to withdraw (wei).
-    function withdraw(bytes calldata context, address recipient, uint160 value) external {
-        SignedPermission memory signedPermission = abi.decode(context, (SignedPermission));
-        permit(signedPermission);
-        withdraw(signedPermission.recurringAllowance, recipient, value);
-    }
-
     /// @notice Approve a recurring allowance via a signature from the account.
     ///
-    /// @param signedPermission Signed recurring allowance permission.
-    function permit(SignedPermission memory signedPermission) public {
+    /// @param recurringAllowance Details of the recurring allowance.
+    /// @param signature Signed approval from the user.
+    function permit(RecurringAllowance memory recurringAllowance, bytes memory signature) public {
         // validate signature over recurring allowance data
         if (
-            IERC1271(signedPermission.recurringAllowance.account).isValidSignature(
-                getHash(signedPermission.recurringAllowance), signedPermission.signature
-            ) != IERC1271.isValidSignature.selector
+            IERC1271(recurringAllowance.account).isValidSignature(getHash(recurringAllowance), signature)
+                != IERC1271.isValidSignature.selector
         ) {
             revert UnauthorizedRecurringAllowance();
         }
 
-        _approve(signedPermission.recurringAllowance);
+        _approve(recurringAllowance);
     }
 
     /// @notice Withdraw tokens using a recurring allowance.
@@ -192,16 +176,13 @@ contract SpendPermissions {
         _transferFrom(recurringAllowance.account, recurringAllowance.token, recipient, value);
     }
 
-    /// @notice Hash a RecurringAllowance struct for signing.
-    ///
-    /// @dev Prevent phishing permits by making the hash incompatible with EIP-191/712.
-    /// @dev Include chainId and contract address in hash for cross-chain and cross-contract replay protection.
+    /// @notice Hash a RecurringAllowance struct for signing in accordance with EIP-191/712.
     ///
     /// @param recurringAllowance Details of the recurring allowance.
     ///
-    /// @return hash Hash of the recurring allowance and replay protection parameters.
+    /// @return hash Hash of the recurring allowance.
     function getHash(RecurringAllowance memory recurringAllowance) public view returns (bytes32) {
-        return keccak256(abi.encode(recurringAllowance, block.chainid, address(this)));
+        return _hashTypedData(keccak256(abi.encode(MESSAGE_TYPEHASH, recurringAllowance)));
     }
 
     /// @notice Return if recurring allowance is authorized i.e. approved and not revoked.
@@ -334,5 +315,14 @@ contract SpendPermissions {
     /// @param data Bytes data to send in call.
     function _execute(address account, address target, uint256 value, bytes memory data) internal virtual {
         CoinbaseSmartWallet(payable(account)).execute({target: target, value: value, data: data});
+    }
+
+    /// @notice Return EIP712 domain name and version.
+    ///
+    /// @return name Name string for the EIP712 domain.
+    /// @return version Version string for the EIP712 domain.
+    function _domainNameAndVersion() internal pure override returns (string memory name, string memory version) {
+        name = "SpendPermissions";
+        version = "1";
     }
 }

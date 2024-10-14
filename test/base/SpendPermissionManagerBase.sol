@@ -18,7 +18,7 @@ contract SpendPermissionManagerBase is Base {
     /**
      * @dev Helper function to create a SpendPermissionManager.SpendPermission struct with happy path defaults
      */
-    function _createRecurringAllowance() internal view returns (SpendPermissionManager.SpendPermission memory) {
+    function _createSpendPermission() internal view returns (SpendPermissionManager.SpendPermission memory) {
         return SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: permissionSigner,
@@ -31,18 +31,15 @@ contract SpendPermissionManagerBase is Base {
     }
 
     function _createSignedPermission(
-        SpendPermissionManager.SpendPermission memory recurringAllowance,
+        SpendPermissionManager.SpendPermission memory spendPermission,
         uint256 ownerPk,
         uint256 ownerIndex
     ) internal view returns (SpendPermissionManager.SignedPermission memory) {
-        bytes32 recurringAllowanceHash = mockSpendPermissions.getHash(recurringAllowance);
-        bytes32 replaySafeHash = account.replaySafeHash(recurringAllowanceHash);
+        bytes32 spendPermissionHash = mockSpendPermissions.getHash(spendPermission);
+        bytes32 replaySafeHash = account.replaySafeHash(spendPermissionHash);
         bytes memory signature = _sign(ownerPk, replaySafeHash);
         bytes memory wrappedSignature = _applySignatureWrapper(ownerIndex, signature);
-        return SpendPermissionManager.SignedPermission({
-            recurringAllowance: recurringAllowance,
-            signature: wrappedSignature
-        });
+        return SpendPermissionManager.SignedPermission({spendPermission: spendPermission, signature: wrappedSignature});
     }
 
     function _safeAddUint48(uint48 a, uint48 b) internal pure returns (uint48 c) {

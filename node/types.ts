@@ -25,7 +25,7 @@ export type SpendPermission = {
 };
 
 export type PermissionValues = {
-  recurringAllowance: SpendPermission;
+  spendPermission: SpendPermission;
   allowedContract: Address;
 };
 
@@ -45,8 +45,8 @@ export const permissionStruct = {
   ],
 } as const;
 
-export const recurringAllowanceStruct = {
-  name: "recurringAllowance",
+export const spendPermissionStruct = {
+  name: "spendPermission",
   type: "tuple",
   internalType: "struct SpendPermission",
   components: [
@@ -61,7 +61,7 @@ export const permissionValuesStruct = {
   type: "tuple",
   internalType: "struct PermissionValues",
   components: [
-    recurringAllowanceStruct,
+    spendPermissionStruct,
     { name: "allowedContract", type: "address", internalType: "address" },
   ],
 } as const;
@@ -127,11 +127,11 @@ export type AccountSignerType = {
 // permission types
 
 export enum PermissionType {
-  NativeTokenRecurringAllowance = "native-token-recurring-allowance",
+  NativeTokenSpendPermission = "native-token-recurring-allowance",
 }
 
-export type NativeTokenRecurringAllowancePermissionType = {
-  type: PermissionType.NativeTokenRecurringAllowance;
+export type NativeTokenSpendPermissionPermissionType = {
+  type: PermissionType.NativeTokenSpendPermission;
   data: {
     start: number; // unix seconds
     period: number; // seconds

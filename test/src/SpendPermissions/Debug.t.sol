@@ -22,25 +22,25 @@ contract DebugTest is Test, Base {
     }
 
     function test_approve() public {
-        SpendPermissionManager.SpendPermission memory recurringAllowance = _createRecurringAllowance();
+        SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
 
         vm.prank(address(account));
-        spendPermissionManager.approve(recurringAllowance);
+        spendPermissionManager.approve(spendPermission);
     }
 
     function test_withdraw(address recipient) public {
         assumePayable(recipient);
-        SpendPermissionManager.SpendPermission memory recurringAllowance = _createRecurringAllowance();
+        SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
 
         vm.prank(address(account));
-        spendPermissionManager.approve(recurringAllowance);
+        spendPermissionManager.approve(spendPermission);
 
         vm.deal(address(account), 1 ether);
         vm.prank(owner);
-        spendPermissionManager.withdraw(recurringAllowance, recipient, 1 ether / 2);
+        spendPermissionManager.withdraw(spendPermission, recipient, 1 ether / 2);
     }
 
-    function _createRecurringAllowance() internal view returns (SpendPermissionManager.SpendPermission memory) {
+    function _createSpendPermission() internal view returns (SpendPermissionManager.SpendPermission memory) {
         return SpendPermissionManager.SpendPermission({
             account: address(account),
             spender: owner,

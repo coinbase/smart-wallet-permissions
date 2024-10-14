@@ -19,7 +19,7 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -30,8 +30,8 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
         });
 
         vm.prank(account);
-        mockSpendPermissions.approve(recurringAllowance);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
+        mockSpendPermissions.approve(spendPermission);
+        vm.assertTrue(mockSpendPermissions.isAuthorized(spendPermission));
     }
 
     function test_isAuthorized_false_uninitialized(
@@ -43,7 +43,7 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
         uint48 period,
         uint160 allowance
     ) public view {
-        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -52,7 +52,7 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
-        vm.assertFalse(mockSpendPermissions.isAuthorized(recurringAllowance));
+        vm.assertFalse(mockSpendPermissions.isAuthorized(spendPermission));
     }
 
     function test_isAuthorized_false_wasRevoked(
@@ -64,7 +64,7 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
         uint48 period,
         uint160 allowance
     ) public {
-        SpendPermissionManager.SpendPermission memory recurringAllowance = SpendPermissionManager.SpendPermission({
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
             token: token,
@@ -75,11 +75,11 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
         });
         vm.startPrank(account);
 
-        mockSpendPermissions.approve(recurringAllowance);
-        vm.assertTrue(mockSpendPermissions.isAuthorized(recurringAllowance));
+        mockSpendPermissions.approve(spendPermission);
+        vm.assertTrue(mockSpendPermissions.isAuthorized(spendPermission));
 
-        mockSpendPermissions.revoke(recurringAllowance);
-        vm.assertFalse(mockSpendPermissions.isAuthorized(recurringAllowance));
+        mockSpendPermissions.revoke(spendPermission);
+        vm.assertFalse(mockSpendPermissions.isAuthorized(spendPermission));
         vm.stopPrank();
     }
 }

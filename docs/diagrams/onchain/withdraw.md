@@ -11,10 +11,10 @@ sequenceDiagram
     participant ERC20
 
     opt
-        S->>M: permit(recurringAllowance, signature)
+        S->>M: permit(spendPermission, signature)
     end
     Note over M: validate signature and store approval
-    S->>M: withdraw(recurringAllowance, value)
+    S->>M: withdraw(spendPermission, value)
     Note over M: validate recurring allowance authorized <br> and withdraw value within allowance
     M->>A: execute(target, value, data)
     Note over M,A: transfer tokens

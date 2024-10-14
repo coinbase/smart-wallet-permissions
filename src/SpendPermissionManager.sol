@@ -254,11 +254,11 @@ contract SpendPermissionManager is EIP712 {
             revert InvalidStartEnd(spendPermission.start, spendPermission.end);
         }
 
-        // check allowance non-zero
-        if (spendPermission.allowance == 0) revert ZeroAllowance();
-
         // check period non-zero
         if (spendPermission.period == 0) revert ZeroPeriod();
+
+        // check allowance non-zero
+        if (spendPermission.allowance == 0) revert ZeroAllowance();
 
         bytes32 hash = getHash(spendPermission);
         _isApproved[hash][spendPermission.account] = true;

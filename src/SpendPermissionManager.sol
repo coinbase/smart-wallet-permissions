@@ -153,7 +153,26 @@ contract SpendPermissionManager is EIP712 {
         _approve(spendPermission);
     }
 
-    /// @notice Withdraw tokens using a spend permission.
+    /// @notice Approve a spend permission and spend tokens.
+    ///
+    /// @dev Approves a spend permission for the first time and spends tokens in a single transaction.
+    ///
+    /// @param spendPermission Details of the spend permission.
+    /// @param signature Signed approval from the user.
+    /// @param recipient Address to spend tokens to.
+    /// @param value Amount of token attempting to spend (wei).
+    function permitAndSpend(
+        SpendPermission memory spendPermission,
+        bytes memory signature,
+        address recipient,
+        uint160 value
+    ) public requireSender(spendPermission.spender) {
+        permit(spendPermission, signature);
+        _useSpendPermission(spendPermission, value);
+        _transferFrom(spendPermission.account, spendPermission.token, recipient, value);
+    }
+
+    /// @notice Spend tokens using a spend permission.
     ///
     /// @param spendPermission Details of the spend permission.
     /// @param recipient Address to spend tokens to.

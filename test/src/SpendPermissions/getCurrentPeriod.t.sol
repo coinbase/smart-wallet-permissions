@@ -16,7 +16,9 @@ contract GetCurrentPeriodTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
         spendPermission.start = start;
         vm.warp(start - 1);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.BeforeSpendPermissionStart.selector, start));
+        vm.expectRevert(
+            abi.encodeWithSelector(SpendPermissionManager.BeforeSpendPermissionStart.selector, start - 1, start)
+        );
         mockSpendPermissionManager.getCurrentPeriod(spendPermission);
     }
 
@@ -27,7 +29,7 @@ contract GetCurrentPeriodTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
         spendPermission.end = end;
         vm.warp(end);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.AfterSpendPermissionEnd.selector, end));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.AfterSpendPermissionEnd.selector, end, end));
         mockSpendPermissionManager.getCurrentPeriod(spendPermission);
     }
 
@@ -38,7 +40,7 @@ contract GetCurrentPeriodTest is SpendPermissionManagerBase {
         SpendPermissionManager.SpendPermission memory spendPermission = _createSpendPermission();
         spendPermission.end = end;
         vm.warp(end + 1);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.AfterSpendPermissionEnd.selector, end));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.AfterSpendPermissionEnd.selector, end + 1, end));
         mockSpendPermissionManager.getCurrentPeriod(spendPermission);
     }
 

@@ -61,7 +61,7 @@ contract SpendPermissionManager is EIP712 {
     /// @notice Invalid sender for the external call.
     ///
     /// @param sender Expected sender to be valid.
-    error InvalidSender(address sender);
+    error InvalidSender(address sender, address expected);
 
     /// @notice Spend Permission start time is not strictly less than end time.
     ///
@@ -80,13 +80,15 @@ contract SpendPermissionManager is EIP712 {
 
     /// @notice Recurring period has not started yet.
     ///
+    /// @param currentTimestamp Current timestamp (unix seconds).
     /// @param start Timestamp this spend permission is valid after (unix seconds).
-    error BeforeSpendPermissionStart(uint48 start);
+    error BeforeSpendPermissionStart(uint48 currentTimestamp, uint48 start);
 
     /// @notice Recurring period has not started yet.
     ///
+    /// @param currentTimestamp Current timestamp (unix seconds).
     /// @param end Timestamp this spend permission is valid until (unix seconds).
-    error AfterSpendPermissionEnd(uint48 end);
+    error AfterSpendPermissionEnd(uint48 currentTimestamp, uint48 end);
 
     /// @notice Spend value exceeds max size of uint160.
     ///
@@ -127,7 +129,7 @@ contract SpendPermissionManager is EIP712 {
     ///
     /// @param sender Expected sender for call to be valid.
     modifier requireSender(address sender) {
-        if (msg.sender != sender) revert InvalidSender(sender);
+        if (msg.sender != sender) revert InvalidSender(msg.sender, sender);
         _;
     }
 
@@ -227,9 +229,9 @@ contract SpendPermissionManager is EIP712 {
         // check current timestamp is within spend permission time range
         uint48 currentTimestamp = uint48(block.timestamp);
         if (currentTimestamp < spendPermission.start) {
-            revert BeforeSpendPermissionStart(spendPermission.start);
+            revert BeforeSpendPermissionStart(currentTimestamp, spendPermission.start);
         } else if (currentTimestamp >= spendPermission.end) {
-            revert AfterSpendPermissionEnd(spendPermission.end);
+            revert AfterSpendPermissionEnd(currentTimestamp, spendPermission.end);
         }
 
         // return last period if still active, otherwise compute new active period start time with no spend

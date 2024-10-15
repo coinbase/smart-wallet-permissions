@@ -32,7 +32,7 @@ contract ApproveTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         vm.startPrank(sender);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, account));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, sender, account));
         mockSpendPermissionManager.approve(spendPermission);
         vm.stopPrank();
     }

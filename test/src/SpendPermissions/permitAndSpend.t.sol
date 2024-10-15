@@ -19,7 +19,7 @@ contract PermitAndSpendTest is SpendPermissionManagerBase {
     function test_permitAndSpend_revert_invalidSender(
         address sender,
         address account,
-        address permissionSigner,
+        address spender,
         address recipient,
         uint48 start,
         uint48 end,
@@ -30,13 +30,13 @@ contract PermitAndSpendTest is SpendPermissionManagerBase {
         vm.assume(start > 0);
         vm.assume(start < end);
         vm.assume(period > 0);
-        vm.assume(sender != permissionSigner);
+        vm.assume(sender != spender);
         vm.assume(spend > 0);
         vm.assume(allowance > 0);
         vm.assume(allowance >= spend);
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
-            spender: permissionSigner,
+            spender: spender,
             token: NATIVE_TOKEN,
             start: start,
             end: end,
@@ -45,7 +45,7 @@ contract PermitAndSpendTest is SpendPermissionManagerBase {
         });
         bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
         vm.startPrank(sender);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, permissionSigner));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, sender, spender));
         mockSpendPermissionManager.permitAndSpend(spendPermission, signature, recipient, spend);
         vm.stopPrank();
     }

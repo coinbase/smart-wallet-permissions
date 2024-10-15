@@ -5,12 +5,13 @@ import {SpendPermissionManager} from "../../src/SpendPermissionManager.sol";
 import {MockSpendPermissionManager} from "../mocks/MockSpendPermissionManager.sol";
 import {Base} from "./Base.sol";
 
+import {MockCoinbaseSmartWallet} from "../mocks/MockCoinbaseSmartWallet.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 import {CoinbaseSmartWalletFactory} from "smart-wallet/CoinbaseSmartWalletFactory.sol";
 
 contract SpendPermissionManagerBase is Base {
     address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
+    bytes32 constant CBSW_MESSAGE_TYPEHASH = keccak256("CoinbaseSmartWalletMessage(bytes32 hash)");
     MockSpendPermissionManager mockSpendPermissionManager;
     CoinbaseSmartWalletFactory mockCoinbaseSmartWalletFactory;
 
@@ -41,7 +42,8 @@ contract SpendPermissionManagerBase is Base {
         uint256 ownerIndex
     ) internal view returns (bytes memory) {
         bytes32 spendPermissionHash = mockSpendPermissionManager.getHash(spendPermission);
-        bytes32 replaySafeHash = account.replaySafeHash(spendPermissionHash);
+        bytes32 replaySafeHash =
+            CoinbaseSmartWallet(payable(spendPermission.account)).replaySafeHash(spendPermissionHash);
         bytes memory signature = _sign(ownerPk, replaySafeHash);
         bytes memory wrappedSignature = _applySignatureWrapper(ownerIndex, signature);
         return wrappedSignature;
@@ -53,7 +55,21 @@ contract SpendPermissionManagerBase is Base {
         uint256 ownerIndex
     ) internal view returns (bytes memory) {
         bytes32 spendPermissionHash = mockSpendPermissionManager.getHash(spendPermission);
-        bytes32 replaySafeHash = account.replaySafeHash(spendPermissionHash);
+        // construct replaySafeHash without relying on the account contract being deployed
+        bytes32 cbswDomainSeparator = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("Coinbase Smart Wallet")),
+                keccak256(bytes("1")),
+                block.chainid,
+                spendPermission.account
+            )
+        );
+        bytes32 replaySafeHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01", cbswDomainSeparator, keccak256(abi.encode(CBSW_MESSAGE_TYPEHASH, spendPermissionHash))
+            )
+        );
         bytes memory signature = _sign(ownerPk, replaySafeHash);
         bytes memory wrappedSignature = _applySignatureWrapper(ownerIndex, signature);
 

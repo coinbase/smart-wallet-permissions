@@ -4,6 +4,7 @@ pragma solidity ^0.8.23;
 import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
 import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
+import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 
 contract PermitTest is SpendPermissionManagerBase {
     function setUp() public {
@@ -189,7 +190,7 @@ contract PermitTest is SpendPermissionManagerBase {
             allowance: allowance
         });
         bytes memory signature = _signSpendPermission6492(spendPermission, ownerPk, 0);
-        // verify that the account isn't deployed yet (no code)
+        // verify that the account isn't deployed yet
         vm.assertEq(counterfactualAccount.code.length, 0);
 
         // submit the spend permission with the signature, see permit succeed

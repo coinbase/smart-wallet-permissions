@@ -168,8 +168,7 @@ contract SpendPermissionManager is EIP712 {
         uint160 value
     ) public requireSender(spendPermission.spender) {
         permit(spendPermission, signature);
-        _useSpendPermission(spendPermission, value);
-        _transferFrom(spendPermission.account, spendPermission.token, recipient, value);
+        spend(spendPermission, recipient, value);
     }
 
     /// @notice Spend tokens using a spend permission.

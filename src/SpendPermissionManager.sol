@@ -14,6 +14,24 @@ import {EIP712} from "solady/utils/EIP712.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet-permissions)
 contract SpendPermissionManager is EIP712 {
+    /// @notice A batch of spend permissions for an external spender to spend an account's tokens.
+    struct SpendPermissionBatch {
+        /// @dev Token addresses (ERC-7528 ether address or ERC-20 contract).
+        address[] tokens;
+        /// @dev Maximum allowed value to spend within a recurring period per token.
+        uint160[] allowances;
+        /// @dev Smart account this spend permission is valid for.
+        address account;
+        /// @dev Entity that can spend user funds.
+        address spender;
+        /// @dev Timestamp this spend permission is valid after (unix seconds) for this batch.
+        uint48 start;
+        /// @dev Time duration for resetting used allowance on a recurring basis (seconds) for this batch.
+        uint48 end;
+        /// @dev Maximum allowed value to spend within a recurring period for this batch.
+        uint48 period;
+    }
+
     /// @notice A spend permission for an external spender to spend an account's tokens.
     struct SpendPermission {
         /// @dev Smart account this spend permission is valid for.
@@ -63,6 +81,9 @@ contract SpendPermissionManager is EIP712 {
     /// @param sender Expected sender to be valid.
     error InvalidSender(address sender);
 
+    /// @notice Invalid signature for spend permission.
+    error InvalidSignature();
+
     /// @notice Spend Permission start time is not strictly less than end time.
     ///
     /// @param start Unix timestamp (seconds) for start of the permission.
@@ -77,6 +98,9 @@ contract SpendPermissionManager is EIP712 {
 
     /// @notice Unauthorized spend permission.
     error UnauthorizedSpendPermission();
+
+    /// @notice Mismatched array lengths for spend permission batch.
+    error MismatchedArrayLengths();
 
     /// @notice Recurring period has not started yet.
     ///
@@ -151,18 +175,31 @@ contract SpendPermissionManager is EIP712 {
 
     /// @notice Approve a spend permission via a signature from the account.
     ///
-    /// @param spendPermission Details of the spend permission.
+    /// @param spendPermissionBatch Details of the spend permission batch.
     /// @param signature Signed approval from the user.
-    function permit(SpendPermission memory spendPermission, bytes memory signature) public {
+    function permit(SpendPermissionBatch memory spendPermissionBatch, bytes memory signature) public {
+        if (spendPermissionBatch.tokens.length != spendPermissionBatch.allowances.length) {
+            revert MismatchedArrayLengths();
+        }
         // validate signature over spend permission data
         if (
-            IERC1271(spendPermission.account).isValidSignature(getHash(spendPermission), signature)
+            IERC1271(spendPermissionBatch.account).isValidSignature(getHash(spendPermissionBatch), signature)
                 != IERC1271.isValidSignature.selector
         ) {
-            revert UnauthorizedSpendPermission();
+            revert InvalidSignature();
         }
-
-        _approve(spendPermission);
+        for (uint256 i = 0; i < spendPermissionBatch.tokens.length; i++) {
+            SpendPermission memory spendPermission = SpendPermission({
+                account: spendPermissionBatch.account,
+                spender: spendPermissionBatch.spender,
+                token: spendPermissionBatch.tokens[i],
+                start: spendPermissionBatch.start,
+                end: spendPermissionBatch.end,
+                period: spendPermissionBatch.period,
+                allowance: spendPermissionBatch.allowances[i]
+            });
+            _approve(spendPermission);
+        }
     }
 
     /// @notice Approve a spend permission and spend tokens.
@@ -196,13 +233,22 @@ contract SpendPermissionManager is EIP712 {
         _transferFrom(spendPermission.account, spendPermission.token, recipient, value);
     }
 
-    /// @notice Hash a SpendPermission struct for signing in accordance with EIP-191/712.
+    /// @notice Hash a SpendPermission struct for storing approvals.
     ///
     /// @param spendPermission Details of the spend permission.
     ///
     /// @return hash Hash of the spend permission.
     function getHash(SpendPermission memory spendPermission) public view returns (bytes32) {
         return _hashTypedData(keccak256(abi.encode(MESSAGE_TYPEHASH, spendPermission)));
+    }
+
+    /// @notice Hash a SpendPermissionBatch struct for signing in accordance with EIP-191/712.
+    ///
+    /// @param spendPermission Details of the spend permission.
+    ///
+    /// @return hash Hash of the spend permission batch.
+    function getHash(SpendPermissionBatch memory spendPermissionBatch) public view returns (bytes32) {
+        return _hashTypedData(keccak256(abi.encode(MESSAGE_TYPEHASH, spendPermissionBatch)));
     }
 
     /// @notice Return if spend permission is authorized i.e. approved and not revoked.

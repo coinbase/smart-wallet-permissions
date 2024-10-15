@@ -7,7 +7,7 @@ import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
 import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract SpendTest is SpendPermissionManagerBase {
+contract PermitAndSpendTest is SpendPermissionManagerBase {
     MockERC20 mockERC20 = new MockERC20("mockERC20", "TEST", 18);
 
     function setUp() public {
@@ -16,7 +16,7 @@ contract SpendTest is SpendPermissionManagerBase {
         account.addOwnerAddress(address(mockSpendPermissionManager));
     }
 
-    function test_spend_revert_invalidSender(
+    function test_permitAndSpend_revert_invalidSender(
         address sender,
         address account,
         address permissionSigner,
@@ -43,17 +43,16 @@ contract SpendTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
-        vm.prank(account);
-        mockSpendPermissionManager.approve(spendPermission);
+        bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
         vm.startPrank(sender);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, permissionSigner));
-        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
+        mockSpendPermissionManager.permitAndSpend(spendPermission, signature, recipient, spend);
         vm.stopPrank();
     }
 
-    function test_spend_revert_unauthorizedSpendPermission(
+    function test_permitAndSpend_revert_unauthorizedSpendPermission(
         uint128 invalidPk,
-        address permissionSigner,
+        address sender,
         address recipient,
         uint48 start,
         uint48 end,
@@ -71,23 +70,23 @@ contract SpendTest is SpendPermissionManagerBase {
         vm.assume(allowance >= spend);
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
-            spender: permissionSigner,
+            spender: sender,
             token: NATIVE_TOKEN,
             start: start,
             end: end,
             period: period,
             allowance: allowance
         });
-
+        bytes memory invalidSignature = _signSpendPermission(spendPermission, invalidPk, 0);
         vm.warp(start);
-        vm.startPrank(permissionSigner);
+        vm.startPrank(sender);
         vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.UnauthorizedSpendPermission.selector));
-        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
+        mockSpendPermissionManager.permitAndSpend(spendPermission, invalidSignature, recipient, spend);
         vm.stopPrank();
     }
 
-    function test_spend_success_ether(
-        address permissionSigner,
+    function test_permitAndSpend_success_ether(
+        address sender,
         address recipient,
         uint48 start,
         uint48 end,
@@ -106,7 +105,7 @@ contract SpendTest is SpendPermissionManagerBase {
         vm.assume(allowance >= spend);
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
-            spender: permissionSigner,
+            spender: sender,
             token: NATIVE_TOKEN,
             start: start,
             end: end,
@@ -122,9 +121,8 @@ contract SpendTest is SpendPermissionManagerBase {
 
         vm.warp(start);
 
-        vm.startPrank(permissionSigner);
-        mockSpendPermissionManager.permit(spendPermission, signature);
-        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
+        vm.startPrank(sender);
+        mockSpendPermissionManager.permitAndSpend(spendPermission, signature, recipient, spend);
 
         assertEq(address(account).balance, allowance - spend);
         assertEq(recipient.balance, spend);
@@ -134,8 +132,8 @@ contract SpendTest is SpendPermissionManagerBase {
         assertEq(usage.spend, spend);
     }
 
-    function test_spend_success_ether_alreadyInitialized(
-        address permissionSigner,
+    function test_permitAndSpend_success_ether_alreadyInitialized(
+        address sender,
         address recipient,
         uint48 start,
         uint48 end,
@@ -154,7 +152,7 @@ contract SpendTest is SpendPermissionManagerBase {
         vm.assume(allowance >= spend);
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
-            spender: permissionSigner,
+            spender: sender,
             token: NATIVE_TOKEN,
             start: start,
             end: end,
@@ -164,13 +162,15 @@ contract SpendTest is SpendPermissionManagerBase {
         vm.deal(address(account), allowance);
         vm.deal(recipient, 0);
         vm.prank(address(account));
-        mockSpendPermissionManager.approve(spendPermission);
+        mockSpendPermissionManager.approve(spendPermission); // can still use permit version if approval has been made
+            // previously
         vm.warp(start);
 
         assertEq(address(account).balance, allowance);
         assertEq(recipient.balance, 0);
-        vm.prank(permissionSigner);
-        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
+        bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
+        vm.prank(sender);
+        mockSpendPermissionManager.permitAndSpend(spendPermission, signature, recipient, spend);
         assertEq(address(account).balance, allowance - spend);
         assertEq(recipient.balance, spend);
         SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
@@ -179,8 +179,8 @@ contract SpendTest is SpendPermissionManagerBase {
         assertEq(usage.spend, spend);
     }
 
-    function test_spend_success_ERC20(
-        address permissionSigner,
+    function test_permitAndSpend_success_ERC20(
+        address sender,
         address recipient,
         uint48 start,
         uint48 end,
@@ -198,22 +198,24 @@ contract SpendTest is SpendPermissionManagerBase {
         vm.assume(allowance >= spend);
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: address(account),
-            spender: permissionSigner,
+            spender: sender,
             token: address(mockERC20),
             start: start,
             end: end,
             period: period,
             allowance: allowance
         });
+        bytes memory signature = _signSpendPermission(spendPermission, ownerPk, 0);
         mockERC20.mint(address(account), allowance);
-        vm.prank(address(account));
-        mockSpendPermissionManager.approve(spendPermission);
+
         vm.warp(start);
 
         assertEq(mockERC20.balanceOf(address(account)), allowance);
         assertEq(mockERC20.balanceOf(recipient), 0);
-        vm.prank(permissionSigner);
-        mockSpendPermissionManager.spend(spendPermission, recipient, spend);
+
+        vm.prank(sender);
+        mockSpendPermissionManager.permitAndSpend(spendPermission, signature, recipient, spend);
+
         assertEq(mockERC20.balanceOf(address(account)), allowance - spend);
         assertEq(mockERC20.balanceOf(recipient), spend);
         SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);

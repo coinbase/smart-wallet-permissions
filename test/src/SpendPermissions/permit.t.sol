@@ -157,4 +157,45 @@ contract PermitTest is SpendPermissionManagerBase {
         });
         mockSpendPermissionManager.permit(spendPermission, signature);
     }
+
+    function test_permit_6492_signature_success(
+        uint128 ownerPk,
+        address spender,
+        address token,
+        uint48 start,
+        uint48 end,
+        uint48 period,
+        uint160 allowance
+    ) public {
+        vm.assume(start > 0);
+        vm.assume(start < end);
+        vm.assume(period > 0);
+        vm.assume(allowance > 0);
+        vm.assume(ownerPk != 0);
+        // generate the counterfactual address for the account
+        address ownerAddress = vm.addr(ownerPk);
+        bytes[] memory owners = new bytes[](1);
+        owners[0] = abi.encode(ownerAddress);
+        address counterfactualAccount = mockCoinbaseSmartWalletFactory.getAddress(owners, 0);
+
+        // create a 6492-compliant signature for the spend permission
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
+            account: counterfactualAccount,
+            spender: spender,
+            token: token,
+            start: start,
+            end: end,
+            period: period,
+            allowance: allowance
+        });
+        bytes memory signature = _signSpendPermission6492(spendPermission, ownerPk, 0);
+        // verify that the account isn't deployed yet (no code)
+        vm.assertEq(counterfactualAccount.code.length, 0);
+
+        // submit the spend permission with the signature, see permit succeed
+        vm.startPrank(spender);
+        mockSpendPermissionManager.permit(spendPermission, signature);
+
+        // verify that the account is now deployed (has code) and that a call to isValidSignature returns true
+    }
 }

@@ -318,7 +318,7 @@ contract SpendPermissionManager is EIP712 {
         uint256 balanceAfter = IERC20(token).balanceOf(account);
 
         // check balance after is less than balance before and difference matches value transferred
-        if (balanceAfter > balanceBefore) revert InvalidERC20Transfer(token);
+        if (balanceAfter > balanceBefore || balanceBefore - balanceAfter != value) revert InvalidERC20Transfer(token);
     }
 
     /// @notice Transfer assets from an account to a recipient.

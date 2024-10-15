@@ -20,8 +20,12 @@ contract RevokeTest is SpendPermissionManagerBase {
         uint48 period,
         uint160 allowance
     ) public {
+        vm.assume(start < end);
+        vm.assume(period > 0);
+        vm.assume(allowance > 0);
         vm.assume(sender != address(0));
         vm.assume(sender != account);
+
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
@@ -31,6 +35,7 @@ contract RevokeTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
+
         vm.prank(account);
         mockSpendPermissionManager.approve(spendPermission);
         assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
@@ -49,6 +54,10 @@ contract RevokeTest is SpendPermissionManagerBase {
         uint48 period,
         uint160 allowance
     ) public {
+        vm.assume(start < end);
+        vm.assume(period > 0);
+        vm.assume(allowance > 0);
+
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
@@ -74,6 +83,10 @@ contract RevokeTest is SpendPermissionManagerBase {
         uint48 period,
         uint160 allowance
     ) public {
+        vm.assume(start < end);
+        vm.assume(period > 0);
+        vm.assume(allowance > 0);
+
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,

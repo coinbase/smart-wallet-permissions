@@ -63,6 +63,18 @@ contract SpendPermissionManager is EIP712 {
     /// @param sender Expected sender to be valid.
     error InvalidSender(address sender);
 
+    /// @notice Spend Permission start time is not strictly less than end time.
+    ///
+    /// @param start Unix timestamp (seconds) for start of the permission.
+    /// @param end Unix timestamp (seconds) for end of the permission.
+    error InvalidStartEnd(uint48 start, uint48 end);
+
+    /// @notice Spend Permission has zero allowance.
+    error ZeroAllowance();
+
+    /// @notice Spend Permission has zero period.
+    error ZeroPeriod();
+
     /// @notice Unauthorized spend permission.
     error UnauthorizedSpendPermission();
 
@@ -255,6 +267,17 @@ contract SpendPermissionManager is EIP712 {
     ///
     /// @param spendPermission Details of the spend permission.
     function _approve(SpendPermission memory spendPermission) internal {
+        // check start is strictly before end
+        if (spendPermission.start >= spendPermission.end) {
+            revert InvalidStartEnd(spendPermission.start, spendPermission.end);
+        }
+
+        // check period non-zero
+        if (spendPermission.period == 0) revert ZeroPeriod();
+
+        // check allowance non-zero
+        if (spendPermission.allowance == 0) revert ZeroAllowance();
+
         bytes32 hash = getHash(spendPermission);
         _isApproved[hash][spendPermission.account] = true;
         emit SpendPermissionApproved(hash, spendPermission.account, spendPermission);

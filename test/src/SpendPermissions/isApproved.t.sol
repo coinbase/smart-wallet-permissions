@@ -5,7 +5,7 @@ import {SpendPermissionManager} from "../../../src/SpendPermissionManager.sol";
 
 import {SpendPermissionManagerBase} from "../../base/SpendPermissionManagerBase.sol";
 
-contract IsAuthorizedTest is SpendPermissionManagerBase {
+contract IsApprovedTest is SpendPermissionManagerBase {
     function setUp() public {
         _initializeSpendPermissionManager();
     }
@@ -19,6 +19,10 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
         uint48 period,
         uint160 allowance
     ) public {
+        vm.assume(start < end);
+        vm.assume(period > 0);
+        vm.assume(allowance > 0);
+
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,
@@ -64,6 +68,10 @@ contract IsAuthorizedTest is SpendPermissionManagerBase {
         uint48 period,
         uint160 allowance
     ) public {
+        vm.assume(start < end);
+        vm.assume(period > 0);
+        vm.assume(allowance > 0);
+
         SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
             account: account,
             spender: spender,

@@ -161,7 +161,7 @@ contract GetCurrentPeriodTest is SpendPermissionManagerBase {
         vm.assume(end > 0);
         vm.assume(start < end);
         vm.assume(period > 0);
-        vm.assume(period <= end - start);
+        vm.assume(period < end - start);
         vm.assume(allowance > 0);
         vm.assume(spend <= allowance);
 

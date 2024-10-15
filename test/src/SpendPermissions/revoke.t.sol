@@ -40,7 +40,7 @@ contract RevokeTest is SpendPermissionManagerBase {
         mockSpendPermissionManager.approve(spendPermission);
         assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
         vm.startPrank(sender);
-        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, account));
+        vm.expectRevert(abi.encodeWithSelector(SpendPermissionManager.InvalidSender.selector, sender, account));
         mockSpendPermissionManager.revoke(spendPermission);
         vm.stopPrank();
     }

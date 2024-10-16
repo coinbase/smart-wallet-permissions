@@ -11,6 +11,7 @@ import {CoinbaseSmartWalletFactory} from "smart-wallet/CoinbaseSmartWalletFactor
 
 contract SpendPermissionManagerBase is Base {
     address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    bytes32 constant EIP6492_MAGIC_VALUE = 0x6492649264926492649264926492649264926492649264926492649264926492;
     bytes32 constant CBSW_MESSAGE_TYPEHASH = keccak256("CoinbaseSmartWalletMessage(bytes32 hash)");
     MockSpendPermissionManager mockSpendPermissionManager;
     CoinbaseSmartWalletFactory mockCoinbaseSmartWalletFactory;

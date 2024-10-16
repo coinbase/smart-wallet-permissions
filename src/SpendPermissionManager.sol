@@ -154,7 +154,7 @@ contract SpendPermissionManager is EIP712 {
 
     /// @notice Approve a spend permission via a signature from the account.
     ///
-    /// @dev Implements EIP-6492 (https://eips.ethereum.org/EIPS/eip-6492)
+    /// @dev Compatible with EIP-6492 signatures (https://eips.ethereum.org/EIPS/eip-6492)
     ///
     /// @param spendPermission Details of the spend permission.
     /// @param signature Signed approval from the user.

@@ -15,7 +15,6 @@ contract Base is Test {
     address constant ENTRY_POINT_V06 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
     address constant CDP_PAYMASTER = 0xC484bCD10aB8AD132843872DEb1a0AdC1473189c;
     bytes4 constant EIP1271_MAGIC_VALUE = 0x1626ba7e;
-    bytes32 constant EIP6492_MAGIC_VALUE = 0x6492649264926492649264926492649264926492649264926492649264926492;
     uint256 ownerPk = uint256(keccak256("owner"));
     address owner = vm.addr(ownerPk);
     uint256 permissionSignerPk = uint256(keccak256("permissionSigner"));

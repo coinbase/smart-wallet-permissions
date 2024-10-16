@@ -5,6 +5,7 @@ import {IERC1271} from "openzeppelin-contracts/contracts/interfaces/IERC1271.sol
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {CoinbaseSmartWallet} from "smart-wallet/CoinbaseSmartWallet.sol";
 import {EIP712} from "solady/utils/EIP712.sol";
+import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 
 /// @title SpendPermissionManager
 ///
@@ -153,17 +154,20 @@ contract SpendPermissionManager is EIP712 {
 
     /// @notice Approve a spend permission via a signature from the account.
     ///
+    /// @dev Compatible with ERC-6492 signatures (https://eips.ethereum.org/EIPS/eip-6492)
+    /// @dev Accounts are automatically deployed if init code present in signature.
+    ///
     /// @param spendPermission Details of the spend permission.
     /// @param signature Signed approval from the user.
     function permit(SpendPermission memory spendPermission, bytes memory signature) public {
-        // validate signature over spend permission data
+        // validate signature over spend permission data and optionally deploy account
         if (
-            IERC1271(spendPermission.account).isValidSignature(getHash(spendPermission), signature)
-                != IERC1271.isValidSignature.selector
+            !SignatureCheckerLib.isValidERC6492SignatureNowAllowSideEffects(
+                spendPermission.account, getHash(spendPermission), signature
+            )
         ) {
             revert UnauthorizedSpendPermission();
         }
-
         _approve(spendPermission);
     }
 

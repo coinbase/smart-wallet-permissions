@@ -223,7 +223,7 @@ contract PermitAndSpendTest is SpendPermissionManagerBase {
         assertEq(usage.spend, spend);
     }
 
-    function test_permitAndSpend_success_ether_eip6492PreDeploy(
+    function test_permitAndSpend_success_ether_erc6492PreDeploy(
         uint128 ownerPk,
         address spender,
         address recipient,

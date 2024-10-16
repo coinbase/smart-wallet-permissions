@@ -159,7 +159,7 @@ contract PermitTest is SpendPermissionManagerBase {
         mockSpendPermissionManager.permit(spendPermission, signature);
     }
 
-    function test_permit_6492_signature_success_preDeploy(
+    function test_permit_success_erc6492SignaturePreDeploy(
         uint128 ownerPk,
         address spender,
         address token,
@@ -194,14 +194,14 @@ contract PermitTest is SpendPermissionManagerBase {
         vm.assertEq(counterfactualAccount.code.length, 0);
 
         // submit the spend permission with the signature, see permit succeed
-        vm.startPrank(spender);
         mockSpendPermissionManager.permit(spendPermission, signature);
 
         // verify that the account is now deployed (has code) and that a call to isValidSignature returns true
         vm.assertGt(counterfactualAccount.code.length, 0);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
     }
 
-    function test_permit_6492_signature_success_alreadyDeployed(
+    function test_permit_success_erc6492SignatureAlreadyDeployed(
         uint128 ownerPk,
         address spender,
         address token,
@@ -237,7 +237,7 @@ contract PermitTest is SpendPermissionManagerBase {
         vm.assertGt(counterfactualAccount.code.length, 0);
 
         // submit the spend permission with the signature, see permit succeed
-        vm.startPrank(spender);
         mockSpendPermissionManager.permit(spendPermission, signature);
+        vm.assertTrue(mockSpendPermissionManager.isApproved(spendPermission));
     }
 }

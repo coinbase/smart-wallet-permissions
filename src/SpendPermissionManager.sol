@@ -154,22 +154,20 @@ contract SpendPermissionManager is EIP712 {
 
     /// @notice Approve a spend permission via a signature from the account.
     ///
-    /// @dev Compatible with EIP-6492 signatures (https://eips.ethereum.org/EIPS/eip-6492)
+    /// @dev Compatible with ERC-6492 signatures (https://eips.ethereum.org/EIPS/eip-6492)
+    /// @dev Accounts are automatically deployed if init code present in signature.
     ///
     /// @param spendPermission Details of the spend permission.
     /// @param signature Signed approval from the user.
     function permit(SpendPermission memory spendPermission, bytes memory signature) public {
-        // validate signature over spend permission data, compatible with EIP6492
+        // validate signature over spend permission data and optionally deploy account
         if (
-            SignatureCheckerLib.isValidERC6492SignatureNowAllowSideEffects(
+            !SignatureCheckerLib.isValidERC6492SignatureNowAllowSideEffects(
                 spendPermission.account, getHash(spendPermission), signature
             )
         ) {
-            _approve(spendPermission);
-        } else {
             revert UnauthorizedSpendPermission();
         }
-
         _approve(spendPermission);
     }
 

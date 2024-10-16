@@ -189,7 +189,7 @@ contract PermitTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
-        bytes memory signature = _signSpendPermission6492(spendPermission, ownerPk, 0);
+        bytes memory signature = _signSpendPermission6492(spendPermission, ownerPk, 0, owners);
         // verify that the account isn't deployed yet
         vm.assertEq(counterfactualAccount.code.length, 0);
 
@@ -232,7 +232,7 @@ contract PermitTest is SpendPermissionManagerBase {
             period: period,
             allowance: allowance
         });
-        bytes memory signature = _signSpendPermission6492(spendPermission, ownerPk, 0);
+        bytes memory signature = _signSpendPermission6492(spendPermission, ownerPk, 0, owners);
         // verify that the account is already deployed
         vm.assertGt(counterfactualAccount.code.length, 0);
 

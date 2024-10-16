@@ -53,7 +53,8 @@ contract SpendPermissionManagerBase is Base {
     function _signSpendPermission6492(
         SpendPermissionManager.SpendPermission memory spendPermission,
         uint256 ownerPk,
-        uint256 ownerIndex
+        uint256 ownerIndex,
+        bytes[] memory allInitialOwners
     ) internal view returns (bytes memory) {
         bytes32 spendPermissionHash = mockSpendPermissionManager.getHash(spendPermission);
         // construct replaySafeHash without relying on the account contract being deployed
@@ -76,9 +77,7 @@ contract SpendPermissionManagerBase is Base {
 
         // wrap inner sig in 6492 format ======================
         address factory = address(mockCoinbaseSmartWalletFactory);
-        bytes[] memory owners = new bytes[](1);
-        owners[0] = abi.encode(vm.addr(ownerPk));
-        bytes memory factoryCallData = abi.encodeWithSignature("createAccount(bytes[],uint256)", owners, 0);
+        bytes memory factoryCallData = abi.encodeWithSignature("createAccount(bytes[],uint256)", allInitialOwners, 0);
         bytes memory eip6492Signature = abi.encode(factory, factoryCallData, wrappedSignature);
         eip6492Signature = abi.encodePacked(eip6492Signature, EIP6492_MAGIC_VALUE);
         return eip6492Signature;

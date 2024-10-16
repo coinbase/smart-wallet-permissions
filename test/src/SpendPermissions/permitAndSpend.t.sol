@@ -222,4 +222,62 @@ contract PermitAndSpendTest is SpendPermissionManagerBase {
         assertEq(usage.end, _safeAddUint48(start, period));
         assertEq(usage.spend, spend);
     }
+
+    function test_permitAndSpend_success_ether_eip6492(
+        uint128 ownerPk,
+        address spender,
+        address recipient,
+        uint48 start,
+        uint48 end,
+        uint48 period,
+        uint160 allowance,
+        uint160 spend
+    ) public {
+        assumePayable(recipient);
+        vm.assume(ownerPk != 0);
+        vm.assume(start > 0);
+        vm.assume(end > 0);
+        vm.assume(start < end);
+        vm.assume(period > 0);
+        vm.assume(spend > 0);
+        vm.assume(allowance > 0);
+        vm.assume(allowance >= spend);
+        address ownerAddress = vm.addr(ownerPk);
+        bytes[] memory owners = new bytes[](2);
+        owners[0] = abi.encode(ownerAddress);
+        owners[1] = abi.encode(address(mockSpendPermissionManager));
+        address counterfactualAccount = mockCoinbaseSmartWalletFactory.getAddress(owners, 0);
+        vm.assume(recipient != counterfactualAccount); // otherwise balance checks can fail
+
+        // create a 6492-compliant signature for the spend permission
+        SpendPermissionManager.SpendPermission memory spendPermission = SpendPermissionManager.SpendPermission({
+            account: counterfactualAccount,
+            spender: spender,
+            token: NATIVE_TOKEN,
+            start: start,
+            end: end,
+            period: period,
+            allowance: allowance
+        });
+        vm.deal(counterfactualAccount, allowance);
+        vm.deal(recipient, 0);
+        assertEq(counterfactualAccount.balance, allowance);
+        assertEq(recipient.balance, 0);
+
+        bytes memory signature = _signSpendPermission6492(spendPermission, ownerPk, 0, owners);
+        // verify that the account isn't deployed yet
+        vm.assertEq(counterfactualAccount.code.length, 0);
+
+        vm.warp(start);
+
+        vm.startPrank(spender);
+        mockSpendPermissionManager.permitAndSpend(spendPermission, signature, recipient, spend);
+
+        assertEq(counterfactualAccount.balance, allowance - spend);
+        assertEq(recipient.balance, spend);
+        SpendPermissionManager.PeriodSpend memory usage = mockSpendPermissionManager.getCurrentPeriod(spendPermission);
+        assertEq(usage.start, start);
+        assertEq(usage.end, _safeAddUint48(start, period));
+        assertEq(usage.spend, spend);
+    }
 }

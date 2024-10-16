@@ -18,8 +18,7 @@ contract PermitAndSpendTest is SpendPermissionManagerBase {
 
     function test_permitAndSpend_revert_invalidSender(
         address sender,
-        address account,
-        address spender,
+        address permissionSigner,
         address recipient,
         uint48 start,
         uint48 end,
